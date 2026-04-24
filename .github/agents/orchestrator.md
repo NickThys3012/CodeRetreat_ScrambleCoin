@@ -158,7 +158,8 @@ All tests pass ✅
 EOF
 )" \
   --base main \
-  --head feature/issue-<number>-<short-slug>
+  --head feature/issue-<number>-<short-slug> \
+  --reviewer copilot
 ```
 
 Report the PR URL to the user and mark the pipeline as complete.
