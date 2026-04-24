@@ -46,7 +46,7 @@ dotnet build
 dotnet run --project src/ScrambleCoin.Web
 ```
 
-The Blazor Server app will start on `https://localhost:5001` / `http://localhost:5000`.
+The Blazor Server app will start on `https://localhost:7102` / `http://localhost:5026`.
 
 ### 3. Run All Tests
 
