@@ -4,9 +4,6 @@ description: >
   Coordinates the full implementation workflow for a GitHub Issue: delegates to
   the Implementation, Review, and Testing agents in sequence, prevents infinite
   loops, and opens a Pull Request on completion.
-tools:
-  - githubRepo
-  - run_terminal_cmd
 ---
 
 # Orchestrator Agent
@@ -161,7 +158,8 @@ All tests pass ✅
 EOF
 )" \
   --base main \
-  --head feature/issue-<number>-<short-slug>
+  --head feature/issue-<number>-<short-slug> \
+  --reviewer copilot
 ```
 
 Report the PR URL to the user and mark the pipeline as complete.

@@ -3,9 +3,6 @@ name: Planning Agent
 description: >
   Translates a feature idea or requirement into a well-structured GitHub Issue
   and optionally adds it to the GitHub Project board.
-tools:
-  - githubRepo
-  - run_terminal_cmd
 ---
 
 # Planning Agent

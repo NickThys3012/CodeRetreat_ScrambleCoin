@@ -3,12 +3,6 @@ name: Implementation Agent
 description: >
   Implements code for a given GitHub Issue or task, following the project
   conventions and the Scramblecoin game rules.
-tools:
-  - githubRepo
-  - run_terminal_cmd
-  - create_file
-  - edit_file
-  - view_file
 ---
 
 # Implementation Agent

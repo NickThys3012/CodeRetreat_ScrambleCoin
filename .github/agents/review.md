@@ -3,10 +3,6 @@ name: Review Agent
 description: >
   Reviews code or tests for correctness, quality, and adherence to project
   conventions. Produces an explicit Approved or Changes Required verdict.
-tools:
-  - githubRepo
-  - run_terminal_cmd
-  - view_file
 ---
 
 # Review Agent
