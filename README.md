@@ -27,7 +27,7 @@ ScrambleCoin.sln
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9) (`9.0.x`)
 - [SQL Server](https://www.microsoft.com/en-us/sql-server) or Docker (for integration tests)
-- [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) (for Playwright browser installation)
+- [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) (for Playwright browser installation — **macOS:** `brew install powershell`)
 
 ---
 
@@ -69,6 +69,8 @@ playwright install chromium
 ```
 
 **Option B: Using the PowerShell script bundled with the package**
+
+> **macOS prerequisite:** `brew install powershell` (one-time)
 
 ```bash
 # Build first so the script is present
