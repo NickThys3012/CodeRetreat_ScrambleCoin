@@ -15,6 +15,9 @@ labels: bug
 2. 
 3. 
 
+## Manual test steps
+<!-- If this bug requires manual verification, describe the steps -->
+
 ## Assumptions
 <!-- Any assumption made while writing this issue that has NOT been explicitly confirmed -->
 - 

@@ -27,6 +27,9 @@ labels: api
 - [ ] 
 - [ ] 
 
+## Manual test steps
+<!-- Describe how to manually verify the endpoint works end-to-end (e.g. with a bot or Postman) -->
+
 ## Assumptions
 <!-- Any assumption made while writing this issue that has NOT been explicitly confirmed -->
 - 

@@ -44,7 +44,24 @@ You are a code review agent for the **Scramblecoin CodeRetreat** project. You re
 - [ ] Are game rules in the `Domain` layer, not in handlers or components?
 - [ ] Is `IMediator.Send()` the only way Web dispatches work to Application?
 
+### Logging
+- [ ] Is `ILogger<T>` used everywhere — no static `Log.*` calls?
+- [ ] Is the Domain layer free of any logging?
+- [ ] Do game events (move submitted, game started/ended, bot joined) include `GameId`, `BotId`, and `Turn` as structured properties?
+- [ ] Are log levels appropriate? (`Information` for normal flow, `Warning` for rejections, `Error` for exceptions)
+- [ ] Is anything sensitive or overly noisy being logged? (full board state on every move = reject)
+
 ### Bot API contract
+
+**Every PR requires manual testing.** The Testing Agent always writes a manual test plan as a comment on the issue.
+
+Before approving, verify:
+- [ ] A manual test plan exists as a comment on the linked issue
+- [ ] The test plan covers the happy path and key edge cases
+- [ ] The manual tests have actually been executed and passed
+- [ ] The project status is `🧪 Needs Manual Test` → move to `✅ Done` only after manual tests pass
+
+**Block approval** if the manual test plan is missing or tests have not been executed.
 - [ ] Do new/changed endpoints follow the established route conventions (`/api/games/{gameId}/...`)?
 - [ ] Is `ProblemDetails` returned for all error cases?
 - [ ] Does any change **break the existing bot API contract**? If yes, is a version bump (`/api/v2/...`) included?

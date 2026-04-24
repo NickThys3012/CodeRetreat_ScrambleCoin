@@ -35,7 +35,9 @@ The complete game rules are in [`SCRAMBLECOIN_OVERVIEW.md`](../SCRAMBLECOIN_OVER
 | Bot communication | **REST API** (minimal API or controllers) |
 | Live updates | **SignalR** (board state pushed to spectators) |
 | Database | **SQL** via EF Core (game history, scores, leaderboard) |
+| Logging | **Serilog** + **Azure Application Insights** |
 | Testing | **xUnit** + **bUnit** (Blazor components) |
+| Hosting | **Azure** |
 
 ## Solution Structure
 
@@ -118,6 +120,51 @@ Breaking changes to this contract require a version bump (`/api/v2/...`).
 - Persist: games, turns, moves, bot registrations, scores, leaderboard
 - Repository interfaces in `Application`, implemented in `Infrastructure`
 - Migrations in `Infrastructure`, applied at startup in development
+
+## Logging Conventions
+
+**Stack: Serilog + Azure Application Insights**
+
+- Serilog configured in `Program.cs` (`ScrambleCoin.Web`) via `UseSerilog()`
+- Two sinks always active: **Console** (dev) + **Azure Application Insights** (production)
+- All code uses `ILogger<T>` — never call `Log.*` static methods directly
+- Domain layer has **zero logging** — pure logic only
+
+**Required NuGet packages (Web project):**
+```
+Serilog.AspNetCore
+Serilog.Sinks.ApplicationInsights
+Microsoft.ApplicationInsights.AspNetCore
+```
+
+**Required enrichers:**
+```csharp
+.Enrich.FromLogContext()
+.Enrich.WithMachineName()
+.Enrich.WithEnvironmentName()
+```
+
+**Always include these structured properties on game events:**
+```csharp
+_logger.ForContext("GameId", gameId)
+       .ForContext("BotId", botId)
+       .ForContext("Turn", turnNumber)
+       .LogInformation("Move submitted: {Move}", move);
+```
+This makes logs queryable in Azure Application Insights:
+```kusto
+traces | where customDimensions.GameId == "abc123"
+```
+
+**Log levels:**
+| Level | When |
+|-------|------|
+| `Information` | Game started/ended, move submitted, bot joined |
+| `Warning` | Invalid move rejected, unexpected but recoverable |
+| `Error` | Exceptions, DB failures |
+| `Debug` | Detailed flow — local dev only, never in production |
+
+**Never log:** full board state on every move, coin values mid-turn, anything in Domain.
 
 ## Build & Test Commands
 

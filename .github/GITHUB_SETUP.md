@@ -46,33 +46,32 @@ gh label create "good first issue" --color "7057ff" --description "Good starting
 Create milestones that map to the event phases:
 
 ```bash
-gh api repos/{owner}/{repo}/milestones \
-  --method POST -f title="🏗️ Game Engine Core" \
-  -f description="Board, tiles, obstacles, basic piece movement, coin spawning, turn structure" \
-  -f due_on="$(date -v+7d +%Y-%m-%dT00:00:00Z)"
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
+  --method POST -f title="🏗️ Project Setup" \
+  -f description="Solution scaffolding, CI/CD pipeline, NuGet packages, EF Core config, initial DB schema, DI wiring"
 
-gh api repos/{owner}/{repo}/milestones \
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
+  --method POST -f title="🎮 Game Engine Core" \
+  -f description="Board, tiles, obstacles, basic piece movement, coin spawning, turn structure"
+
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
   --method POST -f title="🤖 Bot API" \
-  -f description="REST endpoints for bot registration, board state, and move submission" \
-  -f due_on="$(date -v+14d +%Y-%m-%dT00:00:00Z)"
+  -f description="REST endpoints for bot registration, board state, and move submission"
 
-gh api repos/{owner}/{repo}/milestones \
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
   --method POST -f title="🎭 Piece Abilities" \
-  -f description="All special abilities: Charge, Jump, Ethereal, ice patches, pushes, buffs" \
-  -f due_on="$(date -v+21d +%Y-%m-%dT00:00:00Z)"
+  -f description="All special abilities: Charge, Jump, Ethereal, ice patches, pushes, buffs"
 
-gh api repos/{owner}/{repo}/milestones \
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
   --method POST -f title="🏆 Tournament & Leaderboard" \
-  -f description="Matchmaking, round-robin/knockout bracket, live leaderboard, SignalR spectator view" \
-  -f due_on="$(date -v+28d +%Y-%m-%dT00:00:00Z)"
+  -f description="Matchmaking, round-robin/knockout bracket, live leaderboard, SignalR spectator view"
 
-gh api repos/{owner}/{repo}/milestones \
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/milestones \
   --method POST -f title="🎉 Event Ready" \
-  -f description="Polish, stress testing, bot starter kit, documentation for participants" \
-  -f due_on="$(date -v+35d +%Y-%m-%dT00:00:00Z)"
+  -f description="Polish, stress testing, bot starter kit, documentation for participants"
 ```
 
-> Adjust `due_on` dates to match your actual timeline.
+> These 6 milestones are **fixed**. The Planning Agent will always assign issues to one of these — never create new ones without explicit approval.
 
 ---
 
@@ -92,11 +91,12 @@ Add the following fields via **⚙️ Settings → Fields → New field**:
 
 | Field name | Type | Options |
 |------------|------|---------|
-| `Status` | Single select | `📋 Backlog` · `🔜 Ready` · `🚧 In Progress` · `👀 In Review` · `✅ Done` |
+| `Status` | Single select | `📋 Backlog` · `🔜 Ready` · `🚧 In Progress` · `👀 In Review` · `🧪 Needs Manual Test` · `✅ Done` |
 | `Layer` | Single select | `Domain` · `Application` · `Infrastructure` · `Web/API` · `SignalR` · `Tournament` · `UI` |
 | `Priority` | Single select | `🔴 High` · `🟡 Medium` · `🟢 Low` |
-| `Milestone` | Iteration | *(link to the milestones you created)* |
 | `Size` | Single select | `XS` · `S` · `M` · `L` · `XL` |
+
+> **Milestone** is a default GitHub field — just click **+ Add field** and select it from the built-in options. No need to create it manually.
 
 ### 4.3 Views
 
@@ -109,6 +109,7 @@ Create these views (via **+ New view**):
 | `🧱 By Layer` | Board | `Layer` | *(none)* |
 | `🔴 Backlog` | Table | *(none)* | `Status = Backlog`, sorted by Priority |
 | `🚧 Active` | Table | *(none)* | `Status = In Progress OR In Review` |
+| `🧪 Needs Manual Test` | Table | *(none)* | `Status = Needs Manual Test` |
 
 ### 4.4 Link the repository
 
@@ -127,6 +128,8 @@ In **⚙️ Settings → Workflows**, enable:
 | `Pull request merged` | Set status → `✅ Done` |
 | `Item closed` | Set status → `✅ Done` |
 
+> The `🧪 Needs Manual Test` status is set by the Orchestrator after the Testing Agent completes. Every PR goes through this status — no exceptions.
+
 ---
 
 ## 5. Branch Protection
@@ -134,16 +137,23 @@ In **⚙️ Settings → Workflows**, enable:
 Set up branch protection for `main`:
 
 ```bash
-gh api repos/{owner}/{repo}/branches/main/protection \
+gh api repos/NickThys3012/CodeRetreat_ScrambleCoin/branches/main/protection \
   --method PUT \
   --header "Accept: application/vnd.github+json" \
-  -f required_status_checks='{"strict":true,"contexts":[]}' \
-  -F required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
-  -F enforce_admins=false \
-  -F restrictions=null \
-  -F allow_squash_merge=true \
-  -F allow_merge_commit=false \
-  -F allow_rebase_merge=false
+  --input - <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": []
+  },
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews": true
+  },
+  "enforce_admins": false,
+  "restrictions": null
+}
+EOF
 ```
 
 Or via the UI: **Settings → Branches → Add branch protection rule**:

@@ -57,7 +57,35 @@ Use `WebApplicationFactory` to test the bot-facing REST API end-to-end:
 - Full 5-turn game flow via Application layer with in-memory database
 - Tournament outcomes: win / draw / loss / ranking points
 
-## Conventions
+### Manual test plan
+
+After writing automated tests, **always** write a manual test plan. Add it as a comment on the GitHub Issue:
+
+```markdown
+## 🧪 Manual Test Plan
+
+**Preconditions:**
+- [ ] App is running locally (`dotnet run --project src/ScrambleCoin.Web`)
+- [ ] Database is migrated (`dotnet ef database update ...`)
+- [ ] (any other setup needed)
+
+**Test cases:**
+| # | Steps | Expected result | Pass/Fail |
+|---|-------|-----------------|-----------|
+| 1 | | | |
+| 2 | | | |
+
+**Edge cases to verify manually:**
+- 
+```
+
+Write test cases that cover:
+- The happy path as a real user/bot would experience it
+- The most likely failure scenarios (invalid move, full board, turn 5 edge cases)
+- Any UI behaviour that automated tests cannot verify (layout, live updates, animations)
+- Bot API round-trips (use the `.http` file or Postman collection in `bot-starter/`)
+
+The manual test plan is part of your deliverable — do not hand off without it.
 
 - Test project per architecture layer — match the structure in `tests/`
 - **xUnit** (`[Fact]` / `[Theory]`) throughout

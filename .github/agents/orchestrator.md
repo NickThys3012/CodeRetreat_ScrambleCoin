@@ -90,7 +90,13 @@ Invoke the **Testing Agent** with:
 - The issue number
 - The list of files changed by the Implementation Agent
 
-After it completes, commit the tests:
+After it completes, it will have:
+- Committed the automated tests
+- Posted a **manual test plan** as a comment on the issue
+
+Set the issue/PR status in GitHub Project to `🧪 Needs Manual Test`.
+
+Commit the tests:
 ```bash
 git add .
 git commit -m "test: add tests for <short description> (#<number>)
@@ -119,7 +125,15 @@ Invoke the **Review Agent** with:
 
 ---
 
-### Step 5 — Open Pull Request
+### Manual testing
+
+**Every PR goes through manual testing.** After the Testing Agent completes:
+1. The manual test plan is posted as a comment on the issue
+2. Set the project status to `🧪 Needs Manual Test`
+3. Open the PR — the reviewer executes the manual test plan before approving
+4. Once manual tests pass, status moves to `✅ Done`
+
+
 Push the branch and open a PR:
 ```bash
 git push origin feature/issue-<number>-<short-slug>

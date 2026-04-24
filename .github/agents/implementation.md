@@ -85,8 +85,11 @@ When given a list of changes from the Review Agent:
 - If an item is unclear or you disagree, note it explicitly rather than silently ignoring it
 - Do not introduce new unrelated changes in the same pass
 
-### 5. Output
-After completing the implementation:
+### Manual testing (always required)
+
+**Every change requires manual testing.** The Testing Agent writes the manual test plan — your job is to flag when you spot scenarios it might miss.
+
+Write the expected manual test scenarios in the issue so the Testing Agent has context to work from.
 - List the files changed and a one-line description of each change
 - Confirm which acceptance criteria are now satisfied
 - Flag any acceptance criteria you could **not** satisfy and explain why

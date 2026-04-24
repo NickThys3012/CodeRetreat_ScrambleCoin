@@ -17,6 +17,10 @@ labels: feature
      Each assumption here must be validated before or during implementation. -->
 - 
 
+## Manual Test Steps
+<!-- Does this need manual verification? (UI rendering, bot connecting, tournament flow, new ability)
+     If yes, describe exactly what to do and what the expected result is. -->
+
 ## Technical Notes
 <!-- Relevant rules from SCRAMBLECOIN_OVERVIEW.md, edge cases, constraints -->
 

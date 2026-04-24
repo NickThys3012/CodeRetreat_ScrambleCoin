@@ -74,7 +74,27 @@ Anything explicitly NOT part of this issue.
 - `tournament` – matchmaking, brackets, leaderboard
 - `ui` – Blazor spectator components
 
-### 3. Add to GitHub Project (optional)
+### 3. Assign to an existing milestone
+
+**⚠️ Never create a new milestone without explicit user approval.**
+
+The project has exactly **6 fixed milestones** that cover everything:
+
+| Milestone | Belongs here when... |
+|-----------|---------------------|
+| `🏗️ Project Setup` | Solution scaffolding, CI/CD, NuGet packages, EF Core setup, initial DB schema |
+| `🏗️ Game Engine Core` | Board, tiles, obstacles, movement, coin spawning, turn structure |
+| `🤖 Bot API` | REST endpoints for bot registration, board state, move submission |
+| `🎭 Piece Abilities` | Special abilities: Charge, Jump, Ethereal, ice patches, pushes, buffs |
+| `🏆 Tournament & Leaderboard` | Matchmaking, brackets, live scores, SignalR spectator view |
+| `🎉 Event Ready` | Polish, stress testing, bot starter kit, participant documentation |
+
+**Before assigning a milestone, ask yourself:**
+1. Could this issue live in an earlier milestone? If yes — use that one. Issues belong in the earliest milestone that makes sense.
+2. Does this issue span multiple milestones? If yes — **split it into smaller issues**, one per milestone.
+3. Does it genuinely not fit any of the six? If yes — **stop and ask the user** before creating a new milestone. Do not guess.
+
+A wrong milestone assignment is confusing but fixable. A new milestone created without reason pollutes the project overview permanently.
 
 If a Project board exists, add the issue using the GraphQL API:
 
@@ -96,9 +116,9 @@ gh api graphql -f query='
   }'
 ```
 
-### 4. Output
+### Manual testing
 
-After creating the issue, report back:
+**Every issue requires a manual test plan.** The Testing Agent will post it as a comment on the issue after implementation. Include a `Manual Test Steps` section in every issue so the Testing Agent knows what scenarios to cover.
 - The issue URL
 - A summary of the acceptance criteria
 - Suggested next step (e.g., "Hand off to the Orchestrator Agent with issue #N")

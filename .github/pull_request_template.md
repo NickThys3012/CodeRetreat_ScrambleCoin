@@ -8,9 +8,13 @@ Closes #<!-- issue number -->
      Leave blank if none. -->
 - 
 
----
+## Manual test plan
+<!-- The Testing Agent posts this as a comment on the linked issue.
+     Confirm it exists and has been executed before merging. -->
+- [ ] Manual test plan posted on the issue
+- [ ] Manual tests executed and passed
 
-## Layer(s) changed
+---
 - [ ] Domain
 - [ ] Application
 - [ ] Infrastructure
