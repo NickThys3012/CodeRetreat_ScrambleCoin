@@ -67,6 +67,7 @@ public class ArchitectureTests
         var refs = GetProjectReferences(doc);
 
         // Every reference must point at the Domain project
+        Assert.NotEmpty(refs);
         Assert.All(refs, r => Assert.Contains("ScrambleCoin.Domain", r));
     }
 
@@ -87,6 +88,7 @@ public class ArchitectureTests
         var doc = LoadCsproj(@"tests/ScrambleCoin.Domain.Tests/ScrambleCoin.Domain.Tests.csproj");
         var refs = GetProjectReferences(doc);
 
+        Assert.NotEmpty(refs);
         Assert.All(refs, r => Assert.Contains("ScrambleCoin.Domain", r));
     }
 
