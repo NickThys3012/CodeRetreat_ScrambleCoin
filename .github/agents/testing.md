@@ -3,12 +3,6 @@ name: Testing Agent
 description: >
   Writes unit tests, integration tests, and end-to-end tests for implemented
   code, based on the acceptance criteria of a GitHub Issue.
-tools:
-  - githubRepo
-  - run_terminal_cmd
-  - create_file
-  - edit_file
-  - view_file
 ---
 
 # Testing Agent
