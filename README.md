@@ -178,6 +178,90 @@ dotnet run --project src/ScrambleCoin.Web
 
 ---
 
+## ☁️ Azure Deployment
+
+### Prerequisites
+
+- [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) installed and logged in (`az login`)
+- An existing Azure **subscription** and **resource group**
+
+```bash
+# Create a resource group if you don't have one
+az group create --name <resource-group-name> --location westeurope
+```
+
+---
+
+### Deploy the infrastructure
+
+All Azure resources are defined in `infra/main.bicep`. Deploy with a single command:
+
+```bash
+az deployment group create \
+  --resource-group <resource-group-name> \
+  --template-file infra/main.bicep \
+  --parameters infra/main.parameters.json
+```
+
+> ⚠️ The `sqlAdminPassword` value in `infra/main.parameters.json` is a placeholder.
+> **Never commit a real password.** Pass the password securely on the CLI instead:
+
+```bash
+az deployment group create \
+  --resource-group <resource-group-name> \
+  --template-file infra/main.bicep \
+  --parameters infra/main.parameters.json \
+  --parameters sqlAdminPassword="<your-secure-password>"
+```
+
+---
+
+### Resources provisioned
+
+| Resource | Name (derived from `appName`) | SKU / Tier |
+|---|---|---|
+| Log Analytics Workspace | `scramblecoin-law` | PerGB2018, 30-day retention |
+| Application Insights | `scramblecoin-ai` | Workspace-based, web |
+| App Service Plan | `scramblecoin-plan` | B1 (Linux) |
+| App Service | `scramblecoin-web` | .NET 9 on Linux |
+| Azure SQL Server | `scramblecoin-sql` | SQL auth, v12 |
+| Azure SQL Database | `scramblecoin-db` | Basic (5 DTUs) |
+
+---
+
+### Cost estimate (West Europe, pay-as-you-go)
+
+| Resource | Estimated monthly cost |
+|---|---|
+| App Service Plan B1 | ~€12 |
+| Azure SQL Database Basic | ~€4 |
+| Application Insights | ~free (pay-per-use, low volume) |
+| Log Analytics Workspace | ~free (low ingestion volume) |
+| **Total** | **~€16–20 / month** |
+
+> Prices are approximate. Check the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) for up-to-date figures.
+
+---
+
+### Validate the Bicep template (without deploying)
+
+```bash
+# If Azure CLI with Bicep extension is available:
+az bicep build --file infra/main.bicep
+
+# Or using the standalone Bicep CLI:
+bicep build infra/main.bicep
+
+# Validate against your resource group (dry-run):
+az deployment group validate \
+  --resource-group <resource-group-name> \
+  --template-file infra/main.bicep \
+  --parameters infra/main.parameters.json \
+  --parameters sqlAdminPassword="<your-secure-password>"
+```
+
+---
+
 ## 🛠️ Useful Commands
 
 ```bash
