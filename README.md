@@ -222,7 +222,7 @@ az deployment group create \
 |---|---|---|
 | Log Analytics Workspace | `scramblecoin-law` | PerGB2018, 30-day retention |
 | Application Insights | `scramblecoin-ai` | Workspace-based, web |
-| App Service Plan | `scramblecoin-plan` | B1 (Linux) |
+| App Service Plan | `scramblecoin-plan` | F1 Free (Linux) |
 | App Service | `scramblecoin-web` | .NET 9 on Linux |
 | Azure SQL Server | `scramblecoin-sql` | SQL auth, v12 |
 | Azure SQL Database | `scramblecoin-db` | Basic (5 DTUs) |
@@ -233,11 +233,13 @@ az deployment group create \
 
 | Resource | Estimated monthly cost |
 |---|---|
-| App Service Plan B1 | ~€12 |
+| App Service Plan F1 Free | **€0** |
 | Azure SQL Database Basic | ~€4 |
 | Application Insights | ~free (pay-per-use, low volume) |
 | Log Analytics Workspace | ~free (low ingestion volume) |
-| **Total** | **~€16–20 / month** |
+| **Total** | **~€4–5 / month** |
+
+> ⚠️ **F1 Free tier limit:** 60 compute-minutes/day. Sufficient for dev and testing — upgrade to **B1 (~€12/month)** for the actual CodeRetreat event day to avoid service interruptions.
 
 > Prices are approximate. Check the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) for up-to-date figures.
 

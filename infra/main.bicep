@@ -58,15 +58,17 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // ---------------------------------------------------------------------------
-// App Service Plan (B1, Linux)
+// App Service Plan (F1 Free, Linux)
+// ⚠️  F1 has a 60-minute/day compute limit and no custom-domain SSL.
+//     Upgrade to B1 (Basic) for the actual CodeRetreat event day.
 // ---------------------------------------------------------------------------
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: planName
   location: location
   kind: 'linux'
   sku: {
-    name: 'B1'
-    tier: 'Basic'
+    name: 'F1'
+    tier: 'Free'
   }
   properties: {
     reserved: true // required for Linux plans
@@ -84,7 +86,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|9.0'
-      alwaysOn: false // B1 does not support Always On
+      alwaysOn: false // F1/Free does not support Always On
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
