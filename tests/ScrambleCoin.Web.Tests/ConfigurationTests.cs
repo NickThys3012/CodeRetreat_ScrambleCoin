@@ -77,13 +77,15 @@ public class ConfigurationTests
             StringComparison.OrdinalIgnoreCase);
     }
 
-    // ── Example file is NOT the ignored file (different name) ───────────────
+    // ── docker-compose.yml exposes SQL Server on port 1433 ──────────────────
     [Fact]
-    public void AppsettingsDevelopmentExampleJson_HasDifferentNameFromIgnoredFile()
+    public void DockerCompose_ExposesPort1433ForSqlServer()
     {
-        const string ignoredFile = "appsettings.Development.json";
-        const string exampleFile = "appsettings.Development.example.json";
+        var composePath = Path.Combine(RepoRoot, "docker-compose.yml");
 
-        Assert.NotEqual(ignoredFile, exampleFile, StringComparer.OrdinalIgnoreCase);
+        Assert.True(File.Exists(composePath), "docker-compose.yml not found at repo root.");
+
+        var content = File.ReadAllText(composePath);
+        Assert.Contains("1433:1433", content, StringComparison.Ordinal);
     }
 }
