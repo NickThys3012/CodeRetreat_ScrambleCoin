@@ -31,6 +31,35 @@ ScrambleCoin.sln
 
 ---
 
+## 🗄️ Local Development (Docker SQL Server)
+
+### 1. Start SQL Server
+
+```bash
+docker compose up -d
+```
+
+SQL Server 2022 will start on `localhost,1433`. Wait ~15 s for the health check to pass.
+
+### 2. Configure the connection string
+
+```bash
+cp src/ScrambleCoin.Web/appsettings.Development.example.json \
+   src/ScrambleCoin.Web/appsettings.Development.json
+```
+
+> `appsettings.Development.json` is gitignored — it stays on your machine only.
+
+### 3. Apply EF Core migrations
+
+```bash
+dotnet ef database update \
+  --project src/ScrambleCoin.Infrastructure \
+  --startup-project src/ScrambleCoin.Web
+```
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Restore & Build
