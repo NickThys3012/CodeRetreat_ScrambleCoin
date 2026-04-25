@@ -92,6 +92,24 @@ public class ArchitectureTests
         Assert.All(refs, r => Assert.Contains("ScrambleCoin.Domain", r));
     }
 
+    // ── Clean Architecture rule: Domain has no EF Core dependency ───────────
+    [Fact]
+    public void Infrastructure_HasNoEfCoreDependency_InDomain()
+    {
+        // Load the Domain assembly — it is copied to the output dir because
+        // Domain.Tests has a ProjectReference to ScrambleCoin.Domain.
+        var domainDllPath = Path.Combine(AppContext.BaseDirectory, "ScrambleCoin.Domain.dll");
+        var domainAssembly = System.Reflection.Assembly.LoadFrom(domainDllPath);
+
+        var referencedAssemblyNames = domainAssembly.GetReferencedAssemblies()
+            .Select(a => a.Name ?? string.Empty)
+            .ToList();
+
+        Assert.DoesNotContain(
+            referencedAssemblyNames,
+            name => name.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase));
+    }
+
     // ── Solution structure: all expected project names present in .sln ───────
     [Theory]
     [InlineData("ScrambleCoin.Domain")]

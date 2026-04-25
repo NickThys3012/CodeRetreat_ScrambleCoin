@@ -437,3 +437,6 @@ FodyWeavers.xsd
 logs/
 
 .idea/.idea.ScrambleCoin/.idea/
+
+# Local development secrets — never commit
+src/ScrambleCoin.Web/appsettings.Development.json

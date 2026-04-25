@@ -64,22 +64,16 @@ After writing automated tests, **always** write a manual test plan. Add it as a 
 - [ ] (any other setup needed)
 
 **Test cases:**
-| # | Steps | Expected result | Pass/Fail |
-|---|-------|-----------------|-----------|
-| 1 | | | |
-| 2 | | | |
+| # | Steps | Expected result | Pass | Fail |
+|---|-------|-----------------|------|------|
+| 1 | | | - [ ] | - [ ] |
+| 2 | | | - [ ] | - [ ] |
 
 **Edge cases to verify manually:**
 - 
 ```
 
-Write test cases that cover:
-- The happy path as a real user/bot would experience it
-- The most likely failure scenarios (invalid move, full board, turn 5 edge cases)
-- Any UI behaviour that automated tests cannot verify (layout, live updates, animations)
-- Bot API round-trips (use the `.http` file or Postman collection in `bot-starter/`)
-
-The manual test plan is part of your deliverable — do not hand off without it.
+The `Pass` and `Fail` columns each contain a checkbox (`- [ ]`). The reviewer checks exactly one per row — **Pass** if the test passes, **Fail** if it does not. Leave both unchecked if the step was skipped.
 
 - Test project per architecture layer — match the structure in `tests/`
 - **xUnit** (`[Fact]` / `[Theory]`) throughout
