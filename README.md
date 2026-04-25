@@ -220,12 +220,12 @@ az deployment group create \
 
 | Resource | Name (derived from `appName`) | SKU / Tier |
 |---|---|---|
-| Log Analytics Workspace | `scramblecoin-law` | PerGB2018, 30-day retention |
-| Application Insights | `scramblecoin-ai` | Workspace-based, web |
-| App Service Plan | `scramblecoin-plan` | F1 Free (Linux) |
-| App Service | `scramblecoin-web` | .NET 9 on Linux |
-| Azure SQL Server | `scramblecoin-sql` | SQL auth, v12 |
-| Azure SQL Database | `scramblecoin-db` | Basic (5 DTUs) |
+| Log Analytics Workspace | `log-scramblecoin` | PerGB2018, 30-day retention |
+| Application Insights | `appi-scramblecoin` | Workspace-based, web |
+| App Service Plan | `asp-scramblecoin` | F1 Free (Linux) |
+| App Service | `app-scramblecoin` | .NET 9 on Linux |
+| Azure SQL Server | `sql-scramblecoin` | SQL auth, v12 |
+| Azure SQL Database | `sqldb-scramblecoin` | Basic (5 DTUs) |
 
 ---
 

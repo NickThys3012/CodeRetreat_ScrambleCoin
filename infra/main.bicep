@@ -21,14 +21,14 @@ param sqlAdminLogin string
 param sqlAdminPassword string
 
 // ---------------------------------------------------------------------------
-// Derived names
-// ---------------------------------------------------------------------------
-var planName       = '${appName}-plan'
-var webName        = '${appName}-web'
-var aiName         = '${appName}-ai'
-var lawName        = '${appName}-law'
-var sqlServerName  = '${appName}-sql'
-var sqlDbName      = '${appName}-db'
+// Derived names — prefix-first per Microsoft CAF naming convention
+// https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
+var planName       = 'asp-${appName}'
+var webName        = 'app-${appName}'
+var aiName         = 'appi-${appName}'
+var lawName        = 'log-${appName}'
+var sqlServerName  = 'sql-${appName}'
+var sqlDbName      = 'sqldb-${appName}'
 
 // ---------------------------------------------------------------------------
 // Log Analytics Workspace (required by workspace-based Application Insights)
