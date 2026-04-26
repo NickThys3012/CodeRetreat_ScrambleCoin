@@ -58,21 +58,19 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // ---------------------------------------------------------------------------
-// App Service Plan (B1 Basic, Linux)
+// App Service Plan (B1 Basic, Windows)
 // B1 is the cheapest paid tier (~€12/mo). F1 Free is not available on this
-// subscription (quota = 0 for Free VMs).
+// subscription (quota = 0 for Free VMs). Linux plans are blocked on Visual
+// Studio Professional subscriptions (error 59911) — using Windows instead.
 // ---------------------------------------------------------------------------
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: planName
   location: location
-  kind: 'linux'
   sku: {
     name: 'B1'
     tier: 'Basic'
   }
-  properties: {
-    reserved: true // required for Linux plans
-  }
+  properties: {}
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +83,8 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|9.0'
-      alwaysOn: false // F1/Free does not support Always On
+      netFrameworkVersion: 'v9.0'
+      alwaysOn: false
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

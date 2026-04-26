@@ -222,8 +222,8 @@ az deployment group create \
 |---|---|---|
 | Log Analytics Workspace | `log-scramblecoin` | PerGB2018, 30-day retention |
 | Application Insights | `appi-scramblecoin` | Workspace-based, web |
-| App Service Plan | `asp-scramblecoin` | B1 Basic (Linux) |
-| App Service | `app-scramblecoin` | .NET 9 on Linux |
+| App Service Plan | `asp-scramblecoin` | B1 Basic (Windows) |
+| App Service | `app-scramblecoin` | .NET 9 on Windows |
 | Azure SQL Server | `sql-scramblecoin` | SQL auth, v12 |
 | Azure SQL Database | `sqldb-scramblecoin` | Basic (5 DTUs) |
 
