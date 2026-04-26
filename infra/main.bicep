@@ -58,17 +58,17 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // ---------------------------------------------------------------------------
-// App Service Plan (F1 Free, Linux)
-// ⚠️  F1 has a 60-minute/day compute limit and no custom-domain SSL.
-//     Upgrade to B1 (Basic) for the actual CodeRetreat event day.
+// App Service Plan (B1 Basic, Linux)
+// B1 is the cheapest paid tier (~€12/mo). F1 Free is not available on this
+// subscription (quota = 0 for Free VMs).
 // ---------------------------------------------------------------------------
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: planName
   location: location
   kind: 'linux'
   sku: {
-    name: 'F1'
-    tier: 'Free'
+    name: 'B1'
+    tier: 'Basic'
   }
   properties: {
     reserved: true // required for Linux plans
