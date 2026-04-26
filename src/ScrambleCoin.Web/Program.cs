@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
 using ScrambleCoin.Infrastructure.Persistence;
@@ -44,6 +45,9 @@ try
     // ── Blazor Server ─────────────────────────────────────────────────────────
     builder.Services.AddRazorPages();
     builder.Services.AddServerSideBlazor();
+
+    // ── MudBlazor ─────────────────────────────────────────────────────────────
+    builder.Services.AddMudServices();
 
     // ── MediatR ───────────────────────────────────────────────────────────────
     builder.Services.AddMediatR(cfg =>

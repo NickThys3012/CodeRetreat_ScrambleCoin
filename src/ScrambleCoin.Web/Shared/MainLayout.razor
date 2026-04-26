@@ -1,5 +1,10 @@
 @inherits LayoutComponentBase
 
+<MudThemeProvider Theme="_darkTheme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 <div class="page">
     <main>
         <article class="content px-4">
@@ -7,3 +12,20 @@
         </article>
     </main>
 </div>
+
+@code {
+    private readonly MudTheme _darkTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#7C4DFF",
+            Secondary = "#FFD740",
+            Background = "#121212",
+            Surface = "#1E1E1E",
+            AppbarBackground = "#1E1E1E",
+            DrawerBackground = "#1E1E1E",
+            TextPrimary = "#FFFFFF",
+            TextSecondary = "rgba(255,255,255,0.7)"
+        }
+    };
+}
