@@ -139,7 +139,7 @@ gh pr create \
   --title "<issue title>" \
   --body "$(cat <<'EOF'
 ## Summary
-Implements #<number>.
+Closes #<number>.
 
 ## Changes
 - <file 1>: <what changed>
@@ -161,6 +161,8 @@ EOF
   --head feature/issue-<number>-<short-slug> \
   --reviewer copilot
 ```
+
+> **Important:** `Closes #<number>` in the PR body is the GitHub keyword that links the PR to the issue and auto-closes it on merge. Always use `Closes #N`, never `Implements #N` or `Fixes #N` (unless it's a bug fix).
 
 Report the PR URL to the user and mark the pipeline as complete.
 
