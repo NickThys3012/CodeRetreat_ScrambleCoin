@@ -19,8 +19,6 @@ namespace ScrambleCoin.Web.Tests;
 ///   AC6b — MudText used in Pages/Index.razor
 ///   AC6c — MudPaper used in Pages/Index.razor
 ///
-/// DI registration tests (ISnackbar / IDialogService resolvable) live in
-/// DiRegistrationTests.cs which already owns the shared WebApplicationFactory.
 /// </summary>
 public class MudBlazorIntegrationTests
 {
@@ -65,7 +63,7 @@ public class MudBlazorIntegrationTests
         var content = File.ReadAllText(csprojPath);
 
         Assert.Contains(
-            "9.4.0",
+            "Include=\"MudBlazor\" Version=\"9.4.0\"",
             content,
             StringComparison.Ordinal);
     }
