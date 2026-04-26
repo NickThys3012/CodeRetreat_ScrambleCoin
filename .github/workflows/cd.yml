@@ -53,7 +53,7 @@ jobs:
           --output ${{ env.PUBLISH_DIR }}
 
       - name: Install EF Core CLI tools
-        run: dotnet tool install --global dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 9.*
 
       - name: Run EF Core migrations
         env:
@@ -62,6 +62,7 @@ jobs:
           dotnet ef database update
           --project src/ScrambleCoin.Infrastructure
           --startup-project src/ScrambleCoin.Web
+          --configuration Release
           --no-build
 
       - name: Deploy to Azure App Service
