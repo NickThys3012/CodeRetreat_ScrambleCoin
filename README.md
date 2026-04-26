@@ -222,7 +222,7 @@ az deployment group create \
 |---|---|---|
 | Log Analytics Workspace | `log-scramblecoin` | PerGB2018, 30-day retention |
 | Application Insights | `appi-scramblecoin` | Workspace-based, web |
-| App Service Plan | `asp-scramblecoin` | B1 Basic (Windows) |
+| App Service Plan | `asp-scramblecoin` | D1 Shared (Windows) |
 | App Service | `app-scramblecoin` | .NET 9 on Windows |
 | Azure SQL Server | `sql-scramblecoin` | SQL auth, v12 |
 | Azure SQL Database | `sqldb-scramblecoin` | Basic (5 DTUs) |
@@ -233,11 +233,11 @@ az deployment group create \
 
 | Resource | Estimated monthly cost |
 |---|---|
-| App Service Plan B1 Basic | ~€12 |
+| App Service Plan D1 Shared | ~€8 |
 | Azure SQL Database Basic | ~€4 |
 | Application Insights | ~free (pay-per-use, low volume) |
 | Log Analytics Workspace | ~free (low ingestion volume) |
-| **Total** | **~€16–17 / month** |
+| **Total** | **~€12–13 / month** |
 
 > ℹ️ F1 Free tier is not available on this subscription (quota = 0). B1 Basic is the cheapest available option.
 

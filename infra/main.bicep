@@ -58,17 +58,17 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // ---------------------------------------------------------------------------
-// App Service Plan (B1 Basic, Windows)
-// B1 is the cheapest paid tier (~€12/mo). F1 Free is not available on this
-// subscription (quota = 0 for Free VMs). Linux plans are blocked on Visual
-// Studio Professional subscriptions (error 59911) — using Windows instead.
+// App Service Plan (D1 Shared, Windows)
+// D1 Shared is the cheapest non-free tier (~€8/mo). F1/B1 are blocked on
+// this Visual Studio Professional subscription (quota = 0 for Free/Basic VMs).
+// D1 uses the Shared VM pool which has separate quota.
 // ---------------------------------------------------------------------------
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: planName
   location: location
   sku: {
-    name: 'B1'
-    tier: 'Basic'
+    name: 'D1'
+    tier: 'Shared'
   }
   properties: {}
 }
