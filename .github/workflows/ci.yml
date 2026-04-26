@@ -37,6 +37,10 @@ jobs:
           --results-directory ./TestResults
           --collect:"XPlat Code Coverage"
           --settings coverlet.runsettings
+          --
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Threshold=85
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ThresholdType=line
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ThresholdStat=total
 
       - name: Generate coverage report
         if: always()

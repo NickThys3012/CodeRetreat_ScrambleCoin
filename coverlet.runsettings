@@ -5,6 +5,10 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
+          <!-- Enforce 85% line coverage across all source projects -->
+          <Threshold>85</Threshold>
+          <ThresholdType>line</ThresholdType>
+          <ThresholdStat>total</ThresholdStat>
           <!-- Exclude test projects, migrations, and program entry points -->
           <Exclude>[*.Tests]*,[*.E2E.Tests]*</Exclude>
           <ExcludeByFile>**/Migrations/**/*.cs,**/Program.cs</ExcludeByFile>
