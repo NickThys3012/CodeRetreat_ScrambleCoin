@@ -100,7 +100,8 @@ public class InfrastructureTemplateTests
     {
         var content = File.ReadAllText(BicepFilePath);
 
-        Assert.Contains("DOTNETCORE|9.0", content, StringComparison.Ordinal);
+        Assert.Contains("netFrameworkVersion", content, StringComparison.Ordinal);
+        Assert.Contains("v9.0", content, StringComparison.Ordinal);
     }
 
     // ── Security: @secure() decorator & no hardcoded password ────────────────
