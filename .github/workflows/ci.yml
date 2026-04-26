@@ -35,6 +35,21 @@ jobs:
           --configuration Release
           --logger "trx;LogFileName=results.trx"
           --results-directory ./TestResults
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+
+      - name: Generate coverage report
+        if: always()
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./CoverageReport" \
+            -reporttypes:"HtmlInline_AzurePipelines;Cobertura;MarkdownSummaryGithub"
+
+      - name: Write coverage summary to job
+        if: always()
+        run: cat ./CoverageReport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test results
         if: always()
@@ -42,4 +57,12 @@ jobs:
         with:
           name: test-results
           path: ./TestResults/**/*.trx
+          retention-days: 14
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./CoverageReport/
           retention-days: 14
