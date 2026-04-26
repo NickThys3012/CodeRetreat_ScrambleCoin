@@ -178,6 +178,56 @@ dotnet run --project src/ScrambleCoin.Web
 
 ---
 
+## 🤖 GitHub Actions
+
+Two workflows run automatically on every PR and every merge to `main`.
+
+### Workflows
+
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| **CI — Build & Test** | `.github/workflows/ci.yml` | Pull request → `main` | Restores, builds (Release), runs all tests, uploads TRX results as artifact. Fails the PR if any test fails. |
+| **CD — Deploy** | `.github/workflows/cd.yml` | Push to `main` | Restores, builds (Release), runs all tests, publishes the web app, runs EF Core migrations against Azure SQL, deploys to Azure App Service. |
+
+> ⚠️ The CD pipeline will **not deploy** if any test fails — the test step runs before publish and deploy.
+
+---
+
+### Required GitHub Secrets
+
+Before the CD workflow can run you must add two repository secrets
+(**Settings → Secrets and variables → Actions → New repository secret**):
+
+| Secret name | Description |
+|---|---|
+| `AZURE_WEBAPP_PUBLISH_PROFILE` | The XML publish profile downloaded from Azure Portal (see below). |
+| `AZURE_SQL_CONNECTION_STRING` | Full ADO.NET connection string for the Azure SQL database, used by `dotnet ef database update`. |
+
+#### How to get the publish profile
+
+1. Open the [Azure Portal](https://portal.azure.com) and navigate to **App Services → app-scramblecoin**.
+2. Click **Get publish profile** in the top toolbar.
+3. A `.PublishSettings` XML file is downloaded — copy its **entire contents**.
+4. Paste the contents as the value of the `AZURE_WEBAPP_PUBLISH_PROFILE` secret in GitHub.
+
+#### Example `AZURE_SQL_CONNECTION_STRING` format
+
+```
+Server=tcp:sql-scramblecoin.database.windows.net,1433;Initial Catalog=sqldb-scramblecoin;Persist Security Info=False;User ID=<admin>;Password=<password>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+```
+
+---
+
+### Branch protection (required status check)
+
+To block PR merges when tests fail, add `build-and-test` as a required status check:
+
+1. **Settings → Branches → Add branch protection rule** for `main`.
+2. Enable **Require status checks to pass before merging**.
+3. Search for and add `build-and-test`.
+
+---
+
 ## ☁️ Azure Deployment
 
 ### Prerequisites
