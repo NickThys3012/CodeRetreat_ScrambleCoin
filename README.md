@@ -187,7 +187,7 @@ dotnet run --project src/ScrambleCoin.Web
 
 ```bash
 # Create a resource group if you don't have one
-az group create --name <resource-group-name> --location northeurope
+az group create --name <resource-group-name> --location westeurope
 ```
 
 ---
@@ -229,7 +229,7 @@ az deployment group create \
 
 ---
 
-### Cost estimate (North Europe, pay-as-you-go)
+### Cost estimate (West Europe, pay-as-you-go)
 
 | Resource | Estimated monthly cost |
 |---|---|
