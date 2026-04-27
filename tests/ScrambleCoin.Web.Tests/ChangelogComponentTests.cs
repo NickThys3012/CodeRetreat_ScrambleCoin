@@ -222,6 +222,7 @@ public sealed class ChangelogComponentTests
             cut.WaitForAssertion(
                 () => Assert.Contains("Fixed login bug", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
+            Assert.Contains("Improved performance", cut.Markup, StringComparison.Ordinal);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -286,9 +287,9 @@ public sealed class ChangelogComponentTests
     // T9 — Malformed JSON → loading spinner not visible after init
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>After OnInitializedAsync completes the loading spinner must be hidden, even on error.</summary>
+    /// <summary>Valid JSON whose root is not an array is caught and the loading spinner is not shown after initialization.</summary>
     [Fact]
-    public async Task Changelog_WhenJsonIsMalformed_LoadingSpinnerIsNotVisible()
+    public async Task Changelog_WhenJsonIsWrongSchema_LoadingSpinnerIsNotVisible()
     {
         var dir = CreateTempDir();
         try

@@ -139,6 +139,21 @@ public class ReleaseWorkflowTests
         Assert.Contains("PATCH=0", yaml, StringComparison.Ordinal);
     }
 
+    /// <summary>When the minor label fires, PATCH is reset to 0 but MINOR is not reset.</summary>
+    [Fact]
+    public void ReleaseWorkflow_ResetPatchOnMinorBump()
+    {
+        var yaml = ReadReleaseWorkflow();
+        // Both branches emit "PATCH=0" — verify it exists
+        Assert.Contains("PATCH=0", yaml, StringComparison.Ordinal);
+        // The minor branch should not reset MINOR=0 — only the major branch does
+        var minorBranchStart = yaml.IndexOf("grep -qw \"minor\"", StringComparison.Ordinal);
+        var elseBranchStart  = yaml.IndexOf("# patch label", StringComparison.Ordinal);
+        Assert.True(minorBranchStart >= 0, "Minor label branch not found.");
+        var minorBranchText = yaml[minorBranchStart..elseBranchStart];
+        Assert.DoesNotContain("MINOR=0", minorBranchText, StringComparison.Ordinal);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // AC7 — minor label → minor bump
     // ═══════════════════════════════════════════════════════════════════════
