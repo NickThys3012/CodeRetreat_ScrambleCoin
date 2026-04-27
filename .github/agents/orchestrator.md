@@ -36,12 +36,48 @@ Issue
 ## Step-by-step instructions
 
 ### Step 0 — Setup
+
 ```bash
 gh issue view <number>
 ```
 - Read the issue title, body, and acceptance criteria
+
+**⛔ Check the project board status before doing anything else:**
+
+```bash
+gh api graphql -f query='
+  query {
+    repository(owner: "NickThys3012", name: "CodeRetreat_ScrambleCoin") {
+      issue(number: <number>) {
+        projectItems(first: 5) {
+          nodes {
+            fieldValues(first: 10) {
+              nodes {
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  name
+                  field { ... on ProjectV2SingleSelectField { name } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }'
+```
+
+Find the field named `Status` and read its value. If the status is **`Backlog`**, **STOP immediately** and report to the user:
+
+> ⛔ Issue #N is currently in **Backlog** status on the project board and cannot be implemented yet.
+> Move it to **Ready** (or another active status) on the project board before handing it to the Orchestrator.
+
+Do **not** create a branch, do **not** invoke any agents. Exit the pipeline.
+
+Only continue if the status is anything other than `Backlog` (e.g. `Ready`, `In Progress`, `🧪 Needs Manual Test`). If the issue is not on any project board, continue normally.
+
 - Create a feature branch:
   ```bash
+  git checkout main && git pull
   git checkout -b feature/issue-<number>-<short-slug>
   ```
 - Track two counters: `impl_cycles = 0`, `test_cycles = 0`
@@ -132,11 +168,38 @@ Invoke the **Review Agent** with:
 
 
 Push the branch and open a PR:
+
+**Step 5a — Determine the version label**
+
+Read the issue's labels and map them to a version bump:
+
+| Issue label | Version label to apply |
+|-------------|------------------------|
+| `bug` | `patch` |
+| `refactor` | `patch` |
+| `test` | `patch` |
+| `feature` | `minor` |
+| `api` | `minor` |
+| `signalr` | `minor` |
+| `tournament` | `minor` |
+| `ui` | `minor` |
+| _(none / unknown)_ | `patch` (default) |
+
+> **Note:** `major` is never applied automatically — it requires a deliberate human decision. If you believe the changes are breaking, apply `patch` and note it in the PR body for the reviewer to upgrade if needed.
+
+```bash
+# Get issue labels
+gh issue view <number> --json labels -q '.labels[].name'
+```
+
+**Step 5b — Create the PR with the version label**
+
 ```bash
 git push origin feature/issue-<number>-<short-slug>
 
 gh pr create \
   --title "<issue title>" \
+  --label "<patch|minor>" \
   --body "$(cat <<'EOF'
 ## Summary
 Closes #<number>.
@@ -155,6 +218,9 @@ All tests pass ✅
 ## Review cycles
 - Implementation: <impl_cycles> cycle(s)
 - Tests: <test_cycles> cycle(s)
+
+## Version bump
+<!-- version label applied automatically based on issue labels -->
 EOF
 )" \
   --base main \
