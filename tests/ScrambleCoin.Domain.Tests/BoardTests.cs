@@ -11,14 +11,16 @@ public class BoardTests
     // ── Construction ──────────────────────────────────────────────────────────
 
     [Fact]
-    public void Board_Constructor_ShouldCreateExactly64Tiles()
+    public void Board_Constructor_ShouldCreateExactly64Tiles_AllEmpty()
     {
         var board = new Board();
         var count = 0;
         for (var row = 0; row < 8; row++)
         for (var col = 0; col < 8; col++)
         {
-            board.GetTile(new Position(row, col));
+            var tile = board.GetTile(new Position(row, col));
+            Assert.NotNull(tile);
+            Assert.True(tile.IsEmpty, $"Tile at ({row},{col}) should be empty after construction.");
             count++;
         }
         Assert.Equal(64, count);
