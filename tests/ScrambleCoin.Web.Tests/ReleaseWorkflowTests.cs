@@ -2,7 +2,7 @@ namespace ScrambleCoin.Web.Tests;
 
 /// <summary>
 /// Static-analysis tests for the GitHub Actions release workflow introduced in Issue #18.
-/// Verifies structural requirements of <c>.github/workflows/release.yml</c> without
+/// Verifies structural requirements of <c>.github/workflows/release-and-deploy.yml</c> without
 /// executing the workflow — confirming that triggers, permissions, versioning logic,
 /// tagging, GitHub Release creation, and changelog.json update steps are correctly defined.
 ///
@@ -43,8 +43,8 @@ public class ReleaseWorkflowTests
 
     private static string ReadReleaseWorkflow()
     {
-        var path = Path.Combine(FindWorkflowsDir(), "release.yml");
-        Assert.True(File.Exists(path), $"release.yml not found: {path}");
+        var path = Path.Combine(FindWorkflowsDir(), "release-and-deploy.yml");
+        Assert.True(File.Exists(path), $"release-and-deploy.yml not found: {path}");
         return File.ReadAllText(path);
     }
 
@@ -52,7 +52,7 @@ public class ReleaseWorkflowTests
     // AC1 — Trigger
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>release.yml is triggered by push events to main.</summary>
+    /// <summary>release-and-deploy.yml is triggered by push events to main.</summary>
     [Fact]
     public void ReleaseWorkflow_TriggersOnPushToMain()
     {
@@ -66,7 +66,7 @@ public class ReleaseWorkflowTests
     // AC2 + AC3 — Permissions
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>release.yml grants contents: write so it can push tags and commits.</summary>
+    /// <summary>release-and-deploy.yml grants contents: write so it can push tags and commits.</summary>
     [Fact]
     public void ReleaseWorkflow_HasContentsWritePermission()
     {
@@ -75,7 +75,7 @@ public class ReleaseWorkflowTests
         Assert.Contains("contents: write", yaml, StringComparison.Ordinal);
     }
 
-    /// <summary>release.yml grants pull-requests: read so it can read merged PR labels.</summary>
+    /// <summary>release-and-deploy.yml grants pull-requests: read so it can read merged PR labels.</summary>
     [Fact]
     public void ReleaseWorkflow_HasPullRequestsReadPermission()
     {
@@ -345,7 +345,7 @@ public class ReleaseWorkflowTests
         const string stepMarker = "Commit and push changelog.json";
         var stepIndex = yaml.IndexOf(stepMarker, StringComparison.Ordinal);
         Assert.True(stepIndex >= 0,
-            $"Could not find the step named \"{stepMarker}\" in release.yml.");
+            $"Could not find the step named \"{stepMarker}\" in release-and-deploy.yml.");
 
         var stepBody = yaml[stepIndex..];
 

@@ -2,7 +2,7 @@ namespace ScrambleCoin.Web.Tests;
 
 /// <summary>
 /// Static-analysis tests for the GitHub Actions workflow YAML files introduced in Issue #4.
-/// These tests verify structural requirements of ci.yml and cd.yml without executing the
+/// These tests verify structural requirements of ci.yml and release-and-deploy.yml without executing the
 /// workflows themselves — ensuring that required job names, SDK versions, steps, secrets,
 /// and deployment targets are present and correctly configured.
 /// </summary>
@@ -99,14 +99,14 @@ public class CiCdWorkflowTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // cd.yml — Deploy on merge to main
+    // release-and-deploy.yml — Deploy on merge to main
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Test 7 — The CD workflow is triggered by pushes to main.</summary>
     [Fact]
     public void CdWorkflow_TriggersOnPushToMain()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("push:", yaml, StringComparison.Ordinal);
         Assert.Contains("branches:", yaml, StringComparison.Ordinal);
@@ -117,7 +117,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_UsesNET9Sdk()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("dotnet-version: '9.0.x'", yaml, StringComparison.Ordinal);
     }
@@ -126,7 +126,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_RunsDotnetTest()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("dotnet test", yaml, StringComparison.Ordinal);
     }
@@ -135,7 +135,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_PublishesWebApp()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("dotnet publish", yaml, StringComparison.Ordinal);
         Assert.Contains("ScrambleCoin.Web", yaml, StringComparison.Ordinal);
@@ -145,7 +145,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_InstallsEfCoreTool()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("dotnet tool install", yaml, StringComparison.Ordinal);
         Assert.Contains("dotnet-ef", yaml, StringComparison.Ordinal);
@@ -159,7 +159,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_EfToolPinnedToVersion9()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("--version 9.", yaml, StringComparison.Ordinal);
     }
@@ -168,7 +168,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_RunsMigrations()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("dotnet ef database update", yaml, StringComparison.Ordinal);
     }
@@ -180,19 +180,19 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_MigrationsUseReleaseConfiguration()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         // Verify both tokens appear in the file — the migration step carries
         // --configuration Release alongside the dotnet ef database update command.
         var migrationIndex = yaml.IndexOf("dotnet ef database update", StringComparison.Ordinal);
-        Assert.True(migrationIndex >= 0, "'dotnet ef database update' not found in cd.yml.");
+        Assert.True(migrationIndex >= 0, "'dotnet ef database update' not found in release-and-deploy.yml.");
 
         // Look for '--configuration Release' anywhere after the migration command
         // (multi-line YAML scalar: the flag appears on a subsequent line of the same step).
         var releaseIndex = yaml.IndexOf("--configuration Release", migrationIndex, StringComparison.Ordinal);
         Assert.True(
             releaseIndex >= 0,
-            "'--configuration Release' was not found after 'dotnet ef database update' in cd.yml.");
+            "'--configuration Release' was not found after 'dotnet ef database update' in release-and-deploy.yml.");
     }
 
     /// <summary>
@@ -202,7 +202,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_DeploysToAzureWebApp()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("azure/webapps-deploy", yaml, StringComparison.Ordinal);
         Assert.Contains("app-scramblecoin", yaml, StringComparison.Ordinal);
@@ -216,7 +216,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_UsesPublishProfileSecret()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("AZURE_WEBAPP_PUBLISH_PROFILE", yaml, StringComparison.Ordinal);
     }
@@ -229,7 +229,7 @@ public class CiCdWorkflowTests
     [Fact]
     public void CdWorkflow_UsesSqlConnectionStringSecret()
     {
-        var yaml = ReadWorkflow("cd.yml");
+        var yaml = ReadWorkflow("release-and-deploy.yml");
 
         Assert.Contains("AZURE_SQL_CONNECTION_STRING", yaml, StringComparison.Ordinal);
     }
