@@ -109,18 +109,26 @@ public sealed class Board
         }
         else if (isDiagonal)
         {
-            // A diagonal move from (r, c) to (r+dr, c+dc) passes through the
-            // corner shared by tiles (r, c)–(r, c+dc) and (r, c)–(r+dr, c).
-            // It is blocked when BOTH of these two edges have a fence:
-            //   • horizontal edge: (r, c) ↔ (r+dr, c)  [same col, adjacent row]
-            //   • vertical edge:   (r, c) ↔ (r, c+dc)  [same row, adjacent col]
-            var cornerA = new Position(from.Row + rowDiff, from.Col); // vertically adjacent
-            var cornerB = new Position(from.Row, from.Col + colDiff); // horizontally adjacent
+            // A diagonal move from A=(r,c) to B=(r+dr,c+dc) is blocked when two
+            // fences form a corner at either intermediate tile:
+            //   cornerA = (r+dr, c)  — shares a row with B, a col with A
+            //   cornerB = (r, c+dc)  — shares a col with B, a row with A
+            //
+            // Corner at A: fence A↔cornerA  AND  fence A↔cornerB  → L-shape at A
+            // Corner at B: fence B↔cornerA  AND  fence B↔cornerB  → L-shape at B
+            var cornerA = new Position(from.Row + rowDiff, from.Col); // vertically adjacent to from
+            var cornerB = new Position(from.Row, from.Col + colDiff); // horizontally adjacent to from
 
-            var fenceOnVertical   = _fences.Any(f => f.IsOnEdge(from, cornerA));
-            var fenceOnHorizontal = _fences.Any(f => f.IsOnEdge(from, cornerB));
+            // Corner at the 'from' side
+            var fenceFromVertical   = _fences.Any(f => f.IsOnEdge(from, cornerA));
+            var fenceFromHorizontal = _fences.Any(f => f.IsOnEdge(from, cornerB));
+            if (fenceFromVertical && fenceFromHorizontal)
+                return false;
 
-            if (fenceOnVertical && fenceOnHorizontal)
+            // Corner at the 'to' side (symmetric case — blocks *entry* into to)
+            var fenceToVertical   = _fences.Any(f => f.IsOnEdge(to, cornerA));
+            var fenceToHorizontal = _fences.Any(f => f.IsOnEdge(to, cornerB));
+            if (fenceToVertical && fenceToHorizontal)
                 return false;
         }
 
