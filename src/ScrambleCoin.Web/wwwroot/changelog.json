@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.1.4",
+    "date": "2026-04-27",
+    "title": "fix: combine cd.yml + release.yml into single sequential workflow",
+    "notes": [
+      "fix: combine cd.yml + release.yml into single sequential workflow by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/25"
+    ]
+  },
+  {
     "version": "v1.1.3",
     "date": "2026-04-27",
     "title": "fix: use GH_PAT to bypass branch protection on changelog push (#21)",
