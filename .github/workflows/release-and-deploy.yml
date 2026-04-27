@@ -1,4 +1,4 @@
-name: Release — Tag, Publish & Changelog
+name: Release & Deploy
 
 on:
   push:
@@ -10,12 +10,16 @@ permissions:
   pull-requests: read
 
 jobs:
-  release:
-    name: release
+  release-and-deploy:
+    name: release-and-deploy
     runs-on: ubuntu-latest
 
+    env:
+      DOTNET_NOLOGO: true
+      PUBLISH_DIR: ./publish
+
     steps:
-      # ── 1. Checkout (full history so we can read tags) ────────────────────────
+      # ── 1. Checkout (full history + PAT so we can push back to main) ──────────
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -44,7 +48,6 @@ jobs:
         run: |
           LABELS="${{ steps.pr-info.outputs.labels }}"
 
-          # Latest semver tag; default v1.0.0 if none exists
           LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
           [ -z "$LATEST" ] && LATEST="v1.0.0"
 
@@ -58,13 +61,13 @@ jobs:
           elif echo "$LABELS" | grep -qw "minor"; then
             MINOR=$((MINOR + 1)); PATCH=0
           else
-            # patch label OR no label → bump patch
+            # patch label (or no label) — bump patch only
             PATCH=$((PATCH + 1))
           fi
 
           NEXT="v${MAJOR}.${MINOR}.${PATCH}"
-          echo "next=$NEXT"         >> "$GITHUB_OUTPUT"
-          echo "previous=$LATEST"   >> "$GITHUB_OUTPUT"
+          echo "next=$NEXT"       >> "$GITHUB_OUTPUT"
+          echo "previous=$LATEST" >> "$GITHUB_OUTPUT"
 
       # ── 4. Create and push the new tag ────────────────────────────────────────
       - name: Tag and push
@@ -83,7 +86,7 @@ jobs:
             --generate-notes \
             --title "${{ steps.version.outputs.next }}"
 
-      # ── 6. Update changelog.json ──────────────────────────────────────────────
+      # ── 6. Update changelog.json (written to disk before dotnet publish) ──────
       - name: Update changelog.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,28 +96,19 @@ jobs:
           PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
           CHANGELOG="src/ScrambleCoin.Web/wwwroot/changelog.json"
 
-          # Fetch the auto-generated release body
           NOTES_BODY=$(gh release view "$VERSION" --json body --jq '.body // ""')
 
-          # Extract bullet lines → JSON string array
           NOTES_ARRAY=$(printf '%s' "$NOTES_BODY" \
             | grep -E '^\*\s|^-\s|^\* |^- ' \
             | sed 's/^[[:space:]]*[*-][[:space:]]*//' \
             | jq -R . | jq -s .)
 
-          # Fall back to a single generic note if nothing was parsed
           if [ -z "$NOTES_ARRAY" ] || [ "$NOTES_ARRAY" = "[]" ]; then
             NOTES_ARRAY='["See release notes on GitHub."]'
           fi
 
-          # Read existing array or start fresh
-          if [ -f "$CHANGELOG" ]; then
-            EXISTING=$(cat "$CHANGELOG")
-          else
-            EXISTING="[]"
-          fi
+          EXISTING=$([ -f "$CHANGELOG" ] && cat "$CHANGELOG" || echo "[]")
 
-          # Prepend new entry using jq
           jq --arg  version  "$VERSION"    \
              --arg  date     "$DATE"       \
              --arg  title    "$PR_TITLE"   \
@@ -122,7 +116,72 @@ jobs:
              '[{version: $version, date: $date, title: $title, notes: $notes}] + .' \
              <<< "$EXISTING" > "$CHANGELOG"
 
-      # ── 7. Commit changelog.json back to main [skip ci] ───────────────────────
+      # ── 7. Setup .NET ─────────────────────────────────────────────────────────
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # ── 8. Build ──────────────────────────────────────────────────────────────
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --no-restore --configuration Release
+
+      # ── 9. Test ───────────────────────────────────────────────────────────────
+      - name: Install Playwright browsers
+        run: pwsh tests/ScrambleCoin.E2E.Tests/bin/Release/net9.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run tests
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --logger "trx;LogFileName=results.trx"
+          --results-directory ./TestResults
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-cd
+          path: ./TestResults/**/*.trx
+          retention-days: 14
+
+      # ── 10. Publish (changelog.json already written — gets bundled) ───────────
+      - name: Publish web app
+        run: >
+          dotnet publish src/ScrambleCoin.Web/ScrambleCoin.Web.csproj
+          --no-build
+          --configuration Release
+          --output ${{ env.PUBLISH_DIR }}
+
+      # ── 11. Database migrations ───────────────────────────────────────────────
+      - name: Install EF Core CLI tools
+        run: dotnet tool install --global dotnet-ef --version 9.*
+
+      - name: Run EF Core migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: >
+          dotnet ef database update
+          --project src/ScrambleCoin.Infrastructure
+          --startup-project src/ScrambleCoin.Web
+          --configuration Release
+          --no-build
+
+      # ── 12. Deploy to Azure App Service ──────────────────────────────────────
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-scramblecoin
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_DIR }}
+
+      # ── 13. Commit updated changelog.json back to main ────────────────────────
       - name: Commit and push changelog.json
         run: |
           git config user.name  "github-actions[bot]"
