@@ -81,7 +81,8 @@ public class ReleaseWorkflowTests
     {
         var yaml = ReadReleaseWorkflow();
 
-        Assert.Contains("pull-requests: read", yaml, StringComparison.Ordinal);
+        // Needs write permission to create and merge the changelog PR
+        Assert.Contains("pull-requests: write", yaml, StringComparison.Ordinal);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -325,57 +326,36 @@ public class ReleaseWorkflowTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Regression guard for GitHub Issue #21.
+    /// Regression guard for GitHub Issue #21 (updated fix).
     ///
-    /// The release job was failing with:
-    ///   "error: cannot pull with rebase: Your index contains uncommitted changes."
+    /// The original fix (--autostash) was superseded because the branch is protected
+    /// and requires PRs — direct pushes to main are rejected even by github-actions[bot].
     ///
-    /// Root cause: <c>git pull --rebase origin main</c> was placed AFTER <c>git add</c>,
-    /// so the index already contained staged changes when the rebase attempted to run.
+    /// Final fix: the changelog step now pushes to a short-lived branch and merges
+    /// via <c>gh pr create</c> + <c>gh pr merge</c>, fully respecting branch protection.
     ///
-    /// Fix: use <c>git pull --rebase --autostash origin main</c> before <c>git add</c>.
-    /// The --autostash flag automatically stashes unstaged changes (changelog.json written
-    /// by the previous step) before rebasing and restores them after.
-    ///
-    /// This test locates the "Commit and push changelog.json" step in the YAML and
-    /// asserts that <c>git pull --rebase --autostash</c> appears at an earlier character
-    /// position than <c>git add</c> within that step's run block.
+    /// This test asserts that the step uses a branch-based PR approach instead of
+    /// pushing directly to main.
     /// </summary>
     [Fact]
     public void CommitAndPushStep_GitPullRebase_AppearsBeforeGitAdd()
     {
         var yaml = ReadReleaseWorkflow();
 
-        const string stepMarker  = "Commit and push changelog.json";
-        const string pullCommand = "git pull --rebase --autostash origin main";
-        const string addCommand  = "git add";
+        const string stepMarker = "Commit and push changelog.json";
 
-        // Locate the step by its name
         var stepIndex = yaml.IndexOf(stepMarker, StringComparison.Ordinal);
         Assert.True(stepIndex >= 0,
-            $"Could not find the step named \"{stepMarker}\" in release.yml. " +
-            "Has the step been renamed or removed?");
+            $"Could not find the step named \"{stepMarker}\" in release.yml.");
 
-        // Restrict search to the text that starts at this step so we don't
-        // accidentally match commands from an earlier step.
         var stepBody = yaml[stepIndex..];
 
-        var pullIndex = stepBody.IndexOf(pullCommand, StringComparison.Ordinal);
-        var addIndex  = stepBody.IndexOf(addCommand,  StringComparison.Ordinal);
+        // Must use a branch + PR instead of pushing directly to main
+        Assert.Contains("git checkout -b", stepBody, StringComparison.Ordinal);
+        Assert.Contains("gh pr create", stepBody, StringComparison.Ordinal);
+        Assert.Contains("gh pr merge", stepBody, StringComparison.Ordinal);
 
-        Assert.True(pullIndex >= 0,
-            $"\"{pullCommand}\" was not found in the \"{stepMarker}\" step. " +
-            "The rebase command must be present to avoid index conflicts.");
-
-        Assert.True(addIndex >= 0,
-            $"\"{addCommand}\" was not found in the \"{stepMarker}\" step. " +
-            "The git add command must be present to stage changelog.json.");
-
-        Assert.True(pullIndex < addIndex,
-            $"Expected \"{pullCommand}\" (position {pullIndex}) to appear BEFORE " +
-            $"\"{addCommand}\" (position {addIndex}) in the \"{stepMarker}\" step, " +
-            "but it does not. Placing git pull --rebase after git add causes a " +
-            "\"cannot pull with rebase: Your index contains uncommitted changes\" " +
-            "error (Issue #21).");
+        // Must NOT push directly to main
+        Assert.DoesNotContain("git push origin main", stepBody, StringComparison.Ordinal);
     }
 }
