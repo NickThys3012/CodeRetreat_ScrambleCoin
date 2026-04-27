@@ -1,4 +1,3 @@
-using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;

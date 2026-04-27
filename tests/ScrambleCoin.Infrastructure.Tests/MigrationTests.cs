@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using ScrambleCoin.Infrastructure.Migrations;
 using ScrambleCoin.Infrastructure.Persistence;
 
 namespace ScrambleCoin.Infrastructure.Tests;

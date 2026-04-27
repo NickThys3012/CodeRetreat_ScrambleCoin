@@ -15,10 +15,10 @@ public sealed class Position : IEquatable<Position>
 
     public Position(int row, int col)
     {
-        if (row < MinValue || row > MaxValue)
+        if (row is < MinValue or > MaxValue)
             throw new DomainException($"Row {row} is out of bounds. Must be between {MinValue} and {MaxValue}.");
 
-        if (col < MinValue || col > MaxValue)
+        if (col is < MinValue or > MaxValue)
             throw new DomainException($"Col {col} is out of bounds. Must be between {MinValue} and {MaxValue}.");
 
         Row = row;
