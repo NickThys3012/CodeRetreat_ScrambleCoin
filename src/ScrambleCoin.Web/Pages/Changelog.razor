@@ -1,5 +1,6 @@
 @page "/changelog"
 @inject IWebHostEnvironment WebHostEnvironment
+@inject ILogger<Changelog> Logger
 
 <PageTitle>Changelog — ScrambleCoin</PageTitle>
 
@@ -93,9 +94,9 @@
                 _entries = [];
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Treat any read/parse error as "no releases yet"
+            Logger.LogWarning(ex, "Failed to read changelog.json; showing empty state");
             _entries = [];
         }
         finally

@@ -29,12 +29,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHA="${{ github.sha }}"
-          PR_JSON=$(gh pr list \
-            --search "$SHA is:merged" \
-            --json labels,title \
-            --jq '.[0]' 2>/dev/null || echo '{}')
+          PR_JSON=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
+            --jq '.[0] | {title: .title, labels: [.labels[].name]}' 2>/dev/null || echo '{}')
 
-          LABELS=$(echo "$PR_JSON" | jq -r '.labels[]?.name // empty' | tr '\n' ' ')
+          LABELS=$(echo "$PR_JSON" | jq -r '.labels[]? // empty' | tr '\n' ' ')
           PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // "Release"')
 
           echo "labels=$LABELS"   >> "$GITHUB_OUTPUT"
@@ -131,6 +129,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add src/ScrambleCoin.Web/wwwroot/changelog.json
           if ! git diff --staged --quiet; then
+            git pull --rebase origin main
             git commit -m "[skip ci] chore: update changelog.json for ${{ steps.version.outputs.next }}"
             git push origin main
           fi
