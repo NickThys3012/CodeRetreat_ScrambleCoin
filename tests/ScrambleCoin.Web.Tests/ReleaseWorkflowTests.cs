@@ -81,8 +81,7 @@ public class ReleaseWorkflowTests
     {
         var yaml = ReadReleaseWorkflow();
 
-        // Needs write permission to create and merge the changelog PR
-        Assert.Contains("pull-requests: write", yaml, StringComparison.Ordinal);
+        Assert.Contains("pull-requests: read", yaml, StringComparison.Ordinal);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -326,36 +325,35 @@ public class ReleaseWorkflowTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Regression guard for GitHub Issue #21 (updated fix).
+    /// Regression guard for GitHub Issue #21.
     ///
-    /// The original fix (--autostash) was superseded because the branch is protected
-    /// and requires PRs — direct pushes to main are rejected even by github-actions[bot].
+    /// The release job was failing because direct pushes to main were rejected by
+    /// branch protection rules. The fix uses a PAT (GH_PAT secret) in the checkout
+    /// step so the push bypasses branch protection.
     ///
-    /// Final fix: the changelog step now pushes to a short-lived branch and merges
-    /// via <c>gh pr create</c> + <c>gh pr merge</c>, fully respecting branch protection.
-    ///
-    /// This test asserts that the step uses a branch-based PR approach instead of
-    /// pushing directly to main.
+    /// This test asserts the workflow uses GH_PAT for checkout and pushes directly
+    /// to main (no intermediate PR branch).
     /// </summary>
     [Fact]
     public void CommitAndPushStep_GitPullRebase_AppearsBeforeGitAdd()
     {
         var yaml = ReadReleaseWorkflow();
 
-        const string stepMarker = "Commit and push changelog.json";
+        // Checkout must use GH_PAT to bypass branch protection
+        Assert.Contains("token: ${{ secrets.GH_PAT }}", yaml, StringComparison.Ordinal);
 
+        const string stepMarker = "Commit and push changelog.json";
         var stepIndex = yaml.IndexOf(stepMarker, StringComparison.Ordinal);
         Assert.True(stepIndex >= 0,
             $"Could not find the step named \"{stepMarker}\" in release.yml.");
 
         var stepBody = yaml[stepIndex..];
 
-        // Must use a branch + PR instead of pushing directly to main
-        Assert.Contains("git checkout -b", stepBody, StringComparison.Ordinal);
-        Assert.Contains("gh pr create", stepBody, StringComparison.Ordinal);
-        Assert.Contains("gh pr merge", stepBody, StringComparison.Ordinal);
+        // Must push directly to main (simple approach, PAT handles bypass)
+        Assert.Contains("git push origin main", stepBody, StringComparison.Ordinal);
 
-        // Must NOT push directly to main
-        Assert.DoesNotContain("git push origin main", stepBody, StringComparison.Ordinal);
+        // Must NOT use an intermediate branch + PR
+        Assert.DoesNotContain("git checkout -b", stepBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("gh pr create", stepBody, StringComparison.Ordinal);
     }
 }
