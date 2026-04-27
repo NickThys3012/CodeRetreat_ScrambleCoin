@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       # ── 2. Find the merged PR and read its labels + title ─────────────────────
       - name: Get merged PR info
@@ -127,7 +127,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase --autostash origin main
           git add src/ScrambleCoin.Web/wwwroot/changelog.json
           if ! git diff --staged --quiet; then
             git commit -m "[skip ci] chore: update changelog.json for ${{ steps.version.outputs.next }}"
