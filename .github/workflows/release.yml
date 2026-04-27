@@ -1,0 +1,136 @@
+name: Release — Tag, Publish & Changelog
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout (full history so we can read tags) ────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Find the merged PR and read its labels + title ─────────────────────
+      - name: Get merged PR info
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ github.sha }}"
+          PR_JSON=$(gh pr list \
+            --search "$SHA is:merged" \
+            --json labels,title \
+            --jq '.[0]' 2>/dev/null || echo '{}')
+
+          LABELS=$(echo "$PR_JSON" | jq -r '.labels[]?.name // empty' | tr '\n' ' ')
+          PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // "Release"')
+
+          echo "labels=$LABELS"   >> "$GITHUB_OUTPUT"
+          echo "pr_title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Calculate next semver ──────────────────────────────────────────────
+      - name: Determine next version
+        id: version
+        run: |
+          LABELS="${{ steps.pr-info.outputs.labels }}"
+
+          # Latest semver tag; default v1.0.0 if none exists
+          LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          [ -z "$LATEST" ] && LATEST="v1.0.0"
+
+          VERSION="${LATEST#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+
+          if echo "$LABELS" | grep -qw "major"; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif echo "$LABELS" | grep -qw "minor"; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            # patch label OR no label → bump patch
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "next=$NEXT"         >> "$GITHUB_OUTPUT"
+          echo "previous=$LATEST"   >> "$GITHUB_OUTPUT"
+
+      # ── 4. Create and push the new tag ────────────────────────────────────────
+      - name: Tag and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.next }}"
+          git push origin "${{ steps.version.outputs.next }}"
+
+      # ── 5. Create GitHub Release with auto-generated notes ────────────────────
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.next }}" \
+            --generate-notes \
+            --title "${{ steps.version.outputs.next }}"
+
+      # ── 6. Update changelog.json ──────────────────────────────────────────────
+      - name: Update changelog.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          DATE=$(date -u +"%Y-%m-%d")
+          PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
+          CHANGELOG="src/ScrambleCoin.Web/wwwroot/changelog.json"
+
+          # Fetch the auto-generated release body
+          NOTES_BODY=$(gh release view "$VERSION" --json body --jq '.body // ""')
+
+          # Extract bullet lines → JSON string array
+          NOTES_ARRAY=$(printf '%s' "$NOTES_BODY" \
+            | grep -E '^\*\s|^-\s|^\* |^- ' \
+            | sed 's/^[[:space:]]*[*-][[:space:]]*//' \
+            | jq -R . | jq -s .)
+
+          # Fall back to a single generic note if nothing was parsed
+          if [ -z "$NOTES_ARRAY" ] || [ "$NOTES_ARRAY" = "[]" ]; then
+            NOTES_ARRAY='["See release notes on GitHub."]'
+          fi
+
+          # Read existing array or start fresh
+          if [ -f "$CHANGELOG" ]; then
+            EXISTING=$(cat "$CHANGELOG")
+          else
+            EXISTING="[]"
+          fi
+
+          # Prepend new entry using jq
+          jq --arg  version  "$VERSION"    \
+             --arg  date     "$DATE"       \
+             --arg  title    "$PR_TITLE"   \
+             --argjson notes "$NOTES_ARRAY" \
+             '[{version: $version, date: $date, title: $title, notes: $notes}] + .' \
+             <<< "$EXISTING" > "$CHANGELOG"
+
+      # ── 7. Commit changelog.json back to main [skip ci] ───────────────────────
+      - name: Commit and push changelog.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/ScrambleCoin.Web/wwwroot/changelog.json
+          if ! git diff --staged --quiet; then
+            git commit -m "[skip ci] chore: update changelog.json for ${{ steps.version.outputs.next }}"
+            git push origin main
+          fi

@@ -1,0 +1,113 @@
+@page "/changelog"
+@inject IWebHostEnvironment WebHostEnvironment
+
+<PageTitle>Changelog — ScrambleCoin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-16">
+
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">
+        📋 Changelog
+    </MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">
+        Release history for ScrambleCoin
+    </MudText>
+
+    @if (_loading)
+    {
+        <MudStack AlignItems="AlignItems.Center" Class="mt-16">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </MudStack>
+    }
+    else if (_entries is null || _entries.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-8">
+            No releases yet — check back after the first merge to main!
+        </MudAlert>
+    }
+    else
+    {
+        <MudTimeline TimelinePosition="TimelinePosition.Start">
+            @foreach (var entry in _entries)
+            {
+                <MudTimelineItem Color="Color.Primary" Size="Size.Medium">
+                    <ItemContent>
+                        <MudCard Elevation="3" Class="mb-6">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Label="true">
+                                            @entry.Version
+                                        </MudChip>
+                                        <MudText Typo="Typo.h6">@entry.Title</MudText>
+                                    </MudStack>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @entry.Date
+                                    </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+
+                            @if (entry.Notes is { Count: > 0 })
+                            {
+                                <MudCardContent>
+                                    <MudList T="string" Dense="true">
+                                        @foreach (var note in entry.Notes)
+                                        {
+                                            <MudListItem T="string"
+                                                         Icon="@Icons.Material.Filled.ChevronRight"
+                                                         IconColor="Color.Secondary">
+                                                @note
+                                            </MudListItem>
+                                        }
+                                    </MudList>
+                                </MudCardContent>
+                            }
+                        </MudCard>
+                    </ItemContent>
+                </MudTimelineItem>
+            }
+        </MudTimeline>
+    }
+
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private List<ChangelogEntry>? _entries;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var path = Path.Combine(WebHostEnvironment.WebRootPath, "changelog.json");
+
+            if (File.Exists(path))
+            {
+                var json = await File.ReadAllTextAsync(path);
+                _entries = System.Text.Json.JsonSerializer.Deserialize<List<ChangelogEntry>>(
+                    json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                ) ?? [];
+            }
+            else
+            {
+                _entries = [];
+            }
+        }
+        catch
+        {
+            // Treat any read/parse error as "no releases yet"
+            _entries = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private sealed record ChangelogEntry(
+        string Version,
+        string Date,
+        string Title,
+        List<string> Notes
+    );
+}
