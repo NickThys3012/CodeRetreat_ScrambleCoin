@@ -319,4 +319,62 @@ public class ReleaseWorkflowTests
         Assert.Contains("GH_TOKEN", yaml, StringComparison.Ordinal);
         Assert.Contains("secrets.GITHUB_TOKEN", yaml, StringComparison.Ordinal);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Issue #21 — Fix: git pull --rebase must precede git add
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Regression guard for GitHub Issue #21.
+    ///
+    /// The release job was failing with:
+    ///   "error: cannot pull with rebase: Your index contains uncommitted changes."
+    ///
+    /// Root cause: <c>git pull --rebase origin main</c> was placed AFTER <c>git add</c>,
+    /// so the index already contained staged changes when the rebase attempted to run.
+    ///
+    /// Fix: move <c>git pull --rebase origin main</c> to before <c>git add</c> so the
+    /// working tree is clean when the rebase executes.
+    ///
+    /// This test locates the "Commit and push changelog.json" step in the YAML and
+    /// asserts that <c>git pull --rebase</c> appears at an earlier character position
+    /// than <c>git add</c> within that step's run block.
+    /// </summary>
+    [Fact]
+    public void CommitAndPushStep_GitPullRebase_AppearsBeforeGitAdd()
+    {
+        var yaml = ReadReleaseWorkflow();
+
+        const string stepMarker  = "Commit and push changelog.json";
+        const string pullCommand = "git pull --rebase origin main";
+        const string addCommand  = "git add";
+
+        // Locate the step by its name
+        var stepIndex = yaml.IndexOf(stepMarker, StringComparison.Ordinal);
+        Assert.True(stepIndex >= 0,
+            $"Could not find the step named \"{stepMarker}\" in release.yml. " +
+            "Has the step been renamed or removed?");
+
+        // Restrict search to the text that starts at this step so we don't
+        // accidentally match commands from an earlier step.
+        var stepBody = yaml[stepIndex..];
+
+        var pullIndex = stepBody.IndexOf(pullCommand, StringComparison.Ordinal);
+        var addIndex  = stepBody.IndexOf(addCommand,  StringComparison.Ordinal);
+
+        Assert.True(pullIndex >= 0,
+            $"\"{pullCommand}\" was not found in the \"{stepMarker}\" step. " +
+            "The rebase command must be present to avoid index conflicts.");
+
+        Assert.True(addIndex >= 0,
+            $"\"{addCommand}\" was not found in the \"{stepMarker}\" step. " +
+            "The git add command must be present to stage changelog.json.");
+
+        Assert.True(pullIndex < addIndex,
+            $"Expected \"{pullCommand}\" (position {pullIndex}) to appear BEFORE " +
+            $"\"{addCommand}\" (position {addIndex}) in the \"{stepMarker}\" step, " +
+            "but it does not. Placing git pull --rebase after git add causes a " +
+            "\"cannot pull with rebase: Your index contains uncommitted changes\" " +
+            "error (Issue #21).");
+    }
 }
