@@ -333,12 +333,13 @@ public class ReleaseWorkflowTests
     /// Root cause: <c>git pull --rebase origin main</c> was placed AFTER <c>git add</c>,
     /// so the index already contained staged changes when the rebase attempted to run.
     ///
-    /// Fix: move <c>git pull --rebase origin main</c> to before <c>git add</c> so the
-    /// working tree is clean when the rebase executes.
+    /// Fix: use <c>git pull --rebase --autostash origin main</c> before <c>git add</c>.
+    /// The --autostash flag automatically stashes unstaged changes (changelog.json written
+    /// by the previous step) before rebasing and restores them after.
     ///
     /// This test locates the "Commit and push changelog.json" step in the YAML and
-    /// asserts that <c>git pull --rebase</c> appears at an earlier character position
-    /// than <c>git add</c> within that step's run block.
+    /// asserts that <c>git pull --rebase --autostash</c> appears at an earlier character
+    /// position than <c>git add</c> within that step's run block.
     /// </summary>
     [Fact]
     public void CommitAndPushStep_GitPullRebase_AppearsBeforeGitAdd()
@@ -346,7 +347,7 @@ public class ReleaseWorkflowTests
         var yaml = ReadReleaseWorkflow();
 
         const string stepMarker  = "Commit and push changelog.json";
-        const string pullCommand = "git pull --rebase origin main";
+        const string pullCommand = "git pull --rebase --autostash origin main";
         const string addCommand  = "git add";
 
         // Locate the step by its name
