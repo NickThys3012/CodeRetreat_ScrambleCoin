@@ -36,12 +36,48 @@ Issue
 ## Step-by-step instructions
 
 ### Step 0 — Setup
+
 ```bash
 gh issue view <number>
 ```
 - Read the issue title, body, and acceptance criteria
+
+**⛔ Check the project board status before doing anything else:**
+
+```bash
+gh api graphql -f query='
+  query {
+    repository(owner: "NickThys3012", name: "CodeRetreat_ScrambleCoin") {
+      issue(number: <number>) {
+        projectItems(first: 5) {
+          nodes {
+            fieldValues(first: 10) {
+              nodes {
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  name
+                  field { ... on ProjectV2SingleSelectField { name } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }'
+```
+
+Find the field named `Status` and read its value. If the status is **`Backlog`**, **STOP immediately** and report to the user:
+
+> ⛔ Issue #N is currently in **Backlog** status on the project board and cannot be implemented yet.
+> Move it to **Ready** (or another active status) on the project board before handing it to the Orchestrator.
+
+Do **not** create a branch, do **not** invoke any agents. Exit the pipeline.
+
+Only continue if the status is anything other than `Backlog` (e.g. `Ready`, `In Progress`, `🧪 Needs Manual Test`). If the issue is not on any project board, continue normally.
+
 - Create a feature branch:
   ```bash
+  git checkout main && git pull
   git checkout -b feature/issue-<number>-<short-slug>
   ```
 - Track two counters: `impl_cycles = 0`, `test_cycles = 0`
