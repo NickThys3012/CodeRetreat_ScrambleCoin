@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.1.5",
+    "date": "2026-04-27",
+    "title": "Release",
+    "notes": [
+      "Board & Tile domain model by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/26"
+    ]
+  },
+  {
     "version": "v1.1.4",
     "date": "2026-04-27",
     "title": "fix: combine cd.yml + release.yml into single sequential workflow",
