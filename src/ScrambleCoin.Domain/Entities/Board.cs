@@ -75,8 +75,16 @@ public sealed class Board
     ///   <item><description>For diagonal moves: blocked if two fences form a corner at the intersection.</description></item>
     /// </list>
     /// </remarks>
+    /// <exception cref="DomainException">
+    /// Thrown if <paramref name="from"/> and <paramref name="to"/> are not adjacent
+    /// (neither orthogonally nor diagonally).
+    /// </exception>
     public bool IsPassable(Position from, Position to)
     {
+        // Guard: positions must be adjacent (orthogonally or diagonally)
+        if (!from.IsOrthogonallyAdjacentTo(to) && !from.IsDiagonallyAdjacentTo(to))
+            throw new DomainException($"Positions {from} and {to} are not adjacent.");
+
         // Blocked by Rock
         if (_rocks.Any(r => r.Position == to))
             return false;
