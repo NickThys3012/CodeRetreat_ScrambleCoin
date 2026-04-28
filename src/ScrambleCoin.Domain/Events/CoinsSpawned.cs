@@ -11,5 +11,6 @@ namespace ScrambleCoin.Domain.Events;
 /// <param name="OccurredAt">UTC timestamp when the event was raised.</param>
 public sealed record CoinsSpawned(
     Guid GameId,
+    int TurnNumber,
     IReadOnlyList<(Position Position, CoinType CoinType)> Coins,
     DateTimeOffset OccurredAt) : IDomainEvent;

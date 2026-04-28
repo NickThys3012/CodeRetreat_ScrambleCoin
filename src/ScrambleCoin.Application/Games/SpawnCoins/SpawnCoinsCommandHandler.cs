@@ -1,7 +1,7 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.ValueObjects;
+using ScrambleCoin.Domain.Services;
 
 namespace ScrambleCoin.Application.Games.SpawnCoins;
 
@@ -13,16 +13,22 @@ public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand
 {
     private readonly IGameRepository _gameRepository;
     private readonly Random _random;
+    private readonly ILogger<SpawnCoinsCommandHandler> _logger;
 
     /// <param name="gameRepository">Repository for loading and saving games.</param>
     /// <param name="random">
     /// Random instance used for tile selection. Inject <see cref="Random.Shared"/> in
     /// production; inject a seeded instance in tests for deterministic behaviour.
     /// </param>
-    public SpawnCoinsCommandHandler(IGameRepository gameRepository, Random random)
+    /// <param name="logger">Logger for structured output.</param>
+    public SpawnCoinsCommandHandler(
+        IGameRepository gameRepository,
+        Random random,
+        ILogger<SpawnCoinsCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _random = random;
+        _logger = logger;
     }
 
     public async Task Handle(SpawnCoinsCommand request, CancellationToken cancellationToken)
@@ -31,8 +37,8 @@ public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand
 
         var freeTiles = game.Board.GetFreeTiles();
 
-        // Determine coin spec for this turn.
-        var coinSpec = BuildCoinSpec(game.CurrentTurnNumber);
+        // Determine coin types for this turn from the domain schedule.
+        var coinsToPlace = CoinSpawnSchedule.For(game.CurrentTurnNumber, _random);
 
         // Shuffle free tiles using Fisher-Yates.
         var shuffled = freeTiles.ToList();
@@ -42,36 +48,20 @@ public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand
             (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
         }
 
-        // Flatten the coin spec into an ordered list of CoinTypes to place.
-        var coinsToPlace = coinSpec.SelectMany(kv => Enumerable.Repeat(kv.CoinType, kv.Count)).ToList();
-
         // If there are fewer free tiles than coins needed, spawn only as many as possible.
         var spawnCount = Math.Min(coinsToPlace.Count, shuffled.Count);
 
-        var coins = Enumerable.Range(0, spawnCount)
+        var positionedCoins = Enumerable.Range(0, spawnCount)
             .Select(i => (shuffled[i].Position, coinsToPlace[i]))
             .ToList();
 
-        game.SpawnCoins(coins);
+        game.SpawnCoins(positionedCoins);
 
         await _gameRepository.SaveAsync(game, cancellationToken);
-    }
 
-    /// <summary>
-    /// Returns the coin allocation for the given turn as an ordered list of (CoinType, Count) pairs.
-    /// </summary>
-    private List<(CoinType CoinType, int Count)> BuildCoinSpec(int turnNumber)
-    {
-        return turnNumber switch
-        {
-            1 => [
-                    (CoinType.Silver, _random.Next(7, 10)),   // 7–9 inclusive
-                    (CoinType.Silver, _random.Next(2, 5)),    // 2–4 inclusive
-                 ],
-            2 or 3 => [(CoinType.Silver, _random.Next(2, 5))], // 2–4 inclusive
-            4 => [(CoinType.Gold, 4)],
-            5 => [(CoinType.Gold, 3)],
-            _ => []
-        };
+        _logger.LogInformation(
+            "Coins spawned for game {GameId} on turn {Turn}: {Count} coins",
+            request.GameId, game.CurrentTurnNumber, positionedCoins.Count);
     }
 }
+

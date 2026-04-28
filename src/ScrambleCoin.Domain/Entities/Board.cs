@@ -134,6 +134,16 @@ public sealed class Board
         return true;
     }
 
+    // ── Obstacle coverage ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="position"/> is covered by a Rock or a Lake.
+    /// Fences are on tile edges and are not included.
+    /// </summary>
+    public bool IsObstacleCovering(Position position) =>
+        _rocks.Any(r => r.Position == position) ||
+        _lakes.Any(l => l.Covers(position));
+
     // ── Query helpers ─────────────────────────────────────────────────────────
 
     /// <summary>Returns all tiles that contain a Coin.</summary>

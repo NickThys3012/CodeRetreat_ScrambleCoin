@@ -401,15 +401,16 @@ public sealed class Game
         {
             var tile = Board.GetTile(position);
 
+            if (Board.IsObstacleCovering(position))
+                throw new DomainException($"Cannot spawn a coin at {position}: position is covered by an obstacle.");
             if (!tile.IsEmpty)
-                throw new DomainException(
-                    $"Cannot spawn a coin at {position}: the tile is already occupied.");
+                throw new DomainException($"Cannot spawn a coin at {position}: tile is already occupied.");
 
             tile.SetOccupant(new Coin(coinType));
             spawned.Add((position, coinType));
         }
 
-        _domainEvents.Add(new CoinsSpawned(Id, spawned.AsReadOnly(), DateTimeOffset.UtcNow));
+        _domainEvents.Add(new CoinsSpawned(Id, TurnNumber, spawned.AsReadOnly(), DateTimeOffset.UtcNow));
     }
 
     // ── Phase guard methods ───────────────────────────────────────────────────
