@@ -67,6 +67,16 @@ public class CoinSpawnScheduleTests
         }
     }
 
+    [Fact]
+    public void For_Turn2_CountIsAlwaysBetween2And4()
+    {
+        for (var seed = 0; seed < 1000; seed++)
+        {
+            var coins = CoinSpawnSchedule.For(2, new Random(seed));
+            Assert.InRange(coins.Count, 2, 4);
+        }
+    }
+
     // ── Turn 3 ────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -88,6 +98,16 @@ public class CoinSpawnScheduleTests
             var coins = CoinSpawnSchedule.For(3, new Random(seed));
 
             Assert.All(coins, c => Assert.Equal(CoinType.Silver, c));
+        }
+    }
+
+    [Fact]
+    public void For_Turn3_CountIsAlwaysBetween2And4()
+    {
+        for (var seed = 0; seed < 1000; seed++)
+        {
+            var coins = CoinSpawnSchedule.For(3, new Random(seed));
+            Assert.InRange(coins.Count, 2, 4);
         }
     }
 
