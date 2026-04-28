@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.2.0",
+    "date": "2026-04-28",
+    "title": "Piece domain model",
+    "notes": [
+      "Piece domain model by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/27"
+    ]
+  },
+  {
     "version": "v1.1.5",
     "date": "2026-04-27",
     "title": "Release",
