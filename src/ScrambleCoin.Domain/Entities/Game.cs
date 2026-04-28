@@ -321,6 +321,8 @@ public sealed class Game
             throw new DomainException(
                 $"Turn can only advance while the game is {GameStatus.InProgress}. Current status: {Status}.");
 
+        EnsureInMovePhase();
+
         if (TurnNumber >= TotalTurns)
         {
             End();
@@ -378,9 +380,10 @@ public sealed class Game
                 }
                 else
                 {
+                    var oldTurnNumber = TurnNumber;
                     TurnNumber++;
                     CurrentPhase = TurnPhase.CoinSpawn;
-                    _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                    _domainEvents.Add(new TurnPhaseAdvanced(Id, oldTurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
                 }
                 break;
         }

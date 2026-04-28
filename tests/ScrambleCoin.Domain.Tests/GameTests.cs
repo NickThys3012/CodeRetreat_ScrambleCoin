@@ -38,8 +38,17 @@ public class GameTests
         return (game, p1, p2);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // 1. Constructor
+    /// <summary>
+    /// Advances the game through CoinSpawn and PlacePhase so it is in MovePhase,
+    /// ready for a call to <see cref="Game.AdvanceTurn"/>.
+    /// </summary>
+    private static void AdvanceToMovePhase(Game game)
+    {
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.AdvancePhase(); // PlacePhase → MovePhase
+    }
+
+
     // ══════════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -608,6 +617,7 @@ public class GameTests
     public void AdvanceTurn_FromTurnOne_SetsTurnNumberToTwo()
     {
         var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(2, game.TurnNumber);
     }
@@ -616,7 +626,9 @@ public class GameTests
     public void AdvanceTurn_FromTurnTwo_SetsTurnNumberToThree()
     {
         var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(3, game.TurnNumber);
     }
@@ -626,7 +638,10 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(GameStatus.Finished, game.Status);
     }
 
@@ -636,9 +651,13 @@ public class GameTests
         var (game, _, _) = StartedGame();
         // Advance to turn 5
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(Game.TotalTurns, game.TurnNumber);
         // Advance from turn 5 → auto-End
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(GameStatus.Finished, game.Status);
     }
@@ -648,8 +667,12 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         game.ClearDomainEvents();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Single(game.DomainEvents.OfType<GameEnded>());
     }
@@ -674,7 +697,10 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(Game.TotalTurns, game.TurnNumber);
     }
 
