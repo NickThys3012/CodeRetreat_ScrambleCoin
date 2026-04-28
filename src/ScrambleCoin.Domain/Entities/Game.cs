@@ -155,9 +155,17 @@ public sealed class Game
             throw new DomainException("Lineup must not be null.");
 
         if (playerId == PlayerOne)
+        {
+            if (LineupPlayerOne is not null)
+                throw new DomainException("PlayerOne's lineup has already been set.");
             LineupPlayerOne = lineup;
+        }
         else if (playerId == PlayerTwo)
+        {
+            if (LineupPlayerTwo is not null)
+                throw new DomainException("PlayerTwo's lineup has already been set.");
             LineupPlayerTwo = lineup;
+        }
         else
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
     }
@@ -254,6 +262,10 @@ public sealed class Game
     /// </exception>
     public void AddPieceToBoard(Guid playerId)
     {
+        if (Status != GameStatus.InProgress)
+            throw new DomainException(
+                $"Pieces can only be tracked while the game is {GameStatus.InProgress}. Current status: {Status}.");
+
         if (!_piecesOnBoard.ContainsKey(playerId))
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
 
@@ -273,6 +285,10 @@ public sealed class Game
     /// </exception>
     public void RemovePieceFromBoard(Guid playerId)
     {
+        if (Status != GameStatus.InProgress)
+            throw new DomainException(
+                $"Pieces can only be tracked while the game is {GameStatus.InProgress}. Current status: {Status}.");
+
         if (!_piecesOnBoard.ContainsKey(playerId))
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
 
