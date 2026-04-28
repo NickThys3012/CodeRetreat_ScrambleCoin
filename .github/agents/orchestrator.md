@@ -28,7 +28,8 @@ Issue
                                 ├─ CHANGES REQUIRED → back to [3]  (max 2 times)
                                 ├─ ESCALATE after 2 failed cycles  → STOP, report to user
                                 └─ APPROVED
-                                      └─► [5] Open Pull Request
+                                      └─► [5] Documentation Agent
+                                                └─► [6] Open Pull Request
 ```
 
 ---
@@ -166,10 +167,21 @@ Invoke the **Review Agent** with:
 3. Open the PR — the reviewer executes the manual test plan before approving
 4. Once manual tests pass, status moves to `✅ Done`
 
+---
+
+### Step 5 — Documentation
+
+Invoke the **Documentation Agent** with:
+- The issue number
+- The list of files changed by the Implementation Agent
+
+The Documentation Agent will create or update the relevant GitHub Wiki page(s) and push directly to the wiki remote. Wait for it to complete and note which pages were written.
+
+---
 
 Push the branch and open a PR:
 
-**Step 5a — Determine the version label**
+**Step 6a — Determine the version label**
 
 Read the issue's labels and map them to a version bump:
 
@@ -192,7 +204,7 @@ Read the issue's labels and map them to a version bump:
 gh issue view <number> --json labels -q '.labels[].name'
 ```
 
-**Step 5b — Create the PR with the version label**
+**Step 6b — Create the PR with the version label**
 
 ```bash
 git push origin feature/issue-<number>-<short-slug>
