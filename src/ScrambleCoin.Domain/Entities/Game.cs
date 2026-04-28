@@ -322,16 +322,7 @@ public sealed class Game
                 $"Turn can only advance while the game is {GameStatus.InProgress}. Current status: {Status}.");
 
         EnsureInMovePhase();
-
-        if (TurnNumber >= TotalTurns)
-        {
-            End();
-        }
-        else
-        {
-            TurnNumber++;
-            CurrentPhase = TurnPhase.CoinSpawn;
-        }
+        AdvancePhase(); // handles turn increment, game-end, and TurnPhaseAdvanced event
     }
 
     // ── Phase advancement ─────────────────────────────────────────────────────
