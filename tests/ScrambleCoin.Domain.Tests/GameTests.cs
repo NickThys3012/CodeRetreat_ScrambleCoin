@@ -183,6 +183,13 @@ public class GameTests
         Assert.Throws<DomainException>(() => game.SetLineup(p2, NewLineup()));
     }
 
+    [Fact]
+    public void SetLineup_WithNullLineup_ThrowsDomainException()
+    {
+        var (game, p1, _) = NewGame();
+        Assert.Throws<DomainException>(() => game.SetLineup(p1, null!));
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // 3. Start()
     // ══════════════════════════════════════════════════════════════════════════
@@ -529,9 +536,17 @@ public class GameTests
     }
 
     [Fact]
-    public void AddPieceToBoard_WhenNotInProgress_ThrowsDomainException()
+    public void AddPieceToBoard_WhenWaitingForBots_ThrowsDomainException()
     {
         var (game, p1, _) = NewGame();
+        Assert.Throws<DomainException>(() => game.AddPieceToBoard(p1));
+    }
+
+    [Fact]
+    public void AddPieceToBoard_WhenFinished_ThrowsDomainException()
+    {
+        var (game, p1, _) = StartedGame();
+        game.End();
         Assert.Throws<DomainException>(() => game.AddPieceToBoard(p1));
     }
 
@@ -560,9 +575,17 @@ public class GameTests
     }
 
     [Fact]
-    public void RemovePieceFromBoard_WhenNotInProgress_ThrowsDomainException()
+    public void RemovePieceFromBoard_WhenWaitingForBots_ThrowsDomainException()
     {
         var (game, p1, _) = NewGame();
+        Assert.Throws<DomainException>(() => game.RemovePieceFromBoard(p1));
+    }
+
+    [Fact]
+    public void RemovePieceFromBoard_WhenFinished_ThrowsDomainException()
+    {
+        var (game, p1, _) = StartedGame();
+        game.End();
         Assert.Throws<DomainException>(() => game.RemovePieceFromBoard(p1));
     }
 
