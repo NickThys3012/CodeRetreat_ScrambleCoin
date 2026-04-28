@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.2.1",
+    "date": "2026-04-28",
+    "title": "chore: add Documentation Agent + wire into Orchestrator pipeline",
+    "notes": [
+      "chore: add Documentation Agent + wire into Orchestrator pipeline by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/29"
+    ]
+  },
+  {
     "version": "v1.2.0",
     "date": "2026-04-28",
     "title": "Piece domain model",
