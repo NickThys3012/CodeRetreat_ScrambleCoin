@@ -66,14 +66,21 @@ public sealed class Game
     /// <summary>Current turn number (1–5); 0 before the game starts.</summary>
     public int TurnNumber { get; private set; }
 
+    /// <summary>
+    /// Current turn number (1–5); 0 before the game starts.
+    /// Alias for <see cref="TurnNumber"/> that matches the phase-based naming convention.
+    /// </summary>
+    public int CurrentTurnNumber => TurnNumber;
+
     /// <summary>Current lifecycle status of the game.</summary>
     public GameStatus Status { get; private set; }
 
     /// <summary>
-    /// Describes the active phase within the current turn
-    /// (e.g., "PlayerOneAction", "PlayerTwoAction").
+    /// The active phase within the current turn (<see cref="TurnPhase.CoinSpawn"/>,
+    /// <see cref="TurnPhase.PlacePhase"/>, or <see cref="TurnPhase.MovePhase"/>).
+    /// <c>null</c> when the game has not yet started or has already finished.
     /// </summary>
-    public string CurrentPhase { get; private set; }
+    public TurnPhase? CurrentPhase { get; private set; }
 
     // ── Pieces-on-board counters ──────────────────────────────────────────────
 
@@ -111,7 +118,7 @@ public sealed class Game
         Board = board;
         Status = GameStatus.WaitingForBots;
         TurnNumber = 0;
-        CurrentPhase = "WaitingForLineups";
+        CurrentPhase = null;
 
         _scores = new Dictionary<Guid, int>
         {
@@ -194,7 +201,7 @@ public sealed class Game
 
         Status = GameStatus.InProgress;
         TurnNumber = 1;
-        CurrentPhase = "PlayerOneAction";
+        CurrentPhase = TurnPhase.CoinSpawn;
 
         _domainEvents.Add(new GameStarted(Id, PlayerOne, PlayerTwo, DateTimeOffset.UtcNow));
     }
@@ -213,7 +220,7 @@ public sealed class Game
                 $"Game can only be ended from {GameStatus.InProgress} state. Current status: {Status}.");
 
         Status = GameStatus.Finished;
-        CurrentPhase = "Finished";
+        CurrentPhase = null;
 
         var scoreOne = _scores[PlayerOne];
         var scoreTwo = _scores[PlayerTwo];
@@ -314,15 +321,107 @@ public sealed class Game
             throw new DomainException(
                 $"Turn can only advance while the game is {GameStatus.InProgress}. Current status: {Status}.");
 
-        if (TurnNumber >= TotalTurns)
+        EnsureInMovePhase();
+        AdvancePhase(); // handles turn increment, game-end, and TurnPhaseAdvanced event
+    }
+
+    // ── Phase advancement ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Advances the current phase within the turn following the mandatory sequence:
+    /// <see cref="TurnPhase.CoinSpawn"/> → <see cref="TurnPhase.PlacePhase"/> → <see cref="TurnPhase.MovePhase"/>.
+    /// After <see cref="TurnPhase.MovePhase"/>:
+    /// <list type="bullet">
+    ///   <item>If the current turn is less than <see cref="TotalTurns"/>, the turn number
+    ///         increments and the phase resets to <see cref="TurnPhase.CoinSpawn"/>.</item>
+    ///   <item>If the current turn equals <see cref="TotalTurns"/>, <see cref="End"/> is called
+    ///         automatically and the game transitions to <see cref="GameStatus.Finished"/>.</item>
+    /// </list>
+    /// Raises a <see cref="TurnPhaseAdvanced"/> domain event on every transition.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the game is not <see cref="GameStatus.InProgress"/>.
+    /// </exception>
+    public void AdvancePhase()
+    {
+        if (Status != GameStatus.InProgress)
+            throw new DomainException(
+                $"Phase can only advance while the game is {GameStatus.InProgress}. Current status: {Status}.");
+
+        var previousPhase = CurrentPhase!.Value;
+
+        switch (CurrentPhase)
         {
-            End();
+            case TurnPhase.CoinSpawn:
+                CurrentPhase = TurnPhase.PlacePhase;
+                _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                break;
+
+            case TurnPhase.PlacePhase:
+                CurrentPhase = TurnPhase.MovePhase;
+                _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                break;
+
+            case TurnPhase.MovePhase:
+                if (TurnNumber >= TotalTurns)
+                {
+                    // Raise the event before ending the game so listeners see the final transition.
+                    _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, null, DateTimeOffset.UtcNow));
+                    End();
+                }
+                else
+                {
+                    var oldTurnNumber = TurnNumber;
+                    TurnNumber++;
+                    CurrentPhase = TurnPhase.CoinSpawn;
+                    _domainEvents.Add(new TurnPhaseAdvanced(Id, oldTurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                }
+                break;
         }
-        else
-        {
-            TurnNumber++;
-            CurrentPhase = "PlayerOneAction";
-        }
+    }
+
+    // ── Phase guard methods ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Asserts that the game is currently in the <see cref="TurnPhase.CoinSpawn"/> phase.
+    /// Call this at the start of any operation that is only valid during coin spawning.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.CoinSpawn"/>.
+    /// </exception>
+    public void EnsureInCoinSpawnPhase()
+    {
+        if (CurrentPhase != TurnPhase.CoinSpawn)
+            throw new DomainException(
+                $"This action is only allowed during the {TurnPhase.CoinSpawn} phase. Current phase: {CurrentPhase?.ToString() ?? "None"}.");
+    }
+
+    /// <summary>
+    /// Asserts that the game is currently in the <see cref="TurnPhase.PlacePhase"/>.
+    /// Call this at the start of any placement operation.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.PlacePhase"/>.
+    /// </exception>
+    public void EnsureInPlacePhase()
+    {
+        if (CurrentPhase != TurnPhase.PlacePhase)
+            throw new DomainException(
+                $"This action is only allowed during the {TurnPhase.PlacePhase} phase. Current phase: {CurrentPhase?.ToString() ?? "None"}.");
+    }
+
+    /// <summary>
+    /// Asserts that the game is currently in the <see cref="TurnPhase.MovePhase"/>.
+    /// Call this at the start of any movement operation.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.MovePhase"/>.
+    /// </exception>
+    public void EnsureInMovePhase()
+    {
+        if (CurrentPhase != TurnPhase.MovePhase)
+            throw new DomainException(
+                $"This action is only allowed during the {TurnPhase.MovePhase} phase. Current phase: {CurrentPhase?.ToString() ?? "None"}.");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

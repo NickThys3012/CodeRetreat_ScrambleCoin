@@ -38,8 +38,17 @@ public class GameTests
         return (game, p1, p2);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // 1. Constructor
+    /// <summary>
+    /// Advances the game through CoinSpawn and PlacePhase so it is in MovePhase,
+    /// ready for a call to <see cref="Game.AdvanceTurn"/>.
+    /// </summary>
+    private static void AdvanceToMovePhase(Game game)
+    {
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.AdvancePhase(); // PlacePhase → MovePhase
+    }
+
+
     // ══════════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -608,6 +617,7 @@ public class GameTests
     public void AdvanceTurn_FromTurnOne_SetsTurnNumberToTwo()
     {
         var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(2, game.TurnNumber);
     }
@@ -616,7 +626,9 @@ public class GameTests
     public void AdvanceTurn_FromTurnTwo_SetsTurnNumberToThree()
     {
         var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(3, game.TurnNumber);
     }
@@ -626,7 +638,10 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(GameStatus.Finished, game.Status);
     }
 
@@ -636,9 +651,13 @@ public class GameTests
         var (game, _, _) = StartedGame();
         // Advance to turn 5
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(Game.TotalTurns, game.TurnNumber);
         // Advance from turn 5 → auto-End
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Equal(GameStatus.Finished, game.Status);
     }
@@ -648,8 +667,12 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         game.ClearDomainEvents();
+        AdvanceToMovePhase(game);
         game.AdvanceTurn();
         Assert.Single(game.DomainEvents.OfType<GameEnded>());
     }
@@ -674,7 +697,10 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
             game.AdvanceTurn();
+        }
         Assert.Equal(Game.TotalTurns, game.TurnNumber);
     }
 
@@ -749,5 +775,355 @@ public class GameTests
     {
         var (game, _, _) = StartedGame();
         Assert.Throws<DomainException>(() => game.GetPiecesOnBoardCount(Guid.NewGuid()));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 10. AdvancePhase() and phase guards
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── AdvancePhase() — individual transitions ───────────────────────────────
+
+    [Fact]
+    public void AdvancePhase_FromCoinSpawn_SetsCurrentPhaseToPlacePhase()
+    {
+        var (game, _, _) = StartedGame();
+        // freshly started game is in CoinSpawn
+        game.AdvancePhase();
+        Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_FromPlacePhase_SetsCurrentPhaseToMovePhase()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.AdvancePhase(); // PlacePhase → MovePhase
+        Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_FromMovePhase_OnNonFinalTurn_IncrementsTurnNumber()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        var turnBefore = game.TurnNumber;
+        game.AdvancePhase(); // MovePhase → CoinSpawn, turn++
+        Assert.Equal(turnBefore + 1, game.TurnNumber);
+    }
+
+    [Fact]
+    public void AdvancePhase_FromMovePhase_OnNonFinalTurn_ResetsCurrentPhaseToCoinSpawn()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        game.AdvancePhase();
+        Assert.Equal(TurnPhase.CoinSpawn, game.CurrentPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_FromMovePhase_OnTurnFive_SetsStatusToFinished()
+    {
+        var (game, _, _) = StartedGame();
+        // advance through turns 1-4
+        for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
+            game.AdvancePhase(); // MovePhase → CoinSpawn, turn++
+        }
+        // now on turn 5 — advance to MovePhase then trigger final AdvancePhase
+        AdvanceToMovePhase(game);
+        game.AdvancePhase(); // MovePhase on turn 5 → End()
+        Assert.Equal(GameStatus.Finished, game.Status);
+    }
+
+    [Fact]
+    public void AdvancePhase_WhenNotInProgress_ThrowsDomainException()
+    {
+        var (game, _, _) = NewGame();
+        Assert.Throws<DomainException>(() => game.AdvancePhase());
+    }
+
+    [Fact]
+    public void AdvancePhase_WhenFinished_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.End();
+        Assert.Throws<DomainException>(() => game.AdvancePhase());
+    }
+
+    [Fact]
+    public void AdvancePhase_FullFiveTurnCycle_AllFifteenTransitions_EndsGameAsFinished()
+    {
+        var (game, _, _) = StartedGame();
+        // 5 turns × 3 phases each = 15 calls to AdvancePhase
+        for (var turn = 0; turn < Game.TotalTurns; turn++)
+        {
+            game.AdvancePhase(); // CoinSpawn → PlacePhase
+            game.AdvancePhase(); // PlacePhase → MovePhase
+            game.AdvancePhase(); // MovePhase → CoinSpawn (or End on turn 5)
+        }
+        Assert.Equal(GameStatus.Finished, game.Status);
+    }
+
+    // ── EnsureInCoinSpawnPhase() ──────────────────────────────────────────────
+
+    [Fact]
+    public void EnsureInCoinSpawnPhase_WhenInCoinSpawn_DoesNotThrow()
+    {
+        var (game, _, _) = StartedGame();
+        // freshly started game is in CoinSpawn
+        var exception = Record.Exception(() => game.EnsureInCoinSpawnPhase());
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void EnsureInCoinSpawnPhase_WhenInPlacePhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        Assert.Throws<DomainException>(() => game.EnsureInCoinSpawnPhase());
+    }
+
+    [Fact]
+    public void EnsureInCoinSpawnPhase_WhenInMovePhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        Assert.Throws<DomainException>(() => game.EnsureInCoinSpawnPhase());
+    }
+
+    [Fact]
+    public void EnsureInCoinSpawnPhase_WhenCurrentPhaseIsNull_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.End(); // sets CurrentPhase = null
+        Assert.Throws<DomainException>(() => game.EnsureInCoinSpawnPhase());
+    }
+
+    // ── EnsureInPlacePhase() ──────────────────────────────────────────────────
+
+    [Fact]
+    public void EnsureInPlacePhase_WhenInPlacePhase_DoesNotThrow()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        var exception = Record.Exception(() => game.EnsureInPlacePhase());
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void EnsureInPlacePhase_WhenInCoinSpawnPhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        // freshly started game is in CoinSpawn
+        Assert.Throws<DomainException>(() => game.EnsureInPlacePhase());
+    }
+
+    [Fact]
+    public void EnsureInPlacePhase_WhenInMovePhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        Assert.Throws<DomainException>(() => game.EnsureInPlacePhase());
+    }
+
+    [Fact]
+    public void EnsureInPlacePhase_WhenCurrentPhaseIsNull_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.End(); // sets CurrentPhase = null
+        Assert.Throws<DomainException>(() => game.EnsureInPlacePhase());
+    }
+
+    // ── EnsureInMovePhase() ───────────────────────────────────────────────────
+
+    [Fact]
+    public void EnsureInMovePhase_WhenInMovePhase_DoesNotThrow()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        var exception = Record.Exception(() => game.EnsureInMovePhase());
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void EnsureInMovePhase_WhenInCoinSpawnPhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        // freshly started game is in CoinSpawn
+        Assert.Throws<DomainException>(() => game.EnsureInMovePhase());
+    }
+
+    [Fact]
+    public void EnsureInMovePhase_WhenInPlacePhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        Assert.Throws<DomainException>(() => game.EnsureInMovePhase());
+    }
+
+    [Fact]
+    public void EnsureInMovePhase_WhenCurrentPhaseIsNull_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.End(); // sets CurrentPhase = null
+        Assert.Throws<DomainException>(() => game.EnsureInMovePhase());
+    }
+
+    // ── TurnPhaseAdvanced domain events ───────────────────────────────────────
+
+    [Fact]
+    public void AdvancePhase_CoinSpawnToPlacePhase_RaisesTurnPhaseAdvancedEvent()
+    {
+        var (game, _, _) = StartedGame();
+        game.ClearDomainEvents();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        Assert.Single(game.DomainEvents.OfType<TurnPhaseAdvanced>());
+    }
+
+    [Fact]
+    public void AdvancePhase_CoinSpawnToPlacePhase_Event_HasCorrectTurnNumber()
+    {
+        var (game, _, _) = StartedGame();
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(1, evt.TurnNumber);
+    }
+
+    [Fact]
+    public void AdvancePhase_CoinSpawnToPlacePhase_Event_HasCorrectPreviousPhase()
+    {
+        var (game, _, _) = StartedGame();
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.CoinSpawn, evt.PreviousPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_CoinSpawnToPlacePhase_Event_HasCorrectNewPhase()
+    {
+        var (game, _, _) = StartedGame();
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.PlacePhase, evt.NewPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_PlacePhaseToMovePhase_RaisesTurnPhaseAdvancedEvent()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.ClearDomainEvents();
+        game.AdvancePhase(); // PlacePhase → MovePhase
+        Assert.Single(game.DomainEvents.OfType<TurnPhaseAdvanced>());
+    }
+
+    [Fact]
+    public void AdvancePhase_PlacePhaseToMovePhase_Event_HasCorrectPreviousPhase()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase();
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.PlacePhase, evt.PreviousPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_PlacePhaseToMovePhase_Event_HasCorrectNewPhase()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase();
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.MovePhase, evt.NewPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_MovePhaseToCoinSpawn_OnNonFinalTurn_Event_HasOldTurnNumber()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        var oldTurn = game.TurnNumber; // 1
+        game.ClearDomainEvents();
+        game.AdvancePhase(); // MovePhase → CoinSpawn, turn++
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(oldTurn, evt.TurnNumber);
+    }
+
+    [Fact]
+    public void AdvancePhase_MovePhaseToCoinSpawn_OnNonFinalTurn_Event_HasCorrectNewPhase()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.CoinSpawn, evt.NewPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_FinalMovePhase_Event_HasNullNewPhase()
+    {
+        var (game, _, _) = StartedGame();
+        // advance to turn 5 MovePhase
+        for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
+            game.AdvancePhase(); // complete non-final turns
+        }
+        AdvanceToMovePhase(game);
+        game.ClearDomainEvents();
+        game.AdvancePhase(); // final MovePhase → End
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Null(evt.NewPhase);
+    }
+
+    [Fact]
+    public void AdvancePhase_FinalMovePhase_Event_HasCorrectPreviousPhase()
+    {
+        var (game, _, _) = StartedGame();
+        for (var i = 0; i < Game.TotalTurns - 1; i++)
+        {
+            AdvanceToMovePhase(game);
+            game.AdvancePhase();
+        }
+        AdvanceToMovePhase(game);
+        game.ClearDomainEvents();
+        game.AdvancePhase();
+        var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
+        Assert.Equal(TurnPhase.MovePhase, evt.PreviousPhase);
+    }
+
+    [Fact]
+    public void AdvanceTurn_RaisesTurnPhaseAdvancedEvent()
+    {
+        var (game, _, _) = StartedGame();
+        AdvanceToMovePhase(game);
+        game.ClearDomainEvents();
+        game.AdvanceTurn(); // delegates to AdvancePhase()
+        Assert.Single(game.DomainEvents.OfType<TurnPhaseAdvanced>());
+    }
+
+    // ── AdvanceTurn() guard ───────────────────────────────────────────────────
+
+    [Fact]
+    public void AdvanceTurn_WhenInCoinSpawnPhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        // freshly started game is in CoinSpawn — AdvanceTurn requires MovePhase
+        Assert.Throws<DomainException>(() => game.AdvanceTurn());
+    }
+
+    [Fact]
+    public void AdvanceTurn_WhenInPlacePhase_ThrowsDomainException()
+    {
+        var (game, _, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        Assert.Throws<DomainException>(() => game.AdvanceTurn());
     }
 }
