@@ -194,9 +194,7 @@ public sealed class Board
             var tile = _tiles[row, col];
             if (!tile.IsEmpty)
                 continue;
-            if (_rocks.Any(r => r.Position == tile.Position))
-                continue;
-            if (_lakes.Any(l => l.Covers(tile.Position)))
+            if (IsObstacleCovering(tile.Position))
                 continue;
             result.Add(tile);
         }

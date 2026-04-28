@@ -49,6 +49,12 @@ public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand
         }
 
         // If there are fewer free tiles than coins needed, spawn only as many as possible.
+        if (shuffled.Count < coinsToPlace.Count)
+            _logger.LogWarning(
+                "Not enough free tiles to spawn all scheduled coins for game {GameId} on turn {Turn}. " +
+                "Scheduled: {Scheduled}, available: {Available}.",
+                request.GameId, game.CurrentTurnNumber, coinsToPlace.Count, shuffled.Count);
+
         var spawnCount = Math.Min(coinsToPlace.Count, shuffled.Count);
 
         var positionedCoins = Enumerable.Range(0, spawnCount)
