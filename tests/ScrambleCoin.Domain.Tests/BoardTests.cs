@@ -2,6 +2,7 @@ using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Obstacles;
+using ScrambleCoin.Domain.Tests.Helpers;
 using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Domain.Tests;
@@ -273,7 +274,7 @@ public class BoardTests
     {
         var board = new Board();
         var tile = board.GetTile(new Position(1, 1));
-        tile.SetOccupant(new Piece("Alice"));
+        tile.SetOccupant(PieceFactory.Any("Alice"));
         Assert.Empty(board.GetAllCoins());
     }
 
@@ -282,7 +283,7 @@ public class BoardTests
     {
         var board = new Board();
         board.GetTile(new Position(0, 0)).SetOccupant(new Coin(CoinType.Gold));
-        board.GetTile(new Position(1, 1)).SetOccupant(new Piece("Bob"));
+        board.GetTile(new Position(1, 1)).SetOccupant(PieceFactory.Any("Bob"));
         var coins = board.GetAllCoins();
         Assert.Single(coins);
         Assert.NotNull(coins[0].AsCoin);
@@ -319,7 +320,7 @@ public class BoardTests
     public void GetAllOccupiedTiles_WithPiece_ShouldReturnTile()
     {
         var board = new Board();
-        board.GetTile(new Position(0, 0)).SetOccupant(new Piece("Alice"));
+        board.GetTile(new Position(0, 0)).SetOccupant(PieceFactory.Any("Alice"));
         Assert.Single(board.GetAllOccupiedTiles());
     }
 
@@ -328,7 +329,7 @@ public class BoardTests
     {
         var board = new Board();
         board.GetTile(new Position(0, 0)).SetOccupant(new Coin(CoinType.Silver));
-        board.GetTile(new Position(1, 1)).SetOccupant(new Piece("Alice"));
+        board.GetTile(new Position(1, 1)).SetOccupant(PieceFactory.Any("Alice"));
         board.GetTile(new Position(2, 2)).SetOccupant(new Coin(CoinType.Gold));
         Assert.Equal(3, board.GetAllOccupiedTiles().Count);
     }

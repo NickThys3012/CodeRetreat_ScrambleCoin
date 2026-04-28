@@ -1,5 +1,6 @@
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
+using ScrambleCoin.Domain.Tests.Helpers;
 using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Domain.Tests;
@@ -58,7 +59,7 @@ public class TileTests
     public void SetOccupant_WithPiece_AsPiece_ShouldReturnPiece()
     {
         var tile = MakeTile();
-        var piece = new Piece("Alice");
+        var piece = PieceFactory.Any("Alice");
         tile.SetOccupant(piece);
         Assert.Equal(piece, tile.AsPiece);
     }
@@ -67,7 +68,7 @@ public class TileTests
     public void SetOccupant_WithPiece_AsCoin_ShouldBeNull()
     {
         var tile = MakeTile();
-        tile.SetOccupant(new Piece("Alice"));
+        tile.SetOccupant(PieceFactory.Any("Alice"));
         Assert.Null(tile.AsCoin);
     }
 
