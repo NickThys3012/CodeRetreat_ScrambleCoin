@@ -380,6 +380,38 @@ public sealed class Game
         }
     }
 
+    // ── Coin spawning ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Places coins on the board during the <see cref="TurnPhase.CoinSpawn"/> phase.
+    /// Raises a <see cref="CoinsSpawned"/> domain event after all coins are placed.
+    /// </summary>
+    /// <param name="coins">The positions and coin types to spawn.</param>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.CoinSpawn"/>,
+    /// or when any target tile is not empty.
+    /// </exception>
+    public void SpawnCoins(IEnumerable<(Position Position, CoinType CoinType)> coins)
+    {
+        EnsureInCoinSpawnPhase();
+
+        var spawned = new List<(Position Position, CoinType CoinType)>();
+
+        foreach (var (position, coinType) in coins)
+        {
+            var tile = Board.GetTile(position);
+
+            if (!tile.IsEmpty)
+                throw new DomainException(
+                    $"Cannot spawn a coin at {position}: the tile is already occupied.");
+
+            tile.SetOccupant(new Coin(coinType));
+            spawned.Add((position, coinType));
+        }
+
+        _domainEvents.Add(new CoinsSpawned(Id, spawned.AsReadOnly(), DateTimeOffset.UtcNow));
+    }
+
     // ── Phase guard methods ───────────────────────────────────────────────────
 
     /// <summary>
