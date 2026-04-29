@@ -36,7 +36,7 @@ public class ArchitectureTests
 
     // ── Acceptance criterion 1 ──────────────────────────────────────────────
     [Fact]
-    public void Solution_ContainsNineProjects()
+    public void Solution_ContainsTenProjects()
     {
         var sln = Path.Combine(RepoRoot, "ScrambleCoin.sln");
         var content = File.ReadAllText(sln);
@@ -46,7 +46,7 @@ public class ArchitectureTests
             .Split('\n')
             .Count(line => line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
 
-        Assert.Equal(9, csprojCount);
+        Assert.Equal(10, csprojCount);
     }
 
     // ── Clean Architecture rule: Domain has zero project dependencies ───────

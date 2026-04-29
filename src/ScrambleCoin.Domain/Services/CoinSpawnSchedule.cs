@@ -20,7 +20,7 @@ public static class CoinSpawnSchedule
     {
         return turnNumber switch
         {
-            1 => Repeat(CoinType.Silver, random.Next(7, 10) + random.Next(2, 5)),
+            1 => Repeat(CoinType.Silver, random.Next(7, 10)),
             2 or 3 => Repeat(CoinType.Silver, random.Next(2, 5)),
             4 => Repeat(CoinType.Gold, 4),
             5 => Repeat(CoinType.Gold, 3),
