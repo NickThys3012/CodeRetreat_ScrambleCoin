@@ -32,7 +32,7 @@ public sealed class Lake
             new Position(topLeft.Row,     topLeft.Col),
             new Position(topLeft.Row,     topLeft.Col + 1),
             new Position(topLeft.Row + 1, topLeft.Col),
-            new Position(topLeft.Row + 1, topLeft.Col + 1),
+            new Position(topLeft.Row + 1, topLeft.Col + 1)
         ];
     }
 

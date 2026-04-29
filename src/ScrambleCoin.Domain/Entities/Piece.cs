@@ -12,7 +12,7 @@ public sealed class Piece
     /// <summary>Unique identifier for this piece.</summary>
     public Guid Id { get; }
 
-    /// <summary>Display name of the piece (e.g. "Knight", "Scout").</summary>
+    /// <summary>Display the name of the piece (e.g. "Knight", "Scout").</summary>
     public string Name { get; }
 
     /// <summary>Identifier of the player who owns this piece.</summary>
@@ -38,7 +38,7 @@ public sealed class Piece
 
     /// <summary>
     /// Number of move actions this piece must perform each turn.
-    /// When greater than 1 all moves must be used — partial use is not allowed.
+    /// When greater than 1, all moves must be used — partial use is not allowed.
     /// Must be at least 1.
     /// </summary>
     public int MovesPerTurn { get; }

@@ -53,7 +53,7 @@ try
     // ── MediatR ───────────────────────────────────────────────────────────────
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Placeholder).Assembly));
+            typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
 
     // ── Application services ──────────────────────────────────────────────────
     builder.Services.AddSingleton(Random.Shared);

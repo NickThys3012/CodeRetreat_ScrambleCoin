@@ -206,7 +206,7 @@ public class PiecePlacementTests
             MakePiece(p1, EntryPointType.Borders, "B1"),
             MakePiece(p1, EntryPointType.Borders, "B2"),
             MakePiece(p1, EntryPointType.Borders, "B3"),
-            MakePiece(p1, EntryPointType.Borders, "B4"),
+            MakePiece(p1, EntryPointType.Borders, "B4")
         };
         var pieces2 = Enumerable.Range(0, 5).Select(i => MakePiece(p2, EntryPointType.Borders, $"P2{i}")).ToList();
         var game = new Game(p1, p2, new Board());
@@ -232,7 +232,7 @@ public class PiecePlacementTests
             MakePiece(p1, EntryPointType.Borders, "B1"),
             MakePiece(p1, EntryPointType.Borders, "B2"),
             MakePiece(p1, EntryPointType.Borders, "B3"),
-            MakePiece(p1, EntryPointType.Borders, "B4"),
+            MakePiece(p1, EntryPointType.Borders, "B4")
         };
         var pieces2 = Enumerable.Range(0, 5).Select(i => MakePiece(p2, EntryPointType.Borders, $"P2{i}")).ToList();
         var game = new Game(p1, p2, new Board());
@@ -257,7 +257,7 @@ public class PiecePlacementTests
             MakePiece(p1, EntryPointType.Borders, "B1"),
             MakePiece(p1, EntryPointType.Borders, "B2"),
             MakePiece(p1, EntryPointType.Borders, "B3"),
-            MakePiece(p1, EntryPointType.Borders, "B4"),
+            MakePiece(p1, EntryPointType.Borders, "B4")
         };
         var pieces2 = Enumerable.Range(0, 5).Select(i => MakePiece(p2, EntryPointType.Borders, $"P2{i}")).ToList();
         var game = new Game(p1, p2, new Board());
@@ -544,7 +544,7 @@ public class PiecePlacementTests
             MakePiece(p1, EntryPointType.Corners, "Corners"),   // will be the replacement
             MakePiece(p1, EntryPointType.Borders, "B2"),
             MakePiece(p1, EntryPointType.Borders, "B3"),
-            MakePiece(p1, EntryPointType.Borders, "B4"),
+            MakePiece(p1, EntryPointType.Borders, "B4")
         };
         var pieces2 = Enumerable.Range(0, 5).Select(i => MakePiece(p2, EntryPointType.Borders, $"P2{i}")).ToList();
         var game = new Game(p1, p2, new Board());
