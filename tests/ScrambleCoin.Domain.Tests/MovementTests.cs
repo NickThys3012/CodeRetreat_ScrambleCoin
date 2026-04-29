@@ -110,6 +110,10 @@ public class MovementTests
 
         // Assert: position updated
         Assert.Equal(new Position(0, 5), p1Piece.Position);
+
+        // Assert: PieceMoved event raised
+        var evt = game.DomainEvents.OfType<PieceMoved>().SingleOrDefault();
+        Assert.NotNull(evt);
     }
 
     [Fact]
@@ -268,6 +272,9 @@ public class MovementTests
 
         // Assert: score +1
         Assert.Equal(1, game.Scores[p1]);
+
+        // Assert: coin removed from board
+        Assert.Null(game.Board.GetTile(new Position(0, 4)).AsCoin);
     }
 
     [Fact]
