@@ -134,6 +134,16 @@ public sealed class Board
         return true;
     }
 
+    // ── Obstacle coverage ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="position"/> is covered by a Rock or a Lake.
+    /// Fences are on tile edges and are not included.
+    /// </summary>
+    public bool IsObstacleCovering(Position position) =>
+        _rocks.Any(r => r.Position == position) ||
+        _lakes.Any(l => l.Covers(position));
+
     // ── Query helpers ─────────────────────────────────────────────────────────
 
     /// <summary>Returns all tiles that contain a Coin.</summary>
@@ -170,4 +180,24 @@ public sealed class Board
             _rocks.AsReadOnly(),
             _lakes.AsReadOnly(),
             _fences.AsReadOnly());
+
+    /// <summary>
+    /// Returns all tiles that are free: empty (no occupant), not covered by a Rock,
+    /// and not covered by a Lake. Fences are on tile edges and do not exclude tiles.
+    /// </summary>
+    public IReadOnlyList<Tile> GetFreeTiles()
+    {
+        var result = new List<Tile>();
+        for (var row = 0; row < Size; row++)
+        for (var col = 0; col < Size; col++)
+        {
+            var tile = _tiles[row, col];
+            if (!tile.IsEmpty)
+                continue;
+            if (IsObstacleCovering(tile.Position))
+                continue;
+            result.Add(tile);
+        }
+        return result;
+    }
 }
