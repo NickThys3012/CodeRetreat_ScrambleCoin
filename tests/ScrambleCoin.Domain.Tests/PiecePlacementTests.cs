@@ -316,9 +316,7 @@ public class PiecePlacementTests
 
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
 
-        // Phase has not yet advanced (p2 hasn't acted), but p1 tries again on a different turn assumption —
-        // actually at this point the phase already advanced if p2 acted or didn't.
-        // Since p2 hasn't acted, phase is still PlacePhase and p1 already acted.
+        // p2 has not yet acted, so phase is still PlacePhase — p1 cannot act again.
         var ex = Assert.Throws<DomainException>(() => game.PlacePiece(p1, p1Pieces[1].Id, new Position(0, 1)));
         Assert.Contains("already acted", ex.Message);
     }
