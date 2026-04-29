@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.4.1",
+    "date": "2026-04-29",
+    "title": "Release",
+    "notes": [
+      "Coin spawning by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/32"
+    ]
+  },
+  {
     "version": "v1.4.0",
     "date": "2026-04-28",
     "title": "Turn structure & phase enforcement",
