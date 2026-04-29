@@ -31,12 +31,14 @@ public sealed class MoveAllPiecesCommandHandler : IRequestHandler<MoveAllPiecesC
             .Select(m => (m.PieceId, m.Segments))
             .ToList();
 
+        var turnNumber = game.TurnNumber;
+
         game.MoveAllPieces(request.PlayerId, domainMoves);
 
         await _gameRepository.SaveAsync(game, cancellationToken);
 
         _logger.LogInformation(
-            "Moves submitted for game {GameId} by player {PlayerId} ({PieceCount} piece(s)).",
-            request.GameId, request.PlayerId, request.Moves.Count);
+            "Moves submitted for game {GameId} by player {PlayerId} on turn {Turn} ({PieceCount} piece(s)).",
+            request.GameId, request.PlayerId, turnNumber, request.Moves.Count);
     }
 }
