@@ -1,8 +1,6 @@
-using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
-using ScrambleCoin.Application.Games.MoveAllPieces;
+using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
@@ -12,17 +10,17 @@ using ScrambleCoin.Domain.ValueObjects;
 namespace ScrambleCoin.Application.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="MoveAllPiecesCommandHandler"/> (Issue #11).
+/// Unit tests for <see cref="MovePieceCommandHandler"/> (Issue #11).
 /// </summary>
-public class MoveAllPiecesCommandHandlerTests
+public class MovePieceCommandHandlerTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Creates a game that is in MovePhase with exactly one piece per player on the board.
+    /// Creates a game in MovePhase with one piece per player on the board.
     /// P1's piece is at (0,3); P2's piece is at (7,3).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2, Piece p1Piece)
+    private static (Game game, Guid p1, Guid p2, Piece p1Piece, Piece p2Piece)
         GameInMovePhaseWithPieces()
     {
         var p1 = Guid.NewGuid();
@@ -46,16 +44,15 @@ public class MoveAllPiecesCommandHandlerTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
-        // Placing for both players auto-advances to MovePhase.
+        // Placing both pieces auto-advances to MovePhase.
         game.PlacePiece(p1, p1Piece.Id, new Position(0, 3));
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 3));
 
-        return (game, p1, p2, p1Piece);
+        return (game, p1, p2, p1Piece, p2Piece);
     }
 
     /// <summary>
-    /// Creates a game that is still in CoinSpawn phase (right after Start), so any
-    /// MoveAllPieces call should throw a DomainException.
+    /// Creates a game in CoinSpawn phase (right after Start).
     /// </summary>
     private static (Game game, Guid p1) GameInCoinSpawnPhase()
     {
@@ -80,24 +77,24 @@ public class MoveAllPiecesCommandHandlerTests
     // ── Test 1: Handler delegates to domain and saves ──────────────────────────
 
     [Fact]
-    public async Task Handle_ValidCommand_CallsMoveAllPiecesAndSavesGame()
+    public async Task Handle_ValidCommand_CallsMovePieceAndSavesGame()
     {
         // Arrange
-        var (game, p1, _, p1Piece) = GameInMovePhaseWithPieces();
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<MoveAllPiecesCommandHandler>>();
-        var handler = new MoveAllPiecesCommandHandler(repo, logger);
+        var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
+        var handler = new MovePieceCommandHandler(repo, logger);
 
         // Build command: move P1's piece one step right to (0,4)
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(0, 4) }.AsReadOnly();
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
-        var command = new MoveAllPiecesCommand(
-            game.Id,
-            p1,
-            new List<PieceMovement> { new PieceMovement(p1Piece.Id, segments) }.AsReadOnly());
+        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new Position(0, 4) }.AsReadOnly()
+        }.AsReadOnly();
+
+        var command = new MovePieceCommand(game.Id, p1, p1Piece.Id, segments);
 
         // Act
         await handler.Handle(command, CancellationToken.None);
@@ -113,19 +110,20 @@ public class MoveAllPiecesCommandHandlerTests
     public async Task Handle_ValidCommand_DoesNotThrow()
     {
         // Arrange
-        var (game, p1, _, p1Piece) = GameInMovePhaseWithPieces();
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<MoveAllPiecesCommandHandler>>();
-        var handler = new MoveAllPiecesCommandHandler(repo, logger);
+        var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
+        var handler = new MovePieceCommandHandler(repo, logger);
 
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(0, 4) }.AsReadOnly();
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
-        var command = new MoveAllPiecesCommand(
-            game.Id, p1,
-            new List<PieceMovement> { new PieceMovement(p1Piece.Id, segments) }.AsReadOnly());
+        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new Position(0, 4) }.AsReadOnly()
+        }.AsReadOnly();
+
+        var command = new MovePieceCommand(game.Id, p1, p1Piece.Id, segments);
 
         // Act & Assert: no exception
         var ex = await Record.ExceptionAsync(() => handler.Handle(command, CancellationToken.None));
@@ -137,17 +135,16 @@ public class MoveAllPiecesCommandHandlerTests
     [Fact]
     public async Task Handle_WhenDomainThrows_ExceptionPropagates()
     {
-        // Arrange: game is in CoinSpawn phase — MoveAllPieces will throw DomainException
+        // Arrange: game is in CoinSpawn phase — MovePiece will throw DomainException
         var (game, p1) = GameInCoinSpawnPhase();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<MoveAllPiecesCommandHandler>>();
-        var handler = new MoveAllPiecesCommandHandler(repo, logger);
+        var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
+        var handler = new MovePieceCommandHandler(repo, logger);
 
-        // Command with no moves (doesn't matter; wrong phase throws first)
-        var command = new MoveAllPiecesCommand(game.Id, p1, new List<PieceMovement>().AsReadOnly());
+        var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
         // Act & Assert: DomainException propagates through the handler
         await Assert.ThrowsAsync<DomainException>(() => handler.Handle(command, CancellationToken.None));
@@ -162,10 +159,10 @@ public class MoveAllPiecesCommandHandlerTests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<MoveAllPiecesCommandHandler>>();
-        var handler = new MoveAllPiecesCommandHandler(repo, logger);
+        var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
+        var handler = new MovePieceCommandHandler(repo, logger);
 
-        var command = new MoveAllPiecesCommand(game.Id, p1, new List<PieceMovement>().AsReadOnly());
+        var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
         // Act: swallow the exception
         try { await handler.Handle(command, CancellationToken.None); } catch { /* expected */ }

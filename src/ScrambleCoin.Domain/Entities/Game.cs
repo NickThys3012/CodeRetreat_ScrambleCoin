@@ -88,7 +88,7 @@ public sealed class Game
 
     // ── Move-phase tracking ───────────────────────────────────────────────────
 
-    private readonly HashSet<Guid> _movePhaseDone = new HashSet<Guid>();
+    private readonly HashSet<Guid> _movedPieceIds = new HashSet<Guid>();
 
     // ── Pieces-on-board counters ──────────────────────────────────────────────
 
@@ -368,7 +368,7 @@ public sealed class Game
 
             case TurnPhase.PlacePhase:
                 CurrentPhase = TurnPhase.MovePhase;
-                _movePhaseDone.Clear();
+                _movedPieceIds.Clear();
                 _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
                 break;
 
@@ -664,12 +664,13 @@ public sealed class Game
     // ── Piece movement ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Applies all move actions for every on-board piece belonging to <paramref name="playerId"/>
-    /// during MovePhase. Each entry in <paramref name="moves"/> maps a piece to its list of
-    /// movement segments; every on-board piece must be included.
+    /// Moves a single on-board piece during MovePhase, applying direction validation,
+    /// obstacle/fence blocking, and coin collection along the path.
+    /// Auto-advances to the next turn (or ends the game) once all on-board pieces
+    /// from both players have moved.
     /// </summary>
     /// <remarks>
-    /// Rules enforced per-piece:
+    /// Rules enforced:
     /// <list type="bullet">
     ///   <item>Number of segments must equal <see cref="Piece.MovesPerTurn"/>.</item>
     ///   <item>Each segment must have 1 to <see cref="Piece.MaxDistance"/> steps (or 0 only when
@@ -679,163 +680,155 @@ public sealed class Game
     ///   <item>No step may land on a tile already occupied by a piece.</item>
     /// </list>
     /// Coins are collected on every tile the piece steps onto.
-    /// Auto-advances to the next turn once both players have submitted.
     /// </remarks>
-    /// <param name="playerId">The player submitting their moves.</param>
-    /// <param name="moves">One entry per on-board piece: piece id and list of movement segments.</param>
+    /// <param name="playerId">The player submitting the move.</param>
+    /// <param name="pieceId">The piece to move.</param>
+    /// <param name="segments">
+    /// One segment per <c>MovesPerTurn</c>. Each segment is an ordered list of positions
+    /// the piece steps through during that move action (not including starting position).
+    /// </param>
     /// <exception cref="DomainException">
     /// Thrown when the current phase is not <see cref="TurnPhase.MovePhase"/>,
-    /// when the player is not a participant or has already submitted moves this phase,
-    /// when the moves list does not cover exactly the on-board pieces,
+    /// when the player is not a participant,
+    /// when the piece has already moved this turn,
+    /// when the piece is not in the player's lineup or not on the board,
     /// or when any individual move violates the movement rules.
     /// </exception>
-    public void MoveAllPieces(
+    public void MovePiece(
         Guid playerId,
-        IEnumerable<(Guid PieceId, IReadOnlyList<IReadOnlyList<Position>> Segments)> moves)
+        Guid pieceId,
+        IReadOnlyList<IReadOnlyList<Position>> segments)
     {
         EnsureIsParticipant(playerId);
         EnsureInMovePhase();
 
-        if (_movePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already submitted moves during the Move Phase this turn.");
+        if (_movedPieceIds.Contains(pieceId))
+            throw new DomainException($"Piece {pieceId} has already moved this turn.");
 
         var lineup = GetLineupForPlayer(playerId);
 
-        // Snapshot on-board pieces before processing.
-        var onBoardPieces = lineup.Pieces.Where(p => p.IsOnBoard).ToList();
+        var piece = lineup.Pieces.SingleOrDefault(p => p.Id == pieceId)
+            ?? throw new DomainException($"Piece {pieceId} is not in player {playerId}'s lineup.");
 
-        var moveList = moves.ToList();
+        if (!piece.IsOnBoard)
+            throw new DomainException($"Piece {pieceId} is not on the board.");
 
-        // All on-board pieces must be covered — same count and same IDs.
-        var movePieceIds = moveList.Select(m => m.PieceId).ToHashSet();
-        var onBoardIds   = onBoardPieces.Select(p => p.Id).ToHashSet();
+        var startPosition = piece.Position!;
+        var currentPosition = startPosition;
 
-        if (moveList.Count != onBoardIds.Count || !movePieceIds.SetEquals(onBoardIds))
-            throw new DomainException(
-                $"The moves list must contain exactly one entry per on-board piece. " +
-                $"Expected: [{string.Join(", ", onBoardIds)}]; Got: [{string.Join(", ", movePieceIds)}].");
+        // Check whether the piece has any valid first move (used to allow empty segments).
+        var hasAnyValidMove = Board.HasAnyValidMove(currentPosition, piece.MovementType);
 
-        foreach (var (pieceId, segments) in moveList)
+        // Validate segment count.
+        if (segments.Count != piece.MovesPerTurn)
         {
-            var piece = lineup.Pieces.Single(p => p.Id == pieceId);
+            // Only exception: the piece is completely blocked and MovesPerTurn == 1
+            // and the caller passes exactly 1 empty segment.
+            bool allowedStuckException =
+                !hasAnyValidMove &&
+                piece.MovesPerTurn == 1 &&
+                segments.Count == 1 &&
+                segments[0].Count == 0;
 
-            // piece.IsOnBoard is already guaranteed by the set-equality check above, but be explicit.
-            if (!piece.IsOnBoard)
-                throw new DomainException($"Piece {pieceId} is not on the board.");
-
-            var startPosition = piece.Position!;
-            var currentPosition = startPosition;
-
-            // Check whether the piece has any valid first move (used to allow empty segments).
-            var hasAnyValidMove = Board.HasAnyValidMove(currentPosition, piece.MovementType);
-
-            // Validate segment count.
-            if (segments.Count != piece.MovesPerTurn)
-            {
-                // Only exception: the piece is completely blocked and MovesPerTurn == 1
-                // and the caller passes exactly 1 empty segment.
-                bool allowedStuckException =
-                    !hasAnyValidMove &&
-                    piece.MovesPerTurn == 1 &&
-                    segments.Count == 1 &&
-                    segments[0].Count == 0;
-
-                if (!allowedStuckException)
-                    throw new DomainException(
-                        $"Piece {pieceId} requires exactly {piece.MovesPerTurn} segment(s), but {segments.Count} were provided.");
-            }
-
-            var fullPath = new List<Position>();
-
-            for (var segIndex = 0; segIndex < segments.Count; segIndex++)
-            {
-                var segment = segments[segIndex];
-
-                if (segment.Count == 0)
-                {
-                    // An empty segment is only permitted when the piece has no valid move.
-                    if (Board.HasAnyValidMove(currentPosition, piece.MovementType))
-                        throw new DomainException(
-                            $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
-                    continue;
-                }
-
-                if (segment.Count > piece.MaxDistance)
-                    throw new DomainException(
-                        $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
-
-                var segFrom = currentPosition;
-
-                foreach (var stepTo in segment)
-                {
-                    // Validate step adjacency based on MovementType.
-                    switch (piece.MovementType)
-                    {
-                        case MovementType.Orthogonal:
-                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
-                                throw new DomainException(
-                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
-                            break;
-                        case MovementType.Diagonal:
-                            if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
-                                throw new DomainException(
-                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
-                            break;
-                        case MovementType.AnyDirection:
-                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
-                                throw new DomainException(
-                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
-                            break;
-                    }
-
-                    // Passability (obstacles + fences).
-                    if (!Board.IsPassable(segFrom, stepTo))
-                        throw new DomainException(
-                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
-
-                    // Target must not be occupied by a piece.
-                    var targetTile = Board.GetTile(stepTo);
-                    if (targetTile.AsPiece is not null)
-                        throw new DomainException(
-                            $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
-
-                    // Collect coin if present.
-                    var coin = targetTile.AsCoin;
-                    if (coin is not null)
-                    {
-                        targetTile.ClearOccupant();
-                        AddScore(playerId, coin.Value);
-                        _domainEvents.Add(new Events.CoinCollected(
-                            Id, TurnNumber, playerId, pieceId, stepTo,
-                            coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
-                    }
-
-                    fullPath.Add(stepTo);
-                    segFrom = stepTo;
-                }
-
-                currentPosition = segFrom;
-            }
-
-            // Move the piece on the board.
-            var fromTile = Board.GetTile(startPosition);
-            fromTile.ClearOccupant();
-
-            piece.PlaceAt(currentPosition);
-
-            var toTile = Board.GetTile(currentPosition);
-            toTile.SetOccupant(piece);
-
-            _domainEvents.Add(new Events.PieceMoved(
-                Id, TurnNumber, playerId, pieceId,
-                startPosition, currentPosition,
-                fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
+            if (!allowedStuckException)
+                throw new DomainException(
+                    $"Piece {pieceId} requires exactly {piece.MovesPerTurn} segment(s), but {segments.Count} were provided.");
         }
 
-        _movePhaseDone.Add(playerId);
+        var fullPath = new List<Position>();
 
-        // Auto-advance once both players have submitted.
-        if (_movePhaseDone.Contains(PlayerOne) && _movePhaseDone.Contains(PlayerTwo))
+        for (var segIndex = 0; segIndex < segments.Count; segIndex++)
+        {
+            var segment = segments[segIndex];
+
+            if (segment.Count == 0)
+            {
+                // An empty segment is only permitted when the piece has no valid move.
+                if (Board.HasAnyValidMove(currentPosition, piece.MovementType))
+                    throw new DomainException(
+                        $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
+                continue;
+            }
+
+            if (segment.Count > piece.MaxDistance)
+                throw new DomainException(
+                    $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
+
+            var segFrom = currentPosition;
+
+            foreach (var stepTo in segment)
+            {
+                // Validate step adjacency based on MovementType.
+                switch (piece.MovementType)
+                {
+                    case MovementType.Orthogonal:
+                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                            throw new DomainException(
+                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
+                        break;
+                    case MovementType.Diagonal:
+                        if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                            throw new DomainException(
+                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+                        break;
+                    case MovementType.AnyDirection:
+                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                            throw new DomainException(
+                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+                        break;
+                }
+
+                // Passability (obstacles + fences).
+                if (!Board.IsPassable(segFrom, stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+
+                // Target must not be occupied by a piece.
+                var targetTile = Board.GetTile(stepTo);
+                if (targetTile.AsPiece is not null)
+                    throw new DomainException(
+                        $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+
+                // Collect coin if present.
+                var coin = targetTile.AsCoin;
+                if (coin is not null)
+                {
+                    targetTile.ClearOccupant();
+                    AddScore(playerId, coin.Value);
+                    _domainEvents.Add(new Events.CoinCollected(
+                        Id, TurnNumber, playerId, pieceId, stepTo,
+                        coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                }
+
+                fullPath.Add(stepTo);
+                segFrom = stepTo;
+            }
+
+            currentPosition = segFrom;
+        }
+
+        // Move the piece on the board.
+        var fromTile = Board.GetTile(startPosition);
+        fromTile.ClearOccupant();
+
+        piece.PlaceAt(currentPosition);
+
+        var toTile = Board.GetTile(currentPosition);
+        toTile.SetOccupant(piece);
+
+        _domainEvents.Add(new Events.PieceMoved(
+            Id, TurnNumber, playerId, pieceId,
+            startPosition, currentPosition,
+            fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
+
+        _movedPieceIds.Add(pieceId);
+
+        // Auto-advance when all on-board pieces from both players have moved.
+        var allOnBoardPieceIds = LineupPlayerOne!.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id)
+            .Concat(LineupPlayerTwo!.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id))
+            .ToHashSet();
+
+        if (allOnBoardPieceIds.Count == 0 || allOnBoardPieceIds.IsSubsetOf(_movedPieceIds))
             AdvanceTurn();
     }
 
