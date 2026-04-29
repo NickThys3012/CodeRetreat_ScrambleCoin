@@ -182,6 +182,57 @@ public sealed class Board
             _lakes.AsReadOnly(),
             _fences.AsReadOnly());
 
+    // ── Movement helpers ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if the piece at <paramref name="currentPos"/> has at least one valid move
+    /// given its <paramref name="movementType"/>. A move is valid when:
+    /// <list type="bullet">
+    ///   <item><description>The target position is within board bounds.</description></item>
+    ///   <item><description>The edge is passable (<see cref="IsPassable"/>).</description></item>
+    ///   <item><description>The target tile is not occupied by another piece.</description></item>
+    /// </list>
+    /// </summary>
+    public bool HasAnyValidMove(Position currentPos, MovementType movementType)
+    {
+        var deltas = movementType switch
+        {
+            MovementType.Orthogonal => new[] { (-1, 0), (1, 0), (0, -1), (0, 1) },
+            MovementType.Diagonal   => new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) },
+            _                       => new[] { (-1, 0), (1, 0), (0, -1), (0, 1),
+                                               (-1, -1), (-1, 1), (1, -1), (1, 1) }
+        };
+
+        foreach (var (dr, dc) in deltas)
+        {
+            var newRow = currentPos.Row + dr;
+            var newCol = currentPos.Col + dc;
+
+            // Bounds check without constructing Position (which throws on invalid coords).
+            if (newRow < 0 || newRow >= Size || newCol < 0 || newCol >= Size)
+                continue;
+
+            var neighbor = new Position(newRow, newCol);
+
+            try
+            {
+                if (!IsPassable(currentPos, neighbor))
+                    continue;
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (_tiles[newRow, newCol].AsPiece is not null)
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
     // ── Entry-point helpers ───────────────────────────────────────────────────
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is on any board edge (row = 0 or 7, or col = 0 or 7).</summary>
