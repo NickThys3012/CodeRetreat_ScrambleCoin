@@ -568,4 +568,72 @@ public class MovementTests
 
         Assert.Equal(new Position(0, 4), p1Piece.Position);
     }
+
+    // ── Sequential move order ─────────────────────────────────────────────────
+
+    [Fact]
+    public void MovePiece_PlayerTwoBeforePlayerOneDone_ThrowsDomainException()
+    {
+        // Arrange: both players have one piece on board
+        var (game, _, p2, _, p2Piece) = GameInMovePhaseWithOnePieceEach();
+
+        // Act: P2 tries to move before P1 has moved any piece
+        var ex = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4))));
+
+        Assert.Contains("not", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MovePiece_PlayerTwoCanMoveAfterPlayerOneDone()
+    {
+        // Arrange
+        var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithOnePieceEach();
+
+        // Act: P1 moves first
+        game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(0, 4)));
+
+        // Now P2 can move
+        game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
+
+        // Assert: both pieces moved
+        Assert.Equal(new Position(0, 4), p1Piece.Position);
+        Assert.Equal(new Position(7, 4), p2Piece.Position);
+    }
+
+    [Fact]
+    public void MovePiece_PlayerOneWithNoPieces_PlayerTwoCanMoveImmediately()
+    {
+        // Arrange: only P2 has a piece on board
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var p1Pieces = Enumerable.Range(0, 5)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Piece{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 3, 1))
+            .ToList();
+        var p2Piece = new Piece(Guid.NewGuid(), "P2Piece", p2, EntryPointType.Borders, MovementType.Orthogonal, 3, 1);
+        var p2Pieces = new List<Piece> { p2Piece }
+            .Concat(Enumerable.Range(1, 4).Select(i => new Piece(Guid.NewGuid(), $"P2Extra{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1)))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(p1Pieces));
+        game.SetLineup(p2, new Lineup(p2Pieces));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        // Only place P2's piece
+        p2Piece.PlaceAt(new Position(7, 0));
+        board.GetTile(new Position(7, 0)).SetOccupant(p2Piece);
+
+        game.AdvancePhase(); // PlacePhase → MovePhase
+
+        // Act: P2 moves — P1 is lazily skipped (no pieces)
+        game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 1)));
+
+        // Assert: phase auto-advanced (both done)
+        Assert.NotEqual(TurnPhase.MovePhase, game.CurrentPhase);
+        Assert.Equal(new Position(7, 1), p2Piece.Position);
+    }
 }

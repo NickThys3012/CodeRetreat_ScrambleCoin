@@ -90,6 +90,13 @@ public sealed class Game
 
     private readonly HashSet<Guid> _movedPieceIds = new HashSet<Guid>();
 
+    /// <summary>
+    /// The player whose turn it currently is to submit piece moves during MovePhase.
+    /// PlayerOne always moves first; switches to PlayerTwo once all of PlayerOne's
+    /// on-board pieces have moved. <c>null</c> outside of MovePhase.
+    /// </summary>
+    public Guid? MovePhaseActivePlayer { get; private set; }
+
     // ── Pieces-on-board counters ──────────────────────────────────────────────
 
     private readonly Dictionary<Guid, int> _piecesOnBoard;
@@ -369,6 +376,7 @@ public sealed class Game
             case TurnPhase.PlacePhase:
                 CurrentPhase = TurnPhase.MovePhase;
                 _movedPieceIds.Clear();
+                MovePhaseActivePlayer = PlayerOne;
                 _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
                 break;
 
@@ -702,6 +710,20 @@ public sealed class Game
         EnsureIsParticipant(playerId);
         EnsureInMovePhase();
 
+        // Skip the active player forward if they have no pieces left to move
+        // (e.g. a player who placed no pieces this turn). Advances to the next
+        // player or ends MovePhase if both are done.
+        SkipActiveMoverIfNoPiecesRemaining();
+
+        if (CurrentPhase != TurnPhase.MovePhase)
+            throw new DomainException("MovePhase has already ended — all on-board pieces have been moved.");
+
+        // Strict sequential: only the active player may submit moves.
+        if (playerId != MovePhaseActivePlayer)
+            throw new DomainException(
+                $"It is not player {playerId}'s turn to move. " +
+                $"Current active mover: {MovePhaseActivePlayer}.");
+
         if (_movedPieceIds.Contains(pieceId))
             throw new DomainException($"Piece {pieceId} has already moved this turn.");
 
@@ -823,13 +845,61 @@ public sealed class Game
 
         _movedPieceIds.Add(pieceId);
 
-        // Auto-advance when all on-board pieces from both players have moved.
-        var allOnBoardPieceIds = LineupPlayerOne!.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id)
-            .Concat(LineupPlayerTwo!.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id))
-            .ToHashSet();
+        // Advance the active player when all their on-board pieces have moved.
+        TryAutoAdvanceMovePhase();
+    }
 
-        if (allOnBoardPieceIds.Count == 0 || allOnBoardPieceIds.IsSubsetOf(_movedPieceIds))
-            AdvanceTurn();
+    /// <summary>
+    /// Checks whether the current active mover in MovePhase has finished all their
+    /// on-board piece moves. If so, switches to the other player (or advances the turn
+    /// if both players are done). Handles the case where a player has no pieces on board.
+    /// </summary>
+    private void TryAutoAdvanceMovePhase()
+    {
+        if (MovePhaseActivePlayer is null) return;
+
+        var activeLineup = MovePhaseActivePlayer == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+        var activePieceIds = activeLineup.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id).ToHashSet();
+
+        if (activePieceIds.All(id => _movedPieceIds.Contains(id)))
+        {
+            if (MovePhaseActivePlayer == PlayerOne)
+            {
+                MovePhaseActivePlayer = PlayerTwo;
+                TryAutoAdvanceMovePhase(); // PlayerTwo may also have 0 pieces
+            }
+            else
+            {
+                MovePhaseActivePlayer = null;
+                AdvanceTurn();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Lazily skips the active mover forward when they have no remaining on-board pieces
+    /// left to move (e.g. a player who placed no pieces during PlacePhase).
+    /// Advances the active player — or ends MovePhase entirely — without requiring any
+    /// explicit call from the caller.
+    /// </summary>
+    private void SkipActiveMoverIfNoPiecesRemaining()
+    {
+        while (MovePhaseActivePlayer is not null)
+        {
+            var lineup = MovePhaseActivePlayer == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+            var hasRemaining = lineup.Pieces.Any(p => p.IsOnBoard && !_movedPieceIds.Contains(p.Id));
+
+            if (hasRemaining) break;
+
+            if (MovePhaseActivePlayer == PlayerOne)
+                MovePhaseActivePlayer = PlayerTwo;
+            else
+            {
+                MovePhaseActivePlayer = null;
+                AdvanceTurn();
+                return;
+            }
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
