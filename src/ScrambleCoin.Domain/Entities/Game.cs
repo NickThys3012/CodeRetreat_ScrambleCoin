@@ -82,6 +82,10 @@ public sealed class Game
     /// </summary>
     public TurnPhase? CurrentPhase { get; private set; }
 
+    // ── Place-phase tracking ──────────────────────────────────────────────────
+
+    private readonly HashSet<Guid> _placePhaseDone = new HashSet<Guid>();
+
     // ── Pieces-on-board counters ──────────────────────────────────────────────
 
     private readonly Dictionary<Guid, int> _piecesOnBoard;
@@ -354,6 +358,7 @@ public sealed class Game
         {
             case TurnPhase.CoinSpawn:
                 CurrentPhase = TurnPhase.PlacePhase;
+                _placePhaseDone.Clear();
                 _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
                 break;
 
@@ -481,5 +486,195 @@ public sealed class Game
         if (!_piecesOnBoard.TryGetValue(playerId, out var count))
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
         return count;
+    }
+
+    // ── Piece placement ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Places an off-board piece at a valid entry-point tile during PlacePhase.
+    /// Collects any coin on the target tile and adds it to the player's score.
+    /// Auto-advances to MovePhase once both players have acted (or skipped).
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.PlacePhase"/>,
+    /// when the player is not a participant, when the player has already acted this phase,
+    /// when the piece is not in the player's lineup, when the piece is already on the board,
+    /// when the target position violates the piece's entry-point type,
+    /// when the target tile is covered by an obstacle,
+    /// when the target tile is already occupied by another piece,
+    /// or when the player already has the maximum number of pieces on the board.
+    /// </exception>
+    public void PlacePiece(Guid playerId, Guid pieceId, Position position)
+    {
+        EnsureInPlacePhase();
+        EnsureIsParticipant(playerId);
+
+        if (_placePhaseDone.Contains(playerId))
+            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+
+        var lineup = GetLineupForPlayer(playerId);
+        var piece = lineup.Pieces.SingleOrDefault(p => p.Id == pieceId)
+            ?? throw new DomainException($"Piece {pieceId} is not in player {playerId}'s lineup.");
+
+        if (piece.IsOnBoard)
+            throw new DomainException($"Piece {pieceId} is already on the board. Use ReplacePiece to swap it.");
+
+        if (!Board.IsValidEntryPoint(position, piece.EntryPointType))
+            throw new DomainException($"Position {position} is not a valid entry point for entry type {piece.EntryPointType}.");
+
+        if (_piecesOnBoard[playerId] >= MaxPiecesOnBoard)
+            throw new DomainException($"Player {playerId} already has the maximum of {MaxPiecesOnBoard} pieces on the board.");
+
+        if (Board.IsObstacleCovering(position))
+            throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
+
+        var tile = Board.GetTile(position);
+
+        if (tile.AsPiece is not null)
+            throw new DomainException($"Cannot place piece at {position}: tile is already occupied by another piece.");
+
+        // Collect coin if present.
+        var coin = tile.AsCoin;
+        bool coinCollected = coin is not null;
+        int coinValue = coin?.Value ?? 0;
+        if (coinCollected)
+        {
+            tile.ClearOccupant();
+            _scores[playerId] += coinValue;
+        }
+
+        piece.PlaceAt(position);
+        tile.SetOccupant(piece);
+        _piecesOnBoard[playerId]++;
+
+        _domainEvents.Add(new PiecePlaced(Id, TurnNumber, playerId, pieceId, position, coinCollected, coinValue, DateTimeOffset.UtcNow));
+
+        MarkPlacePhaseActed(playerId);
+    }
+
+    /// <summary>
+    /// Removes an on-board piece and places a different lineup piece at the given position during PlacePhase.
+    /// Collects any coin on the target tile and adds it to the player's score.
+    /// Auto-advances to MovePhase once both players have acted (or skipped).
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.PlacePhase"/>,
+    /// when the player is not a participant, when the player has already acted this phase,
+    /// when either piece is not in the player's lineup,
+    /// when the existing piece is not on the board,
+    /// when the new piece is already on the board,
+    /// when <paramref name="existingPieceId"/> equals <paramref name="newPieceId"/>,
+    /// when the target position violates the new piece's entry-point type,
+    /// when the target tile is covered by an obstacle,
+    /// or when the target tile is already occupied by a different piece.
+    /// </exception>
+    public void ReplacePiece(Guid playerId, Guid existingPieceId, Guid newPieceId, Position position)
+    {
+        EnsureInPlacePhase();
+        EnsureIsParticipant(playerId);
+
+        if (_placePhaseDone.Contains(playerId))
+            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+
+        if (existingPieceId == newPieceId)
+            throw new DomainException("ExistingPieceId and NewPieceId must be different.");
+
+        var lineup = GetLineupForPlayer(playerId);
+
+        var existingPiece = lineup.Pieces.SingleOrDefault(p => p.Id == existingPieceId)
+            ?? throw new DomainException($"Piece {existingPieceId} is not in player {playerId}'s lineup.");
+
+        if (!existingPiece.IsOnBoard)
+            throw new DomainException($"Piece {existingPieceId} is not on the board; cannot replace it.");
+
+        var newPiece = lineup.Pieces.SingleOrDefault(p => p.Id == newPieceId)
+            ?? throw new DomainException($"Piece {newPieceId} is not in player {playerId}'s lineup.");
+
+        if (newPiece.IsOnBoard)
+            throw new DomainException($"Piece {newPieceId} is already on the board; cannot use it as the replacement.");
+
+        if (!Board.IsValidEntryPoint(position, newPiece.EntryPointType))
+            throw new DomainException($"Position {position} is not a valid entry point for entry type {newPiece.EntryPointType}.");
+
+        if (Board.IsObstacleCovering(position))
+            throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
+
+        // Remove existing piece from its current tile so the tile.AsPiece check handles same-tile replacement correctly.
+        var existingTile = Board.GetTile(existingPiece.Position!);
+        existingTile.ClearOccupant();
+        existingPiece.RemoveFromBoard();
+        _piecesOnBoard[playerId]--;
+
+        // Now check the target tile (may be the same tile — now clear after removal above).
+        var tile = Board.GetTile(position);
+
+        if (tile.AsPiece is not null)
+        {
+            // Undo the removal before throwing.
+            existingPiece.PlaceAt(existingTile.Position);
+            existingTile.SetOccupant(existingPiece);
+            _piecesOnBoard[playerId]++;
+            throw new DomainException($"Cannot place piece at {position}: tile is already occupied by another piece.");
+        }
+
+        // Collect coin if present at target tile.
+        var coin = tile.AsCoin;
+        bool coinCollected = coin is not null;
+        int coinValue = coin?.Value ?? 0;
+        if (coinCollected)
+        {
+            tile.ClearOccupant();
+            _scores[playerId] += coinValue;
+        }
+
+        newPiece.PlaceAt(position);
+        tile.SetOccupant(newPiece);
+        _piecesOnBoard[playerId]++;
+
+        _domainEvents.Add(new PieceReplaced(Id, TurnNumber, playerId, existingPieceId, newPieceId, position, coinCollected, coinValue, DateTimeOffset.UtcNow));
+
+        MarkPlacePhaseActed(playerId);
+    }
+
+    /// <summary>
+    /// Skips the placement action for this player this turn.
+    /// Auto-advances to MovePhase once both players have acted (or skipped).
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.PlacePhase"/>,
+    /// when the player is not a participant,
+    /// or when the player has already acted this phase.
+    /// </exception>
+    public void SkipPlacement(Guid playerId)
+    {
+        EnsureInPlacePhase();
+        EnsureIsParticipant(playerId);
+
+        if (_placePhaseDone.Contains(playerId))
+            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+
+        MarkPlacePhaseActed(playerId);
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private void MarkPlacePhaseActed(Guid playerId)
+    {
+        _placePhaseDone.Add(playerId);
+        if (_placePhaseDone.Contains(PlayerOne) && _placePhaseDone.Contains(PlayerTwo))
+            AdvancePhase(); // PlacePhase → MovePhase
+    }
+
+    private void EnsureIsParticipant(Guid playerId)
+    {
+        if (playerId != PlayerOne && playerId != PlayerTwo)
+            throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
+    }
+
+    private Lineup GetLineupForPlayer(Guid playerId)
+    {
+        if (playerId == PlayerOne)
+            return LineupPlayerOne ?? throw new DomainException("PlayerOne's lineup has not been set.");
+        return LineupPlayerTwo ?? throw new DomainException("PlayerTwo's lineup has not been set.");
     }
 }
