@@ -566,6 +566,107 @@ public class PiecePlacementTests
         Assert.Contains("entry point", ex.Message);
     }
 
+    [Fact]
+    public void ReplacePiece_TargetTileOccupied_OldPieceStillOnBoard()
+    {
+        // Arrange: place p1 and p2 pieces in turn 1, then advance to turn 2 PlacePhase.
+        var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
+        var posA = new Position(0, 0);
+        var posB = new Position(7, 0);
+
+        game.PlacePiece(p1, p1Pieces[0].Id, posA);
+        game.PlacePiece(p2, p2Pieces[0].Id, posB);
+        game.AdvanceTurn();
+        game.AdvancePhase();
+
+        // Act & Assert: replacing p1's piece targeting posB (occupied by p2) should throw.
+        Assert.Throws<DomainException>(
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posB));
+
+        // Rollback: old piece must be restored to its original position.
+        Assert.True(p1Pieces[0].IsOnBoard);
+        Assert.Equal(posA, p1Pieces[0].Position);
+        Assert.Equal(1, game.PiecesOnBoard[p1]);
+    }
+
+    [Fact]
+    public void ReplacePiece_WrongPhase_Throws()
+    {
+        // Arrange: create a game in CoinSpawnPhase (before PlacePhase).
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var p1Pieces = Enumerable.Range(0, 5)
+            .Select(i => MakePiece(p1, EntryPointType.Borders, $"P1Piece{i}"))
+            .ToList();
+        var p2Pieces = Enumerable.Range(0, 5)
+            .Select(i => MakePiece(p2, EntryPointType.Borders, $"P2Piece{i}"))
+            .ToList();
+        var game = new Game(p1, p2, new Board());
+        game.SetLineup(p1, new Lineup(p1Pieces));
+        game.SetLineup(p2, new Lineup(p2Pieces));
+        game.Start(); // → CoinSpawnPhase (not PlacePhase)
+
+        // Act & Assert: phase guard fires before any piece validation.
+        var ex = Assert.Throws<DomainException>(
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 0)));
+        Assert.Contains("PlacePhase", ex.Message);
+    }
+
+    [Fact]
+    public void ReplacePiece_NonParticipant_Throws()
+    {
+        // Arrange: game in PlacePhase — stranger ID is unknown to the game.
+        var (game, _, _, _, _) = GameInPlacePhase();
+        var stranger = Guid.NewGuid();
+
+        // Act & Assert.
+        var ex = Assert.Throws<DomainException>(
+            () => game.ReplacePiece(stranger, Guid.NewGuid(), Guid.NewGuid(), new Position(0, 0)));
+        Assert.Contains("not a participant", ex.Message);
+    }
+
+    [Fact]
+    public void ReplacePiece_ActingTwice_Throws()
+    {
+        // Arrange: set up turn 2 PlacePhase with p1's piece on board.
+        var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
+
+        game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
+        game.AdvanceTurn();
+        game.AdvancePhase();
+
+        // p1 acts once successfully.
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 1));
+
+        // p2 has not yet acted — p1 tries again.
+        var ex = Assert.Throws<DomainException>(
+            () => game.ReplacePiece(p1, p1Pieces[1].Id, p1Pieces[2].Id, new Position(0, 2)));
+        Assert.Contains("already acted", ex.Message);
+    }
+
+    [Fact]
+    public void ReplacePiece_SameTile_Succeeds()
+    {
+        // Arrange: p1Pieces[0] is on board at posA; replace it with p1Pieces[1] targeting the same tile.
+        var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
+        var posA = new Position(0, 0);
+
+        game.PlacePiece(p1, p1Pieces[0].Id, posA);
+        game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
+        game.AdvanceTurn();
+        game.AdvancePhase();
+
+        // Act: replace with the same target position.
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posA);
+
+        // Assert: new piece is at posA, old piece is off board, net count unchanged.
+        Assert.True(p1Pieces[1].IsOnBoard);
+        Assert.Equal(posA, p1Pieces[1].Position);
+        Assert.False(p1Pieces[0].IsOnBoard);
+        Assert.Equal(1, game.PiecesOnBoard[p1]);
+    }
+
     // ── Board helper methods ──────────────────────────────────────────────────
 
     [Theory]
