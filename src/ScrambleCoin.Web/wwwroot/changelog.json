@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.4.2",
+    "date": "2026-04-29",
+    "title": "Release",
+    "notes": [
+      "Piece placement & replace phase by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/33"
+    ]
+  },
+  {
     "version": "v1.4.1",
     "date": "2026-04-29",
     "title": "Release",
