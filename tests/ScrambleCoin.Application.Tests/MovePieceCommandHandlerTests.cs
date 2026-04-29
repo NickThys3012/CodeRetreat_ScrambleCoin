@@ -135,7 +135,7 @@ public class MovePieceCommandHandlerTests
     [Fact]
     public async Task Handle_WhenDomainThrows_ExceptionPropagates()
     {
-        // Arrange: game is in CoinSpawn phase — MovePiece will throw DomainException
+        // Arrange: the game is in CoinSpawn phase — MovePiece will throw DomainException
         var (game, p1) = GameInCoinSpawnPhase();
 
         var repo = Substitute.For<IGameRepository>();
@@ -153,7 +153,7 @@ public class MovePieceCommandHandlerTests
     [Fact]
     public async Task Handle_WhenDomainThrows_GameIsNotSaved()
     {
-        // Arrange: game in wrong phase → domain throws before SaveAsync
+        // Arrange: game in the wrong phase → domain throws before SaveAsync
         var (game, p1) = GameInCoinSpawnPhase();
 
         var repo = Substitute.For<IGameRepository>();

@@ -31,7 +31,7 @@ public class ReplacePieceCommandHandlerTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
-        // Place first piece so it can be replaced
+        // Place the first piece so it can be replaced
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
 
         // Reset phase tracking: p2 skips so phase auto-advanced to MovePhase;
@@ -61,12 +61,12 @@ public class ReplacePieceCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: old piece removed, new piece placed
+        // Assert: an old piece removed, a new piece placed
         Assert.False(p1Pieces[0].IsOnBoard);
         Assert.True(p1Pieces[1].IsOnBoard);
         Assert.Equal(new Position(0, 1), p1Pieces[1].Position);
 
-        // Assert: game was saved
+        // Assert: the game was saved
         await repo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 }

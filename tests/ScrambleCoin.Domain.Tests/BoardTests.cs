@@ -83,7 +83,7 @@ public class BoardTests
         var from = new Position(3, 3);
         board.AddRock(new Rock(from));
         var to = new Position(3, 4);
-        // Rock at source doesn't block; only at destination
+        // Rock at a source doesn't block; only at destination
         Assert.True(board.IsPassable(from, to));
     }
 
@@ -209,7 +209,7 @@ public class BoardTests
     public void IsPassable_DiagonalWithBothCornerFencesAtToSide_ShouldReturnFalse()
     {
         // from=(2,2), to=(3,3), cornerA=(3,2), cornerB=(2,3)
-        // Block corner at 'to': fence to↔cornerA AND fence to↔cornerB
+        // Block a corner at 'to': fence to↔cornerA AND fence to↔cornerB
         var board = new Board();
         var from = new Position(2, 2);
         var to = new Position(3, 3);

@@ -158,7 +158,7 @@ public class MudBlazorIntegrationTests
             "MudBlazor.min.js must appear after blazor.server.js in _Host.cshtml.");
     }
 
-    /// <summary>The MudBlazor CSS is served from the _content/MudBlazor static assets path.</summary>
+    /// <summary>The MudBlazor CSS is served from the _content/MudBlazor static assets' path.</summary>
     [Fact]
     public void HostCshtml_MudBlazorCssUsesContentPath()
     {
@@ -171,7 +171,7 @@ public class MudBlazorIntegrationTests
             StringComparison.Ordinal);
     }
 
-    /// <summary>The MudBlazor JS is served from the _content/MudBlazor static assets path.</summary>
+    /// <summary>The MudBlazor JS is served from the _content/MudBlazor static assets' path.</summary>
     [Fact]
     public void HostCshtml_MudBlazorJsUsesContentPath()
     {
@@ -231,7 +231,7 @@ public class MudBlazorIntegrationTests
             StringComparison.Ordinal);
     }
 
-    /// <summary>MainLayout.razor includes MudDialogProvider to host modal dialogs.</summary>
+    /// <summary>MainLayout.razor includes MudDialogProvider to host modal dialogues.</summary>
     [Fact]
     public void MainLayout_ContainsMudDialogProvider()
     {

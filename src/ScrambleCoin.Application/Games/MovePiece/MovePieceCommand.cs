@@ -11,7 +11,7 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 /// <param name="PieceId">The piece to move.</param>
 /// <param name="Segments">
 /// One segment per <c>MovesPerTurn</c>. Each segment is an ordered list of positions
-/// the piece steps through during that move action (not including starting position).
+/// the piece steps through during that move action (not including the starting position).
 /// </param>
 public sealed record MovePieceCommand(
     Guid GameId,

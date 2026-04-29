@@ -1,5 +1,4 @@
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Tests.Helpers;
 using ScrambleCoin.Domain.ValueObjects;
@@ -186,8 +185,8 @@ public class LineupTests
     public void EqualsObject_WithNonLineupObject_ReturnsFalse()
     {
         var lineup = new Lineup(MakePieces(5));
-
-        Assert.False(lineup.Equals("not a lineup"));
+        var notALineUp = new object();
+        Assert.False(lineup.Equals(notALineUp));
     }
 
     // ── Equality operators ────────────────────────────────────────────────────
@@ -279,7 +278,7 @@ public class LineupTests
         Assert.Equal(lineup.GetHashCode(), lineup.GetHashCode());
     }
 
-    // ── Pieces is read-only ───────────────────────────────────────────────────
+    // ── Pieces are read-only ───────────────────────────────────────────────────
 
     [Fact]
     public void Pieces_PropertyType_IsIReadOnlyList()

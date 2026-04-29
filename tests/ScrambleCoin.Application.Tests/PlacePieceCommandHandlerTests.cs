@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.Games.PlacePiece;
@@ -46,10 +45,10 @@ public class PlacePieceCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: piece was placed on the board.
+        // Assert: a piece was placed on the board.
         Assert.True(p1Pieces[0].IsOnBoard);
 
-        // Assert: game was saved.
+        // Assert: the game was saved.
         await repo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 }

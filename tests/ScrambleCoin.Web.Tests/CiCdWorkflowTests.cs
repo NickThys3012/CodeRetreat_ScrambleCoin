@@ -11,8 +11,8 @@ public class CiCdWorkflowTests
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Walks up from the test-output directory until a <c>.github</c> folder is found,
-    /// then returns the path to <c>.github/workflows</c>.
+    /// Walks up from the test-output directory until a <c>.GitHub</c> folder is found,
+    /// then returns the path to <c>.GitHub/workflows</c>.
     /// </summary>
     private static string FindWorkflowsDir()
     {
@@ -79,7 +79,7 @@ public class CiCdWorkflowTests
         Assert.Contains("build-and-test", yaml, StringComparison.Ordinal);
     }
 
-    /// <summary>Test 5 — The CI workflow uploads test results as a workflow artifact.</summary>
+    /// <summary>Test 5 — The CI workflow uploads test results as a workflow artefact.</summary>
     [Fact]
     public void CiWorkflow_UploadsTestResultsArtifact()
     {
@@ -102,7 +102,7 @@ public class CiCdWorkflowTests
     // release-and-deploy.yml — Deploy on merge to main
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Test 7 — The CD workflow is triggered by pushes to main.</summary>
+    /// <summary>Test 7 — The CD workflow is triggered by pushes to the main.</summary>
     [Fact]
     public void CdWorkflow_TriggersOnPushToMain()
     {
@@ -175,7 +175,7 @@ public class CiCdWorkflowTests
 
     /// <summary>
     /// Test 14 — The EF Core migration step uses Release configuration, ensuring it
-    /// resolves the same startup project build output as the publish step.
+    /// resolves the same startup project build output as the publication step.
     /// </summary>
     [Fact]
     public void CdWorkflow_MigrationsUseReleaseConfiguration()
@@ -188,7 +188,7 @@ public class CiCdWorkflowTests
         Assert.True(migrationIndex >= 0, "'dotnet ef database update' not found in release-and-deploy.yml.");
 
         // Look for '--configuration Release' anywhere after the migration command
-        // (multi-line YAML scalar: the flag appears on a subsequent line of the same step).
+        // (multi-line YAML scalar: the flag appears on a later line of the same step).
         var releaseIndex = yaml.IndexOf("--configuration Release", migrationIndex, StringComparison.Ordinal);
         Assert.True(
             releaseIndex >= 0,

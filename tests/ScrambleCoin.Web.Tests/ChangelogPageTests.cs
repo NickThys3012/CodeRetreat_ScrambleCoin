@@ -152,7 +152,7 @@ public class ChangelogPageTests
         Assert.Contains("MudAlert", razor, StringComparison.Ordinal);
     }
 
-    /// <summary>The empty state is rendered when _entries is null or empty.</summary>
+    /// <summary>The empty state is rendered when _entries are null or empty.</summary>
     [Fact]
     public void ChangelogRazor_EmptyState_ConditionalOnEmptyEntries()
     {
@@ -245,7 +245,7 @@ public class ChangelogPageTests
         Assert.Contains("catch", razor, StringComparison.Ordinal);
     }
 
-    /// <summary>On error, Logger.LogWarning is called.</summary>
+    /// <summary>In error, Logger.LogWarning is called.</summary>
     [Fact]
     public void ChangelogRazor_LogsWarningOnException()
     {
@@ -253,7 +253,7 @@ public class ChangelogPageTests
         Assert.Contains("LogWarning", razor, StringComparison.Ordinal);
     }
 
-    /// <summary>A finally block ensures _loading is always set to false.</summary>
+    /// <summary>A final block ensures _loading is always set to false.</summary>
     [Fact]
     public void ChangelogRazor_HasFinallyBlockToResetLoading()
     {

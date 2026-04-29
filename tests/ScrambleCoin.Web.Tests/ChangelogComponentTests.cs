@@ -61,7 +61,7 @@ public sealed class ChangelogComponentTests
     // T1 — File absent → "No releases yet"
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>When changelog.json does not exist the page shows the empty-state alert.</summary>
+    /// <summary>When changelog.json does not exist, the page shows the empty-state alert.</summary>
     [Fact]
     public async Task Changelog_WhenFileAbsent_ShowsNoReleasesYet()
     {
@@ -81,7 +81,8 @@ public sealed class ChangelogComponentTests
     // T2 — Empty JSON array → "No releases yet"
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>When changelog.json contains an empty array the page shows the empty-state alert.</summary>
+    /// <summary>When changelog.json contains an empty
+    /// array, the page shows the empty-state alert.</summary>
     [Fact]
     public async Task Changelog_WhenFileContainsEmptyArray_ShowsNoReleasesYet()
     {
@@ -102,7 +103,7 @@ public sealed class ChangelogComponentTests
     // T3 — Valid entry → version text rendered
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>When a valid entry exists the version string is present in the rendered markup.</summary>
+    /// <summary>When a valid entry exists, the version string is present in the rendered markup.</summary>
     [Fact]
     public async Task Changelog_WhenEntryExists_RendersVersion()
     {
@@ -231,7 +232,7 @@ public sealed class ChangelogComponentTests
     // T7 — Valid entry → empty-state alert NOT shown
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>When entries exist the "No releases yet" alert must not appear.</summary>
+    /// <summary>When entries exist, the "No releases yet" alert must not appear.</summary>
     [Fact]
     public async Task Changelog_WhenEntriesExist_DoesNotShowEmptyStateAlert()
     {
@@ -252,7 +253,7 @@ public sealed class ChangelogComponentTests
             File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            // Wait for the component to finish loading (version must appear)
+            // Wait for the component to finish loading (a version must appear)
             cut.WaitForAssertion(
                 () => Assert.Contains("v2.0.0", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
@@ -266,7 +267,7 @@ public sealed class ChangelogComponentTests
     // T8 — Malformed JSON → "No releases yet" (graceful degradation)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Malformed JSON is caught and the page falls back to the empty state without crashing.</summary>
+    /// <summary>Malformed JSON is caught, and the page falls back to the empty state without crashing.</summary>
     [Fact]
     public async Task Changelog_WhenJsonIsMalformed_ShowsNoReleasesYet()
     {
@@ -287,7 +288,7 @@ public sealed class ChangelogComponentTests
     // T9 — Malformed JSON → loading spinner not visible after init
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Valid JSON whose root is not an array is caught and the loading spinner is not shown after initialization.</summary>
+    /// <summary>Valid JSON, whose root is not an array, is caught, and the loading spinner is not shown after initialization.</summary>
     [Fact]
     public async Task Changelog_WhenJsonIsWrongSchema_LoadingSpinnerIsNotVisible()
     {

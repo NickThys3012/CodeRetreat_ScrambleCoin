@@ -14,7 +14,7 @@ internal static class PieceFactory
     /// </summary>
     /// <param name="name">Display name for the piece. Defaults to "TestPiece".</param>
     internal static Piece Any(string name = "TestPiece") =>
-        new Piece(
+        new(
             id: Guid.NewGuid(),
             name: name,
             playerId: Guid.NewGuid(),

@@ -153,8 +153,8 @@ public class PiecePlacementTests
 
         // Place it once.
         game.PlacePiece(p1, piece.Id, new Position(0, 0));
-        game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0)); // p2 acts so phase stays in PlacePhase for next turn
-        // Advance to next turn's PlacePhase.
+        game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0)); // p2 acts so the phase stays in PlacePhase for the next turn
+        // Advance to the next turn's PlacePhase.
         game.AdvanceTurn(); // MovePhase → next turn CoinSpawn
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
@@ -189,7 +189,7 @@ public class PiecePlacementTests
     public void PlacePiece_BordersPieceOnCenter_Throws()
     {
         var (game, p1, _, p1Pieces, _) = GameInPlacePhase();
-        // p1Pieces have Borders entry type; (4,4) is not an edge tile.
+        // p1Pieces have a Borders entry type; (4,4) is not an edge tile.
 
         var ex = Assert.Throws<DomainException>(() => game.PlacePiece(p1, p1Pieces[0].Id, new Position(4, 4)));
         Assert.Contains("entry point", ex.Message);
@@ -286,7 +286,7 @@ public class PiecePlacementTests
         game.PlacePiece(p1, p1Pieces[1].Id, new Position(0, 1));
         game.PlacePiece(p2, p2Pieces[1].Id, new Position(7, 1));
 
-        // Turn 3 — place 3rd piece for p1.
+        // Turn 3 — place the 3rd piece for p1.
         game.AdvanceTurn();
         game.AdvancePhase();
         game.PlacePiece(p1, p1Pieces[2].Id, new Position(0, 2));
@@ -403,7 +403,7 @@ public class PiecePlacementTests
     {
         var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
 
-        // Place first piece.
+        // Place the first piece.
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
         game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
 
@@ -457,7 +457,7 @@ public class PiecePlacementTests
         game.AdvanceTurn();
         game.AdvancePhase();
 
-        // Put a coin on target edge tile.
+        // Put a coin on the target edge tile.
         var newPos = new Position(0, 1);
         game.Board.GetTile(newPos).SetOccupant(new Coin(CoinType.Gold)); // value = 3
 
@@ -581,7 +581,7 @@ public class PiecePlacementTests
         Assert.Throws<DomainException>(
             () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posB));
 
-        // Rollback: old piece must be restored to its original position.
+        // Rollback: an old piece must be restored to its original position.
         Assert.True(p1Pieces[0].IsOnBoard);
         Assert.Equal(posA, p1Pieces[0].Position);
         Assert.Equal(1, game.PiecesOnBoard[p1]);
@@ -655,10 +655,10 @@ public class PiecePlacementTests
         game.AdvanceTurn();
         game.AdvancePhase();
 
-        // Act: replace with the same target position.
+        // Act: replace it with the same target position.
         game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posA);
 
-        // Assert: new piece is at posA, old piece is off board, net count unchanged.
+        // Assert: a new piece is at posA, an old piece is off board, net count unchanged.
         Assert.True(p1Pieces[1].IsOnBoard);
         Assert.Equal(posA, p1Pieces[1].Position);
         Assert.False(p1Pieces[0].IsOnBoard);
