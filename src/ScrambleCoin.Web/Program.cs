@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Infrastructure.Persistence;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
@@ -53,6 +54,10 @@ try
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
             typeof(ScrambleCoin.Application.Placeholder).Assembly));
+
+    // ── Application services ──────────────────────────────────────────────────
+    builder.Services.AddSingleton(Random.Shared);
+    builder.Services.AddScoped<IGameRepository, GameRepository>();
 
     // ── EF Core (SQL Server) ──────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
