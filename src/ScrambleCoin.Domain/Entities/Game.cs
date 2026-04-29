@@ -710,7 +710,7 @@ public sealed class Game
         var movePieceIds = moveList.Select(m => m.PieceId).ToHashSet();
         var onBoardIds   = onBoardPieces.Select(p => p.Id).ToHashSet();
 
-        if (movePieceIds.Count != onBoardIds.Count || !movePieceIds.SetEquals(onBoardIds))
+        if (moveList.Count != onBoardIds.Count || !movePieceIds.SetEquals(onBoardIds))
             throw new DomainException(
                 $"The moves list must contain exactly one entry per on-board piece. " +
                 $"Expected: [{string.Join(", ", onBoardIds)}]; Got: [{string.Join(", ", movePieceIds)}].");
