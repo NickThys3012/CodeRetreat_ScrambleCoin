@@ -522,16 +522,16 @@ public sealed class Game
         if (!Board.IsValidEntryPoint(position, piece.EntryPointType))
             throw new DomainException($"Position {position} is not a valid entry point for entry type {piece.EntryPointType}.");
 
-        var tile = Board.GetTile(position);
+        if (_piecesOnBoard[playerId] >= MaxPiecesOnBoard)
+            throw new DomainException($"Player {playerId} already has the maximum of {MaxPiecesOnBoard} pieces on the board.");
 
         if (Board.IsObstacleCovering(position))
             throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
 
+        var tile = Board.GetTile(position);
+
         if (tile.AsPiece is not null)
             throw new DomainException($"Cannot place piece at {position}: tile is already occupied by another piece.");
-
-        if (_piecesOnBoard[playerId] >= MaxPiecesOnBoard)
-            throw new DomainException($"Player {playerId} already has the maximum of {MaxPiecesOnBoard} pieces on the board.");
 
         // Collect coin if present.
         var coin = tile.AsCoin;
@@ -596,23 +596,17 @@ public sealed class Game
         if (!Board.IsValidEntryPoint(position, newPiece.EntryPointType))
             throw new DomainException($"Position {position} is not a valid entry point for entry type {newPiece.EntryPointType}.");
 
-        // Remove existing piece from its current tile first.
+        if (Board.IsObstacleCovering(position))
+            throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
+
+        // Remove existing piece from its current tile so the tile.AsPiece check handles same-tile replacement correctly.
         var existingTile = Board.GetTile(existingPiece.Position!);
         existingTile.ClearOccupant();
         existingPiece.RemoveFromBoard();
         _piecesOnBoard[playerId]--;
 
-        // Now check the target tile (may be the same tile — now clear after step above).
+        // Now check the target tile (may be the same tile — now clear after removal above).
         var tile = Board.GetTile(position);
-
-        if (Board.IsObstacleCovering(position))
-        {
-            // Undo the removal before throwing.
-            existingPiece.PlaceAt(existingTile.Position);
-            existingTile.SetOccupant(existingPiece);
-            _piecesOnBoard[playerId]++;
-            throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
-        }
 
         if (tile.AsPiece is not null)
         {
