@@ -1,3 +1,4 @@
+using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
@@ -180,6 +181,32 @@ public sealed class Board
             _rocks.AsReadOnly(),
             _lakes.AsReadOnly(),
             _fences.AsReadOnly());
+
+    // ── Entry-point helpers ───────────────────────────────────────────────────
+
+    /// <summary>Returns <c>true</c> if <paramref name="position"/> is on any board edge (row = 0 or 7, or col = 0 or 7).</summary>
+    public bool IsEdgeTile(Position position) =>
+        position.Row == 0 || position.Row == Size - 1 ||
+        position.Col == 0 || position.Col == Size - 1;
+
+    /// <summary>Returns <c>true</c> if <paramref name="position"/> is one of the 4 corner tiles.</summary>
+    public bool IsCornerTile(Position position) =>
+        (position.Row == 0 || position.Row == Size - 1) &&
+        (position.Col == 0 || position.Col == Size - 1);
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="position"/> is a valid entry point for the given
+    /// <paramref name="entryPointType"/>.
+    /// </summary>
+    /// <exception cref="DomainException">Thrown for unknown <see cref="EntryPointType"/> values.</exception>
+    public bool IsValidEntryPoint(Position position, EntryPointType entryPointType) =>
+        entryPointType switch
+        {
+            EntryPointType.Borders => IsEdgeTile(position),
+            EntryPointType.Corners => IsCornerTile(position),
+            EntryPointType.Anywhere => true,
+            _ => throw new DomainException($"Unknown EntryPointType: {entryPointType}.")
+        };
 
     /// <summary>
     /// Returns all tiles that are free: empty (no occupant), not covered by a Rock,
