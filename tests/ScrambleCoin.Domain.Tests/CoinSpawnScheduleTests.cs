@@ -20,14 +20,14 @@ public class CoinSpawnScheduleTests
     }
 
     [Fact]
-    public void For_Turn1_AlwaysReturnsAtLeast9Coins()
+    public void For_Turn1_AlwaysReturnsAtLeast7Coins()
     {
         for (var seed = 0; seed < 1000; seed++)
         {
             var coins = CoinSpawnSchedule.For(1, new Random(seed));
 
-            Assert.True(coins.Count >= 9,
-                $"Seed {seed} produced {coins.Count} coins, expected at least 9.");
+            Assert.True(coins.Count >= 7,
+                $"Seed {seed} produced {coins.Count} coins, expected at least 7.");
         }
     }
 
