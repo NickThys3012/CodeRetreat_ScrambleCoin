@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.5.1",
+    "date": "2026-04-30",
+    "title": "Release",
+    "notes": [
+      "31 game engine core code review cleanup pass by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/68"
+    ]
+  },
+  {
     "version": "v1.5.0",
     "date": "2026-04-29",
     "title": "Basic movement & coin collection",
