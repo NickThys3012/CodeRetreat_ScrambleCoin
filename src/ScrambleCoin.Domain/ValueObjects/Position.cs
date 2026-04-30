@@ -52,7 +52,7 @@ public sealed class Position : IEquatable<Position>
     public override int GetHashCode() => HashCode.Combine(Row, Col);
 
     public static bool operator ==(Position? left, Position? right) =>
-        left is null ? right is null : left.Equals(right);
+        left?.Equals(right) ?? right is null;
 
     public static bool operator !=(Position? left, Position? right) => !(left == right);
 

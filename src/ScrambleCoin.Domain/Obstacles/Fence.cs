@@ -6,7 +6,7 @@ namespace ScrambleCoin.Domain.Obstacles;
 /// <summary>
 /// A fence placed on the edge between two orthogonally adjacent tiles.
 /// Blocks movement across that edge for orthogonal moves.
-/// Two fences meeting at a corner also block diagonal movement through that corner.
+/// Two fences meeting in a corner also block diagonal movement through that corner.
 /// </summary>
 public sealed class Fence
 {

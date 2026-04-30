@@ -203,7 +203,7 @@ public class MovementTests
         // Lake top-left (1,4) → covers (1,4),(1,5),(2,4),(2,5)
         game.Board.AddLake(new Lake(new Position(1, 4)));
 
-        // Act & Assert: (0,4)→(1,4) is blocked by lake
+        // Act & Assert: a lake blocks (0,4)→(1,4)
         Assert.Throws<DomainException>(() =>
             game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(1, 4))));
     }
@@ -222,7 +222,7 @@ public class MovementTests
             game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(0, 4))));
     }
 
-    // ── Test 8: Silver coin collected on path ─────────────────────────────────
+    // ── Test 8: Silver coin collected on a path ─────────────────────────────────
 
     [Fact]
     public void Move_ThroughSilverCoin_RemovesCoinAndIncreasesScoreByOne()
@@ -345,11 +345,11 @@ public class MovementTests
     [Fact]
     public void Move_WithSegmentExceedingMaxDistance_ThrowsDomainException()
     {
-        // Arrange: piece with maxDistance=2, attempt 3-step segment
+        // Arrange: piece with maxDistance=2, attempt a 3-step segment
         var (game, p1, _, p1Piece, _) = GameInMovePhaseWithOnePieceEach(
             p1MaxDistance: 2);
 
-        // Act & Assert: 3 steps in one segment exceeds MaxDistance=2
+        // Act & Assert: 3 steps in one segment exceed MaxDistance=2
         Assert.Throws<DomainException>(() =>
             game.MovePiece(p1, p1Piece.Id, BuildSegments(
                 new Position(0, 4),
@@ -451,7 +451,7 @@ public class MovementTests
         Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
     }
 
-    // ── Test 14: Same piece moved twice throws ────────────────────────────────
+    // ── Test 14: The same piece moved twice throws ────────────────────────────────
 
     [Fact]
     public void MovePiece_SamePieceTwice_ThrowsDomainException()
@@ -495,7 +495,7 @@ public class MovementTests
             game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(0, 4))));
     }
 
-    // ── Bonus: Fence blocking (diagonal through corner) ───────────────────────
+    // ── Bonus: Fence blocking (diagonal through a corner) ───────────────────────
 
     [Fact]
     public void Move_DiagonallyThroughCornerFormedByTwoFences_ThrowsDomainException()

@@ -11,6 +11,6 @@ public enum GameStatus
     /// <summary>Both players have submitted their lineups and the game is actively being played.</summary>
     InProgress,
 
-    /// <summary>All 5 turns have been completed and a winner (or draw) has been determined.</summary>
+    /// <summary>All 5 turns have been completed, and a winner (or draw) has been determined.</summary>
     Finished
 }

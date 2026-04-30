@@ -60,7 +60,7 @@ public class ConfigurationTests
             "ConnectionStrings:DefaultConnection must not be empty.");
     }
 
-    // ── Actual Development settings is gitignored ────────────────────────────
+    // ── Actual Development settings are gitignored ────────────────────────────
     [Fact]
     public void GitIgnore_ContainsAppsettingsDevelopmentJson()
     {

@@ -44,10 +44,10 @@ public class SkipPlacementCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: game is still in PlacePhase (only p1 skipped; p2 hasn't acted yet)
+        // Assert: the game is still in PlacePhase (only p1 skipped; p2 hasn't acted yet)
         Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
 
-        // Assert: game was saved
+        // Assert: the game was saved
         await repo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 

@@ -7,7 +7,7 @@ namespace ScrambleCoin.Infrastructure.Tests;
 /// <summary>
 /// Verifies that the InitialCreate EF Core migration and related scaffolding exist
 /// and are correctly structured (acceptance criteria 4 &amp; 5 of Issue #2).
-/// All assertions use reflection — no live database required.
+/// All assertions use reflection — no live database is required.
 /// </summary>
 public class MigrationTests
 {
@@ -73,7 +73,7 @@ public class MigrationTests
         var contextType = typeof(ScrambleCoinDbContext);
 
         var constructor = contextType.GetConstructor(
-            new[] { typeof(DbContextOptions<ScrambleCoinDbContext>) });
+            [typeof(DbContextOptions<ScrambleCoinDbContext>)]);
 
         Assert.NotNull(constructor);
     }

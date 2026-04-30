@@ -55,7 +55,7 @@ public class SpawnCoinsCommandHandlerTests
         var coinTiles = game.Board.GetAllCoins();
         Assert.NotEmpty(coinTiles);
 
-        // Assert: game was saved
+        // Assert: the game was saved
         await repo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -119,7 +119,7 @@ public class SpawnCoinsCommandHandlerTests
         // Act: should not throw; spawns ≤ 2 coins
         await handler.Handle(new SpawnCoinsCommand(game.Id), CancellationToken.None);
 
-        // Assert: no more than 2 coins were added to the originally-free tiles
+        // Assert: no more than 2 coins were added to the originally free tiles
         var freeTileCoins = new[]
         {
             board.GetTile(new Position(7, 6)).AsCoin,

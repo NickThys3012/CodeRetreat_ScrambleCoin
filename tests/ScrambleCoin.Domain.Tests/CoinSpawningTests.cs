@@ -198,7 +198,7 @@ public class CoinSpawningTests
         {
             (new Position(0, 0), CoinType.Silver),
             (new Position(1, 1), CoinType.Silver),
-            (new Position(2, 2), CoinType.Silver),
+            (new Position(2, 2), CoinType.Silver)
         };
 
         game.SpawnCoins(positions);

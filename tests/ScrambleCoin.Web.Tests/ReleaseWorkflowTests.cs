@@ -52,7 +52,7 @@ public class ReleaseWorkflowTests
     // AC1 — Trigger
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>release-and-deploy.yml is triggered by push events to main.</summary>
+    /// <summary>release-and-deploy.yml is triggered by push events to the main.</summary>
     [Fact]
     public void ReleaseWorkflow_TriggersOnPushToMain()
     {
@@ -88,7 +88,7 @@ public class ReleaseWorkflowTests
     // AC4 — Full history checkout
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Checkout step uses fetch-depth: 0 so all tags are available for version detection.</summary>
+    /// <summary>Checkout step uses fetch-depth: 0, so all tags are available for version detection.</summary>
     [Fact]
     public void ReleaseWorkflow_CheckoutUsesFetchDepthZero()
     {
@@ -115,7 +115,7 @@ public class ReleaseWorkflowTests
     // AC6 — major label → major bump
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Workflow increments MAJOR and resets MINOR and PATCH when "major" label is present.</summary>
+    /// <summary>Workflow increments MAJOR and resets MINOR and PATCH when the "major" label is present.</summary>
     [Fact]
     public void ReleaseWorkflow_IncreasesMajorVersionOnMajorLabel()
     {
@@ -128,18 +128,18 @@ public class ReleaseWorkflowTests
         Assert.Contains("MAJOR", yaml, StringComparison.Ordinal);
     }
 
-    /// <summary>When major label fires, MINOR is reset to 0.</summary>
+    /// <summary>When a major label fires, MINOR is reset to 0.</summary>
     [Fact]
     public void ReleaseWorkflow_ResetMinorAndPatchOnMajorBump()
     {
         var yaml = ReadReleaseWorkflow();
 
-        // After a major bump MINOR=0 and PATCH=0 should appear
+        // After a major bump, MINOR=0 and PATCH=0 should appear
         Assert.Contains("MINOR=0", yaml, StringComparison.Ordinal);
         Assert.Contains("PATCH=0", yaml, StringComparison.Ordinal);
     }
 
-    /// <summary>When the minor label fires, PATCH is reset to 0 but MINOR is not reset.</summary>
+    /// <summary>When the minor label fires, PATCH is reset to 0, but MINOR is not reset.</summary>
     [Fact]
     public void ReleaseWorkflow_ResetPatchOnMinorBump()
     {
@@ -158,7 +158,7 @@ public class ReleaseWorkflowTests
     // AC7 — minor label → minor bump
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Workflow increments MINOR and resets PATCH when "minor" label is present.</summary>
+    /// <summary>Workflow increments MINOR and resets PATCH when the "minor" label is present.</summary>
     [Fact]
     public void ReleaseWorkflow_IncreasesMinorVersionOnMinorLabel()
     {
@@ -172,13 +172,13 @@ public class ReleaseWorkflowTests
     // AC8 — Default to patch bump
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Workflow bumps patch when no recognised version label is present.</summary>
+    /// <summary>Workflow bumps a patch when no recognized version label is present.</summary>
     [Fact]
     public void ReleaseWorkflow_DefaultsToPatchBump()
     {
         var yaml = ReadReleaseWorkflow();
 
-        // The yaml must mention "patch" (label name) and bump the PATCH variable
+        // The YAML must mention "patch" (label name) and bump the PATCH variable
         Assert.Contains("patch", yaml, StringComparison.Ordinal);
         Assert.Contains("PATCH", yaml, StringComparison.Ordinal);
     }
@@ -261,7 +261,7 @@ public class ReleaseWorkflowTests
     // AC13 — New entry prepended (most recent first)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Workflow prepends the new entry so the changelog is newest-first.</summary>
+    /// <summary>Workflow prepends the new entry, so the changelog is newest-first.</summary>
     [Fact]
     public void ReleaseWorkflow_PrependsNewEntryToExistingArray()
     {
@@ -275,7 +275,7 @@ public class ReleaseWorkflowTests
     // AC14 — [skip ci] commit message
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>changelog.json is committed back to main with [skip ci] to avoid re-triggering the workflow.</summary>
+    /// <summary>changelog.json is committed back to the main with [skip ci] to avoid re-triggering the workflow.</summary>
     [Fact]
     public void ReleaseWorkflow_CommitsChangelogWithSkipCi()
     {
@@ -327,12 +327,12 @@ public class ReleaseWorkflowTests
     /// <summary>
     /// Regression guard for GitHub Issue #21.
     ///
-    /// The release job was failing because direct pushes to main were rejected by
+    /// The release job was failing because direct pushes to the main were rejected by
     /// branch protection rules. The fix uses a PAT (GH_PAT secret) in the checkout
-    /// step so the push bypasses branch protection.
+    /// step, so the push bypasses branch protection.
     ///
     /// This test asserts the workflow uses GH_PAT for checkout and pushes directly
-    /// to main (no intermediate PR branch).
+    /// to the main (no intermediate PR branch).
     /// </summary>
     [Fact]
     public void CommitAndPushStep_GitPullRebase_AppearsBeforeGitAdd()
@@ -349,7 +349,7 @@ public class ReleaseWorkflowTests
 
         var stepBody = yaml[stepIndex..];
 
-        // Must push directly to main (simple approach, PAT handles bypass)
+        // Must push directly to the main (simple approach, PAT handles bypass)
         Assert.Contains("git push origin main", stepBody, StringComparison.Ordinal);
 
         // Must NOT use an intermediate branch + PR

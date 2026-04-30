@@ -84,16 +84,16 @@ public sealed class Game
 
     // ── Place-phase tracking ──────────────────────────────────────────────────
 
-    private readonly HashSet<Guid> _placePhaseDone = new HashSet<Guid>();
+    private readonly HashSet<Guid> _placePhaseDone = [];
 
     // ── Move-phase tracking ───────────────────────────────────────────────────
 
     private readonly HashSet<Guid> _movedPieceIds = new HashSet<Guid>();
 
     /// <summary>
-    /// The player whose turn it currently is to submit piece moves during MovePhase.
+    /// The player whose turn it currently is to submit a piece moves during MovePhase.
     /// PlayerOne always moves first; switches to PlayerTwo once all of PlayerOne's
-    /// on-board pieces have moved. <c>null</c> outside of MovePhase.
+    /// on-board pieces have moved. <c>null</c> outside MovePhase.
     /// </summary>
     public Guid? MovePhaseActivePlayer { get; private set; }
 
@@ -240,7 +240,7 @@ public sealed class Game
         var scoreOne = _scores[PlayerOne];
         var scoreTwo = _scores[PlayerTwo];
 
-        bool isDraw = scoreOne == scoreTwo;
+        var isDraw = scoreOne == scoreTwo;
         Guid? winnerId = isDraw
             ? null
             : (scoreOne > scoreTwo ? PlayerOne : PlayerTwo);
@@ -288,10 +288,10 @@ public sealed class Game
             throw new DomainException(
                 $"Pieces can only be tracked while the game is {GameStatus.InProgress}. Current status: {Status}.");
 
-        if (!_piecesOnBoard.ContainsKey(playerId))
+        if (!_piecesOnBoard.TryGetValue(playerId, out var nrOfPiecesOnBoard))
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
 
-        if (_piecesOnBoard[playerId] >= MaxPiecesOnBoard)
+        if (nrOfPiecesOnBoard >= MaxPiecesOnBoard)
             throw new DomainException(
                 $"Player {playerId} already has the maximum of {MaxPiecesOnBoard} pieces on the board.");
 
@@ -311,10 +311,10 @@ public sealed class Game
             throw new DomainException(
                 $"Pieces can only be tracked while the game is {GameStatus.InProgress}. Current status: {Status}.");
 
-        if (!_piecesOnBoard.ContainsKey(playerId))
+        if (!_piecesOnBoard.TryGetValue(playerId, out var nrOfPiecesOnBoard))
             throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
 
-        if (_piecesOnBoard[playerId] <= 0)
+        if (nrOfPiecesOnBoard <= 0)
             throw new DomainException(
                 $"Player {playerId} has no pieces on the board to remove.");
 
@@ -548,8 +548,8 @@ public sealed class Game
 
         // Collect coin if present.
         var coin = tile.AsCoin;
-        bool coinCollected = coin is not null;
-        int coinValue = coin?.Value ?? 0;
+        var coinCollected = coin is not null;
+        var coinValue = coin?.Value ?? 0;
         if (coinCollected)
         {
             tile.ClearOccupant();
@@ -612,13 +612,13 @@ public sealed class Game
         if (Board.IsObstacleCovering(position))
             throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
 
-        // Remove existing piece from its current tile so the tile.AsPiece check handles same-tile replacement correctly.
+        // Remove the existing piece from its current tile so the tile.AsPiece check handles same-tile replacement correctly.
         var existingTile = Board.GetTile(existingPiece.Position!);
         existingTile.ClearOccupant();
         existingPiece.RemoveFromBoard();
         _piecesOnBoard[playerId]--;
 
-        // Now check the target tile (may be the same tile — now clear after removal above).
+        // Now check the target tile (maybe the same tile — now clear after the removal above).
         var tile = Board.GetTile(position);
 
         if (tile.AsPiece is not null)
@@ -630,10 +630,10 @@ public sealed class Game
             throw new DomainException($"Cannot place piece at {position}: tile is already occupied by another piece.");
         }
 
-        // Collect coin if present at target tile.
+        // Collect coin if present at the target tile.
         var coin = tile.AsCoin;
-        bool coinCollected = coin is not null;
-        int coinValue = coin?.Value ?? 0;
+        var coinCollected = coin is not null;
+        var coinValue = coin?.Value ?? 0;
         if (coinCollected)
         {
             tile.ClearOccupant();
@@ -693,7 +693,7 @@ public sealed class Game
     /// <param name="pieceId">The piece to move.</param>
     /// <param name="segments">
     /// One segment per <c>MovesPerTurn</c>. Each segment is an ordered list of positions
-    /// the piece steps through during that move action (not including starting position).
+    /// the piece steps through during that move action (not including the starting position).
     /// </param>
     /// <exception cref="DomainException">
     /// Thrown when the current phase is not <see cref="TurnPhase.MovePhase"/>,
@@ -744,9 +744,9 @@ public sealed class Game
         // Validate segment count.
         if (segments.Count != piece.MovesPerTurn)
         {
-            // Only exception: the piece is completely blocked and MovesPerTurn == 1
+            // Only exception: the piece is completely blocked and MovesPerTurn == 1,
             // and the caller passes exactly 1 empty segment.
-            bool allowedStuckException =
+            var allowedStuckException =
                 !hasAnyValidMove &&
                 piece.MovesPerTurn == 1 &&
                 segments.Count == 1 &&
@@ -805,7 +805,7 @@ public sealed class Game
                     throw new DomainException(
                         $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
 
-                // Target must not be occupied by a piece.
+                // A piece must not occupy Target.
                 var targetTile = Board.GetTile(stepTo);
                 if (targetTile.AsPiece is not null)
                     throw new DomainException(
@@ -817,7 +817,7 @@ public sealed class Game
                 {
                     targetTile.ClearOccupant();
                     AddScore(playerId, coin.Value);
-                    _domainEvents.Add(new Events.CoinCollected(
+                    _domainEvents.Add(new CoinCollected(
                         Id, TurnNumber, playerId, pieceId, stepTo,
                         coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
                 }
@@ -838,7 +838,7 @@ public sealed class Game
         var toTile = Board.GetTile(currentPosition);
         toTile.SetOccupant(piece);
 
-        _domainEvents.Add(new Events.PieceMoved(
+        _domainEvents.Add(new PieceMoved(
             Id, TurnNumber, playerId, pieceId,
             startPosition, currentPosition,
             fullPath.AsReadOnly(), DateTimeOffset.UtcNow));

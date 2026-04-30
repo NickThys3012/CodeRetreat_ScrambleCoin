@@ -39,7 +39,7 @@ public class GameTests
     }
 
     /// <summary>
-    /// Advances the game through CoinSpawn and PlacePhase so it is in MovePhase,
+    /// Advances the game through CoinSpawn and PlacePhase, so it is in MovePhase,
     /// ready for a call to <see cref="Game.AdvanceTurn"/>.
     /// </summary>
     private static void AdvanceToMovePhase(Game game)
@@ -787,7 +787,7 @@ public class GameTests
     public void AdvancePhase_FromCoinSpawn_SetsCurrentPhaseToPlacePhase()
     {
         var (game, _, _) = StartedGame();
-        // freshly started game is in CoinSpawn
+        // a freshly started game is in CoinSpawn
         game.AdvancePhase();
         Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
     }
@@ -871,7 +871,7 @@ public class GameTests
     public void EnsureInCoinSpawnPhase_WhenInCoinSpawn_DoesNotThrow()
     {
         var (game, _, _) = StartedGame();
-        // freshly started game is in CoinSpawn
+        //a freshly started game is in CoinSpawn
         var exception = Record.Exception(() => game.EnsureInCoinSpawnPhase());
         Assert.Null(exception);
     }
@@ -915,7 +915,7 @@ public class GameTests
     public void EnsureInPlacePhase_WhenInCoinSpawnPhase_ThrowsDomainException()
     {
         var (game, _, _) = StartedGame();
-        // freshly started game is in CoinSpawn
+        // a freshly started game is in CoinSpawn
         Assert.Throws<DomainException>(() => game.EnsureInPlacePhase());
     }
 
@@ -950,7 +950,7 @@ public class GameTests
     public void EnsureInMovePhase_WhenInCoinSpawnPhase_ThrowsDomainException()
     {
         var (game, _, _) = StartedGame();
-        // freshly started game is in CoinSpawn
+        // a freshly started game is in CoinSpawn
         Assert.Throws<DomainException>(() => game.EnsureInMovePhase());
     }
 
@@ -1115,7 +1115,7 @@ public class GameTests
     public void AdvanceTurn_WhenInCoinSpawnPhase_ThrowsDomainException()
     {
         var (game, _, _) = StartedGame();
-        // freshly started game is in CoinSpawn — AdvanceTurn requires MovePhase
+        // a freshly started game is in CoinSpawn — AdvanceTurn requires MovePhase
         Assert.Throws<DomainException>(() => game.AdvanceTurn());
     }
 

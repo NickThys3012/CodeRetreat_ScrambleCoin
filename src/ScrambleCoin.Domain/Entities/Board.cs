@@ -41,8 +41,8 @@ public sealed class Board
     public Tile GetTile(Position position)
     {
         // Position already validates bounds in its constructor; this guard is
-        // a defensive double-check in case a Position was constructed in an
-        // unusual way (e.g., reflection).
+        // a defensive double-check in case a Position was constructed 
+        // unusually (e.g., reflection).
         if (position.Row < 0 || position.Row >= Size ||
             position.Col < 0 || position.Col >= Size)
             throw new DomainException($"Position {position} is out of bounds.");
@@ -109,13 +109,13 @@ public sealed class Board
         }
         else if (isDiagonal)
         {
-            // A diagonal move from A=(r,c) to B=(r+dr,c+dc) is blocked when two
+            // A diagonal move from A=(r, c) to B=(r+dr, c+dc) is blocked when two
             // fences form a corner at either intermediate tile:
-            //   cornerA = (r+dr, c)  — shares a row with B, a col with A
-            //   cornerB = (r, c+dc)  — shares a col with B, a row with A
+            //   cornerA = (r+dr, c) — shares a row with B, a col with A
+            //   cornerB = (r, c+dc) — shares a col with B, a row with A
             //
-            // Corner at A: fence A↔cornerA  AND  fence A↔cornerB  → L-shape at A
-            // Corner at B: fence B↔cornerA  AND  fence B↔cornerB  → L-shape at B
+            // Corner at A: fence A↔cornerA AND fence A↔cornerB → L-shape at A
+            // Corner at B: fence B↔cornerA AND fence B↔cornerB → L-shape at B
             var cornerA = new Position(from.Row + rowDiff, from.Col); // vertically adjacent to from
             var cornerB = new Position(from.Row, from.Col + colDiff); // horizontally adjacent to from
 
@@ -242,8 +242,8 @@ public sealed class Board
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is one of the 4 corner tiles.</summary>
     public bool IsCornerTile(Position position) =>
-        (position.Row == 0 || position.Row == Size - 1) &&
-        (position.Col == 0 || position.Col == Size - 1);
+        position.Row is 0 or Size - 1 &&
+        position.Col is 0 or Size - 1;
 
     /// <summary>
     /// Returns <c>true</c> if <paramref name="position"/> is a valid entry point for the given

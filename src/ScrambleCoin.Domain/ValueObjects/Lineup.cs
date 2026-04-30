@@ -77,7 +77,7 @@ public sealed class Lineup : IEquatable<Lineup>
     }
 
     public static bool operator ==(Lineup? left, Lineup? right) =>
-        left is null ? right is null : left.Equals(right);
+        left?.Equals(right) ?? right is null;
 
     public static bool operator !=(Lineup? left, Lineup? right) => !(left == right);
 }
