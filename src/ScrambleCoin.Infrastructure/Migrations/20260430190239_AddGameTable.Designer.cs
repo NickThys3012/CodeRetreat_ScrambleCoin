@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ScrambleCoin.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using ScrambleCoin.Infrastructure.Persistence;
 namespace ScrambleCoin.Infrastructure.Migrations
 {
     [DbContext(typeof(ScrambleCoinDbContext))]
-    partial class ScrambleCoinDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430190239_AddGameTable")]
+    partial class AddGameTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
