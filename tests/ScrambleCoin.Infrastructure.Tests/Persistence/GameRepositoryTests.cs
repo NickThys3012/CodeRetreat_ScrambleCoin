@@ -565,6 +565,52 @@ public sealed class GameRepositoryTests
         Assert.Equal(3, obstacles.Rocks[0].Position.Col);
     }
 
+    [Fact]
+    public async Task SaveAsync_ThenGetByIdAsync_LakeObstacle_IsPreserved()
+    {
+        var options = BuildOptions(nameof(SaveAsync_ThenGetByIdAsync_LakeObstacle_IsPreserved));
+        var playerOne = Guid.NewGuid();
+        var playerTwo = Guid.NewGuid();
+        var board = new Board();
+        board.AddLake(new Domain.Obstacles.Lake(new Position(2, 2)));
+        var game = new Game(Guid.NewGuid(), playerOne, playerTwo, board);
+
+        await using var writeCtx = new ScrambleCoinDbContext(options);
+        await new GameRepository(writeCtx).SaveAsync(game);
+
+        await using var readCtx = new ScrambleCoinDbContext(options);
+        var loaded = await new GameRepository(readCtx).GetByIdAsync(game.Id);
+
+        var obstacles = loaded.Board.GetAllObstacles();
+        Assert.Single(obstacles.Lakes);
+        Assert.Equal(2, obstacles.Lakes[0].TopLeft.Row);
+        Assert.Equal(2, obstacles.Lakes[0].TopLeft.Col);
+    }
+
+    [Fact]
+    public async Task SaveAsync_ThenGetByIdAsync_FenceObstacle_IsPreserved()
+    {
+        var options = BuildOptions(nameof(SaveAsync_ThenGetByIdAsync_FenceObstacle_IsPreserved));
+        var playerOne = Guid.NewGuid();
+        var playerTwo = Guid.NewGuid();
+        var board = new Board();
+        board.AddFence(new Domain.Obstacles.Fence(new Position(3, 3), new Position(3, 4)));
+        var game = new Game(Guid.NewGuid(), playerOne, playerTwo, board);
+
+        await using var writeCtx = new ScrambleCoinDbContext(options);
+        await new GameRepository(writeCtx).SaveAsync(game);
+
+        await using var readCtx = new ScrambleCoinDbContext(options);
+        var loaded = await new GameRepository(readCtx).GetByIdAsync(game.Id);
+
+        var obstacles = loaded.Board.GetAllObstacles();
+        Assert.Single(obstacles.Fences);
+        Assert.Equal(3, obstacles.Fences[0].From.Row);
+        Assert.Equal(3, obstacles.Fences[0].From.Col);
+        Assert.Equal(3, obstacles.Fences[0].To.Row);
+        Assert.Equal(4, obstacles.Fences[0].To.Col);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
