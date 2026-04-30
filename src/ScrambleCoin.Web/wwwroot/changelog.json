@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.5.2",
+    "date": "2026-04-30",
+    "title": "Release",
+    "notes": [
+      "chore: add CLAUDE.md and Claude Code slash commands by @NickThys3012 in https://github.com/NickThys3012/CodeRetreat_ScrambleCoin/pull/75"
+    ]
+  },
+  {
     "version": "v1.5.1",
     "date": "2026-04-30",
     "title": "Release",
