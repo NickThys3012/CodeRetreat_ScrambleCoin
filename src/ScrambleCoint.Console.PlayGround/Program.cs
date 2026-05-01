@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Services;
 using ScrambleCoin.Domain.ValueObjects;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -12,6 +14,12 @@ var game = new Game(p1, p2, board);
 
 game.SetLineup(p1, CreateLineup(p1, "Walle", "Elsa", "Stitch", "Ralph", "Joy"));
 game.SetLineup(p2, CreateLineup(p2, "Ursula", "Gaston", "Scar", "Maleficent", "Hades"));
+
+// CoinSpawnService handles the full coin-spawn flow:
+//   CoinSpawnSchedule.For() → tile selection → game.SpawnCoins() → game.AdvancePhase() → save
+// The in-memory repository keeps the game in memory (no DB needed for the playground).
+var repo = new InMemoryGameRepository(game);
+var coinSpawnService = new CoinSpawnService(repo, rng, NullLogger<CoinSpawnService>.Instance);
 
 Banner("SCRAMBLECOIN PLAYGROUND");
 PrintStatus(game);
@@ -25,11 +33,9 @@ for (var turn = 1; turn <= Game.TotalTurns; turn++)
 {
     Banner($"TURN {turn}");
 
-    // 1. Coin Spawn
-    var coins = BuildCoinSpawn(game);
-    game.SpawnCoins(coins);
-    game.AdvancePhase(); // CoinSpawn → PlacePhase
-    Step($"Coins spawned: {coins.Count} ({string.Join(", ", coins.GroupBy(c => c.Item2).Select(g => $"{g.Count()}x{g.Key}"))})");
+    // 1. Coin Spawn — service handles schedule, tile selection, SpawnCoins, AdvancePhase, save
+    await coinSpawnService.ExecuteForGameAsync(game);
+    Step($"Coins spawned — phase is now {game.CurrentPhase}");
     PrintBoard(game);
 
     // 2. Place Phase — both players act (phase auto-advances when both are done)
@@ -69,14 +75,6 @@ Lineup CreateLineup(Guid playerId, params string[] names)
     return new Lineup(pieces);
 }
 
-List<(Position, CoinType)> BuildCoinSpawn(Game g)
-{
-    var free = g.Board.GetFreeTiles().OrderBy(_ => rng.Next()).ToList();
-    var schedule = CoinSpawnSchedule.For(g.CurrentTurnNumber, rng);
-    var count = Math.Min(schedule.Count, free.Count);
-    return Enumerable.Range(0, count).Select(i => (free[i].Position, schedule[i])).ToList();
-}
-
 void PlaceForPlayer(Game g, Guid playerId, string label)
 {
     var lineup = playerId == p1 ? g.LineupPlayerOne! : g.LineupPlayerTwo!;
@@ -111,7 +109,6 @@ void PlaceForPlayer(Game g, Guid playerId, string label)
 
 Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
 {
-    // Try preferred side first (P1=left col, P2=right col)
     var col = preferLeft ? 0 : Board.Size - 1;
     for (var row = 0; row < Board.Size; row++)
     {
@@ -121,7 +118,6 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
             && g.Board.IsValidEntryPoint(pos, type))
             return pos;
     }
-    // Fallback: any valid border entry point
     for (var r = 0; r < Board.Size; r++)
     for (var c = 0; c < Board.Size; c++)
     {
@@ -223,4 +219,25 @@ void Step(string message)
     Console.WriteLine($"\n▶  {message}");
     Console.Write("   [Enter to continue] ");
     Console.ReadLine();
+}
+
+// ── In-memory repository (playground only) ────────────────────────────────────
+
+/// <summary>
+/// Minimal IGameRepository that keeps a single game in memory.
+/// No EF Core or SQL — used only by the Playground console app.
+/// </summary>
+sealed class InMemoryGameRepository(Game initial) : IGameRepository
+{
+    private Game _game = initial;
+
+    public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => Task.FromResult(_game);
+
+    public Task SaveAsync(Game game, CancellationToken cancellationToken = default)
+    {
+        _game = game;
+        game.ClearDomainEvents();
+        return Task.CompletedTask;
+    }
 }
