@@ -130,7 +130,7 @@ public class CoinSpawnServiceTests
 
         // Assert: all 4 coins spawned on turn 4 are Gold
         var coinTiles = game.Board.GetAllCoins();
-        Assert.NotEmpty(coinTiles);
+        Assert.Equal(4, coinTiles.Count);
         Assert.All(coinTiles, t => Assert.Equal(CoinType.Gold, t.AsCoin!.CoinType));
     }
 
@@ -148,7 +148,7 @@ public class CoinSpawnServiceTests
 
         // Assert: all 3 coins spawned on turn 5 are Gold
         var coinTiles = game.Board.GetAllCoins();
-        Assert.NotEmpty(coinTiles);
+        Assert.Equal(3, coinTiles.Count);
         Assert.All(coinTiles, t => Assert.Equal(CoinType.Gold, t.AsCoin!.CoinType));
     }
 
@@ -181,7 +181,7 @@ public class CoinSpawnServiceTests
         var coinAtFree1 = game.Board.GetTile(new Position(7, 6)).AsCoin;
         var coinAtFree2 = game.Board.GetTile(new Position(7, 7)).AsCoin;
         var coinsPlacedInFreeTiles = new[] { coinAtFree1, coinAtFree2 }.Count(c => c is not null);
-        Assert.True(coinsPlacedInFreeTiles <= 2);
+        Assert.Equal(2, coinsPlacedInFreeTiles);
     }
 
     // ── Phase advancement ─────────────────────────────────────────────────────
