@@ -175,4 +175,54 @@ public class MovePieceCommandHandlerTests
         // Assert: SaveAsync was never called
         await repo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
+
+    // ── Test 9: Auto-spawns coins when MovePhase ends ────────────────────────
+
+    /// <summary>
+    /// When the final player's move in MovePhase completes the turn, the handler must
+    /// automatically call CoinSpawnService so the new turn is ready (PlacePhase) before
+    /// control returns — bots never trigger coin spawning directly.
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenMoveCompletesNewTurn_AutomaticallySpawnsCoins()
+    {
+        // Arrange: game in MovePhase with one piece per player.
+        // P1 is at (0,3); P2 is at (7,3).
+        var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithPieces();
+
+        // P1 makes their move directly so only P2 needs to move through the handler.
+        // MovePhaseActivePlayer starts as P1.
+        var p1Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new Position(0, 4) }.AsReadOnly()
+        }.AsReadOnly();
+        game.MovePiece(p1, p1Piece.Id, p1Segments); // MovePhaseActivePlayer → P2
+
+        var repo = Substitute.For<IGameRepository>();
+        repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
+        var coinSpawnService = new CoinSpawnService(repo, new Random(42), Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new MovePieceCommandHandler(repo, coinSpawnService, logger);
+
+        // P2 moves — this is the final move in the turn:
+        // TryAutoAdvanceMovePhase → AdvanceTurn → CoinSpawn phase (turn 2).
+        // The handler detects CoinSpawn and calls CoinSpawnService, which spawns coins and
+        // advances the phase to PlacePhase.
+        var p2Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new Position(7, 2) }.AsReadOnly()
+        }.AsReadOnly();
+        var command = new MovePieceCommand(game.Id, p2, p2Piece.Id, p2Segments);
+
+        // Act
+        await handler.Handle(command, CancellationToken.None);
+
+        // Assert: CoinSpawnService ran and phase advanced all the way to PlacePhase
+        Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
+
+        // Assert: coins were placed on the board (turn 2 schedule guarantees Silver coins)
+        var coinTiles = game.Board.GetAllCoins();
+        Assert.NotEmpty(coinTiles);
+    }
 }
