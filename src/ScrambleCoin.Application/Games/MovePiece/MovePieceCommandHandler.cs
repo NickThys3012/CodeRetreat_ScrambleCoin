@@ -1,31 +1,33 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Services;
+using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Enums;
+using ScrambleCoin.Domain.Events;
 
 namespace ScrambleCoin.Application.Games.MovePiece;
 
 /// <summary>
 /// Handles <see cref="MovePieceCommand"/>: loads the game, delegates movement to the domain,
 /// and persists the updated state.
-/// If the move causes the game to enter the <see cref="TurnPhase.CoinSpawn"/> phase (i.e. a new
-/// turn has started), <see cref="CoinSpawnService"/> is invoked automatically so coins are placed
-/// before control returns — bots never trigger coin spawning directly.
+/// When the turn rolls over the domain raises a <see cref="TurnPhaseAdvanced"/> event with
+/// <c>NewPhase == CoinSpawn</c>. This handler translates that signal into a
+/// <see cref="TurnRolledOver"/> MediatR notification, which <see cref="TurnRolledOverHandler"/>
+/// reacts to — keeping coin-spawn logic out of this handler entirely.
 /// </summary>
 public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand>
 {
     private readonly IGameRepository _gameRepository;
-    private readonly CoinSpawnService _coinSpawnService;
+    private readonly IPublisher _publisher;
     private readonly ILogger<MovePieceCommandHandler> _logger;
 
     public MovePieceCommandHandler(
         IGameRepository gameRepository,
-        CoinSpawnService coinSpawnService,
+        IPublisher publisher,
         ILogger<MovePieceCommandHandler> logger)
     {
         _gameRepository = gameRepository;
-        _coinSpawnService = coinSpawnService;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -41,16 +43,14 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand>
             "Piece {PieceId} moved by player {PlayerId} in game {GameId} on turn {Turn}.",
             request.PieceId, request.PlayerId, request.GameId, turnNumber);
 
-        // When both players have moved and the turn advances, the domain transitions to CoinSpawn.
-        // Automatically execute coin spawning so the new turn is ready for PlacePhase.
-        if (game.CurrentPhase == TurnPhase.CoinSpawn && game.Status == GameStatus.InProgress)
-        {
-            // CoinSpawnService saves the game after spawning + AdvancePhase.
-            await _coinSpawnService.ExecuteForGameAsync(game, cancellationToken);
-        }
-        else
-        {
-            await _gameRepository.SaveAsync(game, cancellationToken);
-        }
+        // Capture whether the turn rolled over BEFORE SaveAsync clears domain events.
+        var turnRolledOver = game.DomainEvents
+            .OfType<TurnPhaseAdvanced>()
+            .Any(e => e.NewPhase == TurnPhase.CoinSpawn);
+
+        await _gameRepository.SaveAsync(game, cancellationToken);
+
+        if (turnRolledOver)
+            await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);
     }
 }

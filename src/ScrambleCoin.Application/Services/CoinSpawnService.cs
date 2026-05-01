@@ -14,7 +14,7 @@ namespace ScrambleCoin.Application.Services;
 /// <see cref="ScrambleCoin.Domain.Enums.TurnPhase.CoinSpawn"/> phase — it is NOT
 /// exposed as a bot-accessible endpoint.
 /// </remarks>
-public sealed class CoinSpawnService
+public sealed class CoinSpawnService : ICoinSpawnService
 {
     private readonly IGameRepository _gameRepository;
     private readonly Random _random;
