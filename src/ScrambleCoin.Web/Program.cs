@@ -58,6 +58,7 @@ try
     // ── Application services ──────────────────────────────────────────────────
     builder.Services.AddSingleton(Random.Shared);
     builder.Services.AddScoped<IGameRepository, GameRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.CoinSpawnService>();
 
     // ── EF Core (SQL Server) ──────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")

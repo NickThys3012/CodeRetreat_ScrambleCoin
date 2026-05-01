@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.Games.SpawnCoins;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
@@ -41,10 +42,10 @@ public class SpawnCoinsCommandHandlerTests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<SpawnCoinsCommandHandler>>();
         // Use a seeded Random for deterministic tile selection
         var random = new Random(42);
-        var handler = new SpawnCoinsCommandHandler(repo, random, logger);
+        var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
 
         var command = new SpawnCoinsCommand(game.Id);
 
@@ -68,9 +69,9 @@ public class SpawnCoinsCommandHandlerTests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<SpawnCoinsCommandHandler>>();
         var random = new Random(0);
-        var handler = new SpawnCoinsCommandHandler(repo, random, logger);
+        var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
 
         // Act
         await handler.Handle(new SpawnCoinsCommand(game.Id), CancellationToken.None);
@@ -112,9 +113,9 @@ public class SpawnCoinsCommandHandlerTests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var logger = Substitute.For<ILogger<SpawnCoinsCommandHandler>>();
         var random = new Random(1);
-        var handler = new SpawnCoinsCommandHandler(repo, random, logger);
+        var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
 
         // Act: should not throw; spawns ≤ 2 coins
         await handler.Handle(new SpawnCoinsCommand(game.Id), CancellationToken.None);

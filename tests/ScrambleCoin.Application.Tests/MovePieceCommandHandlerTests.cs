@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
@@ -86,7 +87,8 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
-        var handler = new MovePieceCommandHandler(repo, logger);
+        var coinSpawnService = new CoinSpawnService(repo, new Random(42), Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new MovePieceCommandHandler(repo, coinSpawnService, logger);
 
         // Build command: move P1's piece one step right to (0,4)
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
@@ -116,7 +118,8 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
-        var handler = new MovePieceCommandHandler(repo, logger);
+        var coinSpawnService = new CoinSpawnService(repo, new Random(42), Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new MovePieceCommandHandler(repo, coinSpawnService, logger);
 
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -142,7 +145,8 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
-        var handler = new MovePieceCommandHandler(repo, logger);
+        var coinSpawnService = new CoinSpawnService(repo, new Random(42), Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new MovePieceCommandHandler(repo, coinSpawnService, logger);
 
         var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
@@ -160,7 +164,8 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var logger = Substitute.For<ILogger<MovePieceCommandHandler>>();
-        var handler = new MovePieceCommandHandler(repo, logger);
+        var coinSpawnService = new CoinSpawnService(repo, new Random(42), Substitute.For<ILogger<CoinSpawnService>>());
+        var handler = new MovePieceCommandHandler(repo, coinSpawnService, logger);
 
         var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
