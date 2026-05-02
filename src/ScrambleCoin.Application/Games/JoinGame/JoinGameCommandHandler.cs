@@ -72,9 +72,10 @@ public sealed class JoinGameCommandHandler : IRequestHandler<JoinGameCommand, Jo
         await _botRegistrationRepository.SaveAsync(registration, cancellationToken);
 
         _logger.LogInformation(
-            "Bot joined game {GameId}: PlayerId={PlayerId}, Slot={Slot}",
+            "Bot joined game {GameId}: BotId={BotId}, Slot={Slot}, Turn={Turn}",
             game.Id, assignedPlayerId,
-            assignedPlayerId == game.PlayerOne ? "PlayerOne" : "PlayerTwo");
+            assignedPlayerId == game.PlayerOne ? "PlayerOne" : "PlayerTwo",
+            game.TurnNumber);
 
         return new JoinGameResult(assignedPlayerId, token);
     }
