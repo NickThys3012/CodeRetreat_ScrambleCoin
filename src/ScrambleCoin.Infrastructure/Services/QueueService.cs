@@ -3,12 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.ValueObjects;
 
-namespace ScrambleCoin.Application.Services;
+namespace ScrambleCoin.Infrastructure.Services;
 
 /// <summary>
 /// In-memory matchmaking queue.  Registered as a singleton.

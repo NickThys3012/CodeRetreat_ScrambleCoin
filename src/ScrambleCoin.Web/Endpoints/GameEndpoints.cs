@@ -68,7 +68,7 @@ public static class GameEndpoints
         try
         {
             var result = await sender.Send(new JoinGameCommand(gameId, body.Lineup), ct);
-            return Results.Ok(new { playerId = result.PlayerId, token = result.Token });
+            return Results.Created($"/api/games/{gameId}", new { playerId = result.PlayerId, token = result.Token });
         }
         catch (GameFullException ex)
         {
@@ -77,7 +77,7 @@ public static class GameEndpoints
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Game Full");
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("was not found"))
+        catch (GameNotFoundException ex)
         {
             return Results.Problem(
                 detail: ex.Message,

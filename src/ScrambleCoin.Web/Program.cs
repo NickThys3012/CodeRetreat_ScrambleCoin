@@ -6,6 +6,7 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Infrastructure.Persistence;
+using ScrambleCoin.Infrastructure.Services;
 using ScrambleCoin.Web.Endpoints;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────

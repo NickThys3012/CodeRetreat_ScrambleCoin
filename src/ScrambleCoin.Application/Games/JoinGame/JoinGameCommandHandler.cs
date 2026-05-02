@@ -61,7 +61,7 @@ public sealed class JoinGameCommandHandler : IRequestHandler<JoinGameCommand, Jo
         if (game.LineupPlayerOne is not null && game.LineupPlayerTwo is not null)
         {
             game.Start();
-            _logger.LogInformation("Game {GameId} started — both players have joined.", game.Id);
+            _logger.LogInformation("Game {GameId} started — both players joined. BotId={BotId} Turn={Turn}", game.Id, assignedPlayerId, game.TurnNumber);
         }
 
         // Issue a bearer token for this bot.
