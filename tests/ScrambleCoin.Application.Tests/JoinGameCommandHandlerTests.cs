@@ -162,6 +162,26 @@ public class JoinGameCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_FirstPlayer_SavesPersistenceForJoin()
+    {
+        // Arrange
+        var game = NewShell();
+        var gameRepo   = Substitute.For<IGameRepository>();
+        var botRegRepo = Substitute.For<IBotRegistrationRepository>();
+        gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        var handler = BuildHandler(gameRepo, botRegRepo);
+        var command = new JoinGameCommand(game.Id, DefaultLineup);
+
+        // Act
+        await handler.Handle(command, CancellationToken.None);
+
+        // Assert: both game and bot-registration were persisted for first player.
+        await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
+        await botRegRepo.Received(1).SaveAsync(Arg.Any<Domain.BotRegistrations.BotRegistration>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_WhenGameFull_ThrowsGameFullException()
     {
         // Arrange: both slots are already filled.

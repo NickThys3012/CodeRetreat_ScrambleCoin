@@ -81,6 +81,14 @@ public class PieceFactoryTests
     }
 
     [Fact]
+    public void Create_Goofy_HasCornersEntryPoint()
+    {
+        var piece = PieceFactory.Create("Goofy", AnyPlayerId);
+
+        Assert.Equal(EntryPointType.Corners, piece.EntryPointType);
+    }
+
+    [Fact]
     public void Create_Scrooge_HasMaxDistanceTwo()
     {
         var piece = PieceFactory.Create("Scrooge", AnyPlayerId);

@@ -162,6 +162,57 @@ public class QueueServiceTests
     }
 
     [Fact]
+    public async Task Poll_AfterMatch_FirstBotPolledEntry_HasNonNullGameId()
+    {
+        // Arrange
+        var (service, _, _) = BuildQueueService();
+        var firstEntry = await service.EnqueueAsync(DefaultLineup);
+        await service.EnqueueAsync(DefaultLineup); // triggers match
+
+        // Act
+        var polledEntry = await service.PollAsync(firstEntry.QueueId);
+
+        // Assert
+        Assert.NotNull(polledEntry);
+        Assert.NotNull(polledEntry!.GameId);
+        Assert.NotEqual(Guid.Empty, polledEntry.GameId!.Value);
+    }
+
+    [Fact]
+    public async Task Poll_AfterMatch_FirstBotPolledEntry_HasNonNullPlayerId()
+    {
+        // Arrange
+        var (service, _, _) = BuildQueueService();
+        var firstEntry = await service.EnqueueAsync(DefaultLineup);
+        await service.EnqueueAsync(DefaultLineup); // triggers match
+
+        // Act
+        var polledEntry = await service.PollAsync(firstEntry.QueueId);
+
+        // Assert
+        Assert.NotNull(polledEntry);
+        Assert.NotNull(polledEntry!.PlayerId);
+        Assert.NotEqual(Guid.Empty, polledEntry.PlayerId!.Value);
+    }
+
+    [Fact]
+    public async Task Poll_AfterMatch_FirstBotPolledEntry_HasNonNullToken()
+    {
+        // Arrange
+        var (service, _, _) = BuildQueueService();
+        var firstEntry = await service.EnqueueAsync(DefaultLineup);
+        await service.EnqueueAsync(DefaultLineup); // triggers match
+
+        // Act
+        var polledEntry = await service.PollAsync(firstEntry.QueueId);
+
+        // Assert
+        Assert.NotNull(polledEntry);
+        Assert.NotNull(polledEntry!.Token);
+        Assert.NotEqual(Guid.Empty, polledEntry.Token!.Value);
+    }
+
+    [Fact]
     public async Task Poll_UnknownQueueId_ReturnsNull()
     {
         var (service, _, _) = BuildQueueService();
