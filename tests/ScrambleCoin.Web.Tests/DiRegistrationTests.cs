@@ -11,7 +11,7 @@ namespace ScrambleCoin.Web.Tests;
 /// <summary>
 /// Verifies that key services are correctly registered in the ASP.NET Core DI container
 /// (acceptance criteria 5). Uses <see cref="WebApplicationFactory{T}"/> so the full
-/// <c>Program.cs</c> pipeline runs; SQL Server is replaced with an InMemory provider
+/// <c>ScrambleCoin.Api Program.cs</c> pipeline runs; SQL Server is replaced with an InMemory provider
 /// to avoid needing a real database connection.
 /// </summary>
 public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebApplicationFactory>

@@ -4,7 +4,7 @@ using ScrambleCoin.Application.Games.JoinGame;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
 
-namespace ScrambleCoin.Web.Endpoints;
+namespace ScrambleCoin.Api.Endpoints;
 
 /// <summary>
 /// Minimal API endpoints for game session management and bot registration.

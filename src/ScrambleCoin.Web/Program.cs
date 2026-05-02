@@ -1,13 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
-using ScrambleCoin.Application.BotRegistration;
-using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Services;
-using ScrambleCoin.Infrastructure.Persistence;
-using ScrambleCoin.Infrastructure.Services;
-using ScrambleCoin.Web.Endpoints;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -33,18 +26,9 @@ try
             .Enrich.WithEnvironmentName()
             .WriteTo.Console()
             .WriteTo.File(
-                path: "logs/scramblecoin-.log",
+                path: "logs/scramblecoin-web-.log",
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7);
-
-        // Conditionally add Application Insights sink when connection string is present
-        var aiConnectionString = Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
-        if (!string.IsNullOrWhiteSpace(aiConnectionString))
-        {
-            configuration.WriteTo.ApplicationInsights(
-                aiConnectionString,
-                TelemetryConverter.Traces);
-        }
     });
 
     // ── Blazor Server ─────────────────────────────────────────────────────────
@@ -53,28 +37,6 @@ try
 
     // ── MudBlazor ─────────────────────────────────────────────────────────────
     builder.Services.AddMudServices();
-
-    // ── MediatR ───────────────────────────────────────────────────────────────
-    builder.Services.AddMediatR(cfg =>
-        cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
-
-    // ── Application services ──────────────────────────────────────────────────
-    builder.Services.AddSingleton(Random.Shared);
-    builder.Services.AddScoped<IGameRepository, GameRepository>();
-    builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService, ScrambleCoin.Application.Services.CoinSpawnService>();
-    builder.Services.AddSingleton<IQueueService, QueueService>();
-
-    // ── EF Core (SQL Server) ──────────────────────────────────────────────────
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Server=(localdb)\\mssqllocaldb;Database=ScrambleCoin;Trusted_Connection=True;";
-
-    builder.Services.AddDbContext<ScrambleCoinDbContext>(options =>
-        options.UseSqlServer(connectionString));
-
-    // ── Application Insights (telemetry) ─────────────────────────────────────
-    builder.Services.AddApplicationInsightsTelemetry();
 
     var app = builder.Build();
 
@@ -88,29 +50,19 @@ try
     app.UseHttpsRedirection();
     app.UseStaticFiles();
     app.UseRouting();
-
     app.UseSerilogRequestLogging();
 
     app.MapBlazorHub();
     app.MapFallbackToPage("/_Host");
 
-    // Minimal API health check
-    app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-
-    // Game session management endpoints
-    app.MapGameEndpoints();
-
     app.Run();
 }
 catch (Exception ex) when (ex is not HostAbortedException)
 {
-    Log.Fatal(ex, "ScrambleCoin host terminated unexpectedly");
+    Log.Fatal(ex, "ScrambleCoin web host terminated unexpectedly");
 }
 finally
 {
     Log.CloseAndFlush();
 }
-
-// Needed for WebApplicationFactory in integration tests
-public partial class Program { }
 
