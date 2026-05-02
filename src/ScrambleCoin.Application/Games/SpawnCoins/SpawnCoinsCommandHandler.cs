@@ -5,7 +5,7 @@ namespace ScrambleCoin.Application.Games.SpawnCoins;
 
 /// <summary>
 /// Handles <see cref="SpawnCoinsCommand"/>: delegates all coin-spawn logic to
-/// <see cref="CoinSpawnService"/>, which also calls <c>game.AdvancePhase()</c>
+/// <see cref="ICoinSpawnService"/>, which also calls <c>game.AdvancePhase()</c>
 /// (CoinSpawn → PlacePhase) and persists the game.
 /// </summary>
 /// <remarks>
@@ -14,10 +14,10 @@ namespace ScrambleCoin.Application.Games.SpawnCoins;
 /// </remarks>
 public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand>
 {
-    private readonly CoinSpawnService _coinSpawnService;
+    private readonly ICoinSpawnService _coinSpawnService;
 
     /// <param name="coinSpawnService">Service that encapsulates the full coin-spawn workflow.</param>
-    public SpawnCoinsCommandHandler(CoinSpawnService coinSpawnService)
+    public SpawnCoinsCommandHandler(ICoinSpawnService coinSpawnService)
     {
         _coinSpawnService = coinSpawnService;
     }

@@ -8,90 +8,70 @@ using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Infrastructure.Services;
 using ScrambleCoin.Api.Endpoints;
 
-// ── Serilog bootstrap logger (catches startup errors) ────────────────────────
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+var builder = WebApplication.CreateBuilder(args);
 
-try
+// ── Serilog ───────────────────────────────────────────────────────────────────
+builder.Host.UseSerilog((context, services, configuration) =>
 {
-    Log.Information("Starting ScrambleCoin API host");
+    configuration
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName()
+        .Enrich.WithEnvironmentName()
+        .WriteTo.Console()
+        .WriteTo.File(
+            path: "logs/scramblecoin-api-.log",
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 7);
 
-    var builder = WebApplication.CreateBuilder(args);
-
-    // ── Serilog full logger ───────────────────────────────────────────────────
-    builder.Host.UseSerilog((context, services, configuration) =>
+    var aiConnectionString = Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+    if (!string.IsNullOrWhiteSpace(aiConnectionString))
     {
-        configuration
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .Enrich.WithMachineName()
-            .Enrich.WithEnvironmentName()
-            .WriteTo.Console()
-            .WriteTo.File(
-                path: "logs/scramblecoin-api-.log",
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7);
-
-        var aiConnectionString = Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
-        if (!string.IsNullOrWhiteSpace(aiConnectionString))
-        {
-            configuration.WriteTo.ApplicationInsights(
-                aiConnectionString,
-                TelemetryConverter.Traces);
-        }
-    });
-
-    // ── MediatR ───────────────────────────────────────────────────────────────
-    builder.Services.AddMediatR(cfg =>
-        cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
-
-    // ── Application services ──────────────────────────────────────────────────
-    builder.Services.AddSingleton(Random.Shared);
-    builder.Services.AddScoped<IGameRepository, GameRepository>();
-    builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
-    builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
-    builder.Services.AddSingleton<IQueueService, QueueService>();
-
-    // ── EF Core (SQL Server) ──────────────────────────────────────────────────
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Server=(localdb)\\mssqllocaldb;Database=ScrambleCoin;Trusted_Connection=True;";
-
-    builder.Services.AddDbContext<ScrambleCoinDbContext>(options =>
-        options.UseSqlServer(connectionString));
-
-    // ── Application Insights (telemetry) ─────────────────────────────────────
-    builder.Services.AddApplicationInsightsTelemetry();
-
-    var app = builder.Build();
-
-    // ── Middleware pipeline ───────────────────────────────────────────────────
-    if (!app.Environment.IsDevelopment())
-    {
-        app.UseHsts();
+        configuration.WriteTo.ApplicationInsights(
+            aiConnectionString,
+            TelemetryConverter.Traces);
     }
+});
 
-    app.UseHttpsRedirection();
-    app.UseRouting();
-    app.UseSerilogRequestLogging();
+// ── MediatR ───────────────────────────────────────────────────────────────────
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssemblies(
+        typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
 
-    app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-    app.MapGameEndpoints();
+// ── Application services ──────────────────────────────────────────────────────
+builder.Services.AddSingleton(Random.Shared);
+builder.Services.AddScoped<IGameRepository, GameRepository>();
+builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
+builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
+builder.Services.AddSingleton<IQueueService, QueueService>();
 
-    app.Run();
-}
-catch (Exception ex) when (ex is not HostAbortedException)
+// ── EF Core (SQL Server) ──────────────────────────────────────────────────────
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Server=(localdb)\\mssqllocaldb;Database=ScrambleCoin;Trusted_Connection=True;";
+
+builder.Services.AddDbContext<ScrambleCoinDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// ── Application Insights (telemetry) ─────────────────────────────────────────
+builder.Services.AddApplicationInsightsTelemetry();
+
+var app = builder.Build();
+
+// ── Middleware pipeline ───────────────────────────────────────────────────────
+if (!app.Environment.IsDevelopment())
 {
-    Log.Fatal(ex, "ScrambleCoin API host terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
+    app.UseHsts();
 }
 
-// Needed for WebApplicationFactory in integration tests
-public partial class Program { }
+app.UseHttpsRedirection();
+app.UseRouting();
+app.UseSerilogRequestLogging();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGameEndpoints();
+
+app.Run();
+
+

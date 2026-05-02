@@ -38,6 +38,11 @@ try
     // ── MudBlazor ─────────────────────────────────────────────────────────────
     builder.Services.AddMudServices();
 
+    // ── MediatR ───────────────────────────────────────────────────────────────
+    builder.Services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssemblies(
+            typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
+    
     var app = builder.Build();
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
@@ -66,3 +71,5 @@ finally
     Log.CloseAndFlush();
 }
 
+
+public partial class Program { }
