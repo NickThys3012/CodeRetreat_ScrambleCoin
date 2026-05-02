@@ -2,8 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
+using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Infrastructure.Persistence;
+using ScrambleCoin.Web.Endpoints;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -58,7 +61,9 @@ try
     // ── Application services ──────────────────────────────────────────────────
     builder.Services.AddSingleton(Random.Shared);
     builder.Services.AddScoped<IGameRepository, GameRepository>();
+    builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService, ScrambleCoin.Application.Services.CoinSpawnService>();
+    builder.Services.AddSingleton<IQueueService, QueueService>();
 
     // ── EF Core (SQL Server) ──────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -90,6 +95,9 @@ try
 
     // Minimal API health check
     app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+
+    // Game session management endpoints
+    app.MapGameEndpoints();
 
     app.Run();
 }

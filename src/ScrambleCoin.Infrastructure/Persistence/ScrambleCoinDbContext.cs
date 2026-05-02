@@ -18,9 +18,20 @@ public class ScrambleCoinDbContext : DbContext
     /// <summary>The Games table — each row represents one <see cref="ScrambleCoin.Domain.Entities.Game"/> aggregate.</summary>
     public DbSet<GameRecord> Games => Set<GameRecord>();
 
+    /// <summary>The BotRegistrations table — one row per bot that has joined a game.</summary>
+    public DbSet<BotRegistrationRecord> BotRegistrations => Set<BotRegistrationRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<BotRegistrationRecord>(entity =>
+        {
+            entity.ToTable("BotRegistrations");
+            entity.HasKey(b => b.Token);
+            entity.Property(b => b.PlayerId).IsRequired();
+            entity.Property(b => b.GameId).IsRequired();
+        });
 
         modelBuilder.Entity<GameRecord>(entity =>
         {

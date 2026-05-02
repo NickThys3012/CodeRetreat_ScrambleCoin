@@ -156,6 +156,17 @@ public sealed class Game
     {
     }
 
+    /// <summary>
+    /// Creates a new game shell in <see cref="GameStatus.WaitingForBots"/> state,
+    /// with two randomly-generated player slot identifiers.
+    /// Bots joining via <c>POST /api/games/{gameId}/join</c> will receive one of these
+    /// slot IDs as their <c>playerId</c> and use it for all subsequent game actions.
+    /// </summary>
+    /// <param name="board">The pre-constructed game board.</param>
+    /// <returns>A new <see cref="Game"/> with empty lineups awaiting bot registration.</returns>
+    public static Game CreateShell(Board board) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), board);
+
     // ── Lineup management ─────────────────────────────────────────────────────
 
     /// <summary>
