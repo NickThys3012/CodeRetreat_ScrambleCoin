@@ -104,7 +104,14 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "swagger";
 });
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health")
+    .WithName("HealthCheck")
+    .WithSummary("Health check")
+    .WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
+    .WithTags("Health")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status503ServiceUnavailable)
+    .WithOpenApi();
 app.MapGameEndpoints();
 
 app.Run();
