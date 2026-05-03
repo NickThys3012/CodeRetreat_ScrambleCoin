@@ -57,6 +57,10 @@ builder.Services.AddDbContext<ScrambleCoinDbContext>(options =>
 // ── Application Insights (telemetry) ─────────────────────────────────────────
 builder.Services.AddApplicationInsightsTelemetry();
 
+// ── Health checks ─────────────────────────────────────────────────────────────
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ScrambleCoinDbContext>("database");
+
 // ── OpenAPI / Swagger ─────────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -100,7 +104,7 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "swagger";
 });
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapHealthChecks("/health");
 app.MapGameEndpoints();
 
 app.Run();

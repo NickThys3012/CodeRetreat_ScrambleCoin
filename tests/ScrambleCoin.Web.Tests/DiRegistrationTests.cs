@@ -47,6 +47,10 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
                 // Re-register with an InMemory database so no SQL Server is required
                 services.AddDbContext<ScrambleCoinDbContext>(options =>
                     options.UseInMemoryDatabase("WebTestDb"));
+
+                // Clear health check registrations — no real DB in test environment
+                services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(
+                    opts => opts.Registrations.Clear());
             });
 
             // Use a non-conflicting URL to avoid port clashes when tests run in parallel
