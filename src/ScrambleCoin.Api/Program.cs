@@ -105,13 +105,26 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "swagger";
 });
 
-app.MapHealthChecks("/health")
-    .WithName("HealthCheck")
-    .WithSummary("Health check")
-    .WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
-    .WithTags("Health")
-    .WithMetadata(new ProducesResponseTypeAttribute(StatusCodes.Status200OK))
-    .WithMetadata(new ProducesResponseTypeAttribute(StatusCodes.Status503ServiceUnavailable));
+app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService healthCheckService) =>
+{
+    var report = await healthCheckService.CheckHealthAsync();
+    var result = new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.ToDictionary(
+            e => e.Key,
+            e => e.Value.Status.ToString())
+    };
+    return report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy
+        ? Results.Ok(result)
+        : Results.Json(result, statusCode: StatusCodes.Status503ServiceUnavailable);
+})
+.WithName("HealthCheck")
+.WithSummary("Health check")
+.WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
+.WithTags("Health")
+.Produces<object>(StatusCodes.Status200OK)
+.Produces<object>(StatusCodes.Status503ServiceUnavailable);
 app.MapGameEndpoints();
 
 app.Run();
