@@ -109,9 +109,8 @@ app.MapHealthChecks("/health")
     .WithSummary("Health check")
     .WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
     .WithTags("Health")
-    .Produces(StatusCodes.Status200OK)
-    .Produces(StatusCodes.Status503ServiceUnavailable)
-    .WithOpenApi();
+    .WithMetadata(new ProducesResponseTypeAttribute(StatusCodes.Status200OK))
+    .WithMetadata(new ProducesResponseTypeAttribute(StatusCodes.Status503ServiceUnavailable));
 app.MapGameEndpoints();
 
 app.Run();
