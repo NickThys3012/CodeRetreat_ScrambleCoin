@@ -67,6 +67,17 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "REST API for Scramblecoin bots — create games, register bots, submit moves."
     });
+
+    // Admin key security scheme (lock icon on CreateGame)
+    options.AddSecurityDefinition("X-Admin-Key", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "X-Admin-Key",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Admin key required to create a game shell. Value: `scramblecoin-admin`"
+    });
+
+    options.OperationFilter<ScrambleCoin.Api.Swagger.AdminKeyOperationFilter>();
 });
 
 var app = builder.Build();
