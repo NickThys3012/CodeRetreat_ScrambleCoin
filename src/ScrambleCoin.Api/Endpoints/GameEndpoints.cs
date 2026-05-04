@@ -3,13 +3,10 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.JoinGame;
-using ScrambleCoin.Application.Games.PlacePiece;
-using ScrambleCoin.Application.Games.ReplacePiece;
-using ScrambleCoin.Application.Games.SkipPlacement;
+using ScrambleCoin.Application.Games.SubmitPlacement;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Api.Endpoints;
 
@@ -164,7 +161,6 @@ public static class GameEndpoints
         HttpRequest httpRequest,
         ISender sender,
         IBotRegistrationRepository botRegistrationRepository,
-        IGameRepository gameRepository,
         CancellationToken ct)
     {
         // 1. Validate X-Bot-Token header
@@ -191,57 +187,17 @@ public static class GameEndpoints
 
         try
         {
-            switch (body.Action?.ToLowerInvariant())
-            {
-                case "place":
-                    if (body.PieceId is null || body.Position is null)
-                        return Results.Problem(
-                            detail: "Action 'place' requires 'pieceId' and 'position'.",
-                            statusCode: StatusCodes.Status400BadRequest,
-                            title: "Bad Request");
-                    await sender.Send(
-                        new PlacePieceCommand(
-                            gameId,
-                            playerId,
-                            body.PieceId.Value,
-                            new Position(body.Position.Row, body.Position.Col)),
-                        ct);
-                    break;
+            var result = await sender.Send(
+                new SubmitPlacementCommand(
+                    gameId,
+                    playerId,
+                    body.Action,
+                    body.PieceId,
+                    body.ReplacedPieceId,
+                    body.Position is null ? null : new PositionRequest(body.Position.Row, body.Position.Col)),
+                ct);
 
-                case "replace":
-                    if (body.PieceId is null || body.ReplacedPieceId is null || body.Position is null)
-                        return Results.Problem(
-                            detail: "Action 'replace' requires 'pieceId', 'replacedPieceId', and 'position'.",
-                            statusCode: StatusCodes.Status400BadRequest,
-                            title: "Bad Request");
-                    await sender.Send(
-                        new ReplacePieceCommand(
-                            gameId,
-                            playerId,
-                            ExistingPieceId: body.ReplacedPieceId.Value,
-                            NewPieceId: body.PieceId.Value,
-                            TargetPosition: new Position(body.Position.Row, body.Position.Col)),
-                        ct);
-                    break;
-
-                case "skip":
-                    await sender.Send(new SkipPlacementCommand(gameId, playerId), ct);
-                    break;
-
-                default:
-                    return Results.Problem(
-                        detail: $"Unknown action '{body.Action}'. Valid values are: place, replace, skip.",
-                        statusCode: StatusCodes.Status400BadRequest,
-                        title: "Bad Request");
-            }
-
-            // 3. Return current phase state
-            var game = await gameRepository.GetByIdAsync(gameId, ct);
-            return Results.Ok(new
-            {
-                phase = game.CurrentPhase?.ToString(),
-                activePlayer = game.MovePhaseActivePlayer?.ToString()
-            });
+            return Results.Ok(new { phase = result.Phase, activePlayer = result.ActivePlayer });
         }
         catch (PlayerAlreadyActedException ex)
         {
@@ -291,8 +247,6 @@ public static class GameEndpoints
         Guid? PieceId,
         Guid? ReplacedPieceId,
         PositionRequest? Position);
-
-    private sealed record PositionRequest(int Row, int Col);
 
     /// <summary>Bot reads the current board state for a game.</summary>
     private static async Task<IResult> GetBoardState(
