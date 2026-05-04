@@ -491,7 +491,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
     // ── AC 5 : 404 when game not found ────────────────────────────────────────
 
     [Fact]
-    public async Task GetBoardState_UnknownGameId_Returns404()
+    public async Task GetBoardState_WhenTokenBelongsToADifferentGame_Returns403()
     {
         // Arrange: valid token format but game doesn't exist
         // We need a real token; seed a game to get one then query a different ID
@@ -813,5 +813,92 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
 
         // Assert
         Assert.Equal("CoinSpawn", json.RootElement.GetProperty("phase").GetString());
+    }
+
+    // ── AC 5 : True 404 when game row is deleted ──────────────────────────────
+
+    [Fact]
+    public async Task GetBoardState_UnknownGameId_Returns404()
+    {
+        // Arrange: seed a game so we have a valid bot registration, then delete the game row
+        var (game, tokenP1, _) = await SeedGameAsync();
+
+        // Delete the game record from the in-memory database so the repository throws GameNotFoundException
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
+            var record = await db.Games.FindAsync(game.Id);
+            if (record is not null)
+            {
+                db.Games.Remove(record);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
+
+        // Act: token is valid and belongs to the (now-deleted) game → handler loads game → GameNotFoundException → 404
+        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.TryGetProperty("status", out var status),
+            "404 response must include ProblemDetails 'status' field.");
+        Assert.Equal(404, status.GetInt32());
+    }
+
+    // ── movesPerTurn field on pieces ──────────────────────────────────────────
+
+    [Fact]
+    public async Task GetBoardState_EachPiece_HasMovesPerTurnField()
+    {
+        // Arrange
+        var (game, tokenP1, _) = await SeedGameAsync();
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
+
+        // Act
+        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert: every piece in yourPieces has a 'movesPerTurn' JSON property
+        var pieces = json.RootElement.GetProperty("yourPieces");
+        foreach (var piece in pieces.EnumerateArray())
+        {
+            Assert.True(piece.TryGetProperty("movesPerTurn", out var movesPerTurn),
+                "Each piece must expose a 'movesPerTurn' JSON field.");
+            Assert.True(movesPerTurn.GetInt32() >= 1,
+                $"movesPerTurn must be >= 1, got {movesPerTurn.GetInt32()}.");
+        }
+    }
+
+    // ── occupant key on every tile ────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetBoardState_EachTile_HasOccupantKey()
+    {
+        // Arrange
+        var (game, tokenP1, _) = await SeedGameAsync();
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
+
+        // Act
+        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var rawJson = await response.Content.ReadAsStringAsync();
+
+        // Use JsonIgnoreCondition.Never-aware options so we can detect null-valued keys.
+        // Parse with standard options; the production API must include the key even when null.
+        var json = JsonDocument.Parse(rawJson);
+
+        // Assert: every tile in board.tiles has an 'occupant' key (value may be null)
+        var tiles = json.RootElement.GetProperty("board").GetProperty("tiles");
+        foreach (var tile in tiles.EnumerateArray())
+        {
+            Assert.True(tile.TryGetProperty("occupant", out _),
+                "Each tile must expose an 'occupant' JSON key (value may be null, but the key must be present).");
+        }
     }
 }

@@ -7,6 +7,7 @@ using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 
@@ -752,5 +753,101 @@ public class GetBoardStateQueryHandlerTests
 
         // Assert: MovePhaseActivePlayer is null outside MovePhase
         Assert.Null(dto.ActivePlayer);
+    }
+
+    // ── movesPerTurn ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_ValidRequest_PiecesHavePositiveMovesPerTurn()
+    {
+        // Arrange: pieces are created with MovesPerTurn = 1 in NewStartedGame()
+        var (game, p1, _) = NewStartedGame();
+        var reg = MakeRegistration(game.Id, p1);
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRepo = Substitute.For<IBotRegistrationRepository>();
+        gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+        botRepo.GetByTokenAsync(reg.Token, Arg.Any<CancellationToken>()).Returns(reg);
+
+        var handler = BuildHandler(gameRepo, botRepo);
+
+        // Act
+        var dto = await handler.Handle(new GetBoardStateQuery(game.Id, reg.Token), CancellationToken.None);
+
+        // Assert: every piece must advertise at least one move action per turn
+        Assert.All(dto.YourPieces, piece => Assert.True(piece.MovesPerTurn >= 1,
+            $"Piece '{piece.Name}' has MovesPerTurn = {piece.MovesPerTurn}, expected >= 1."));
+    }
+
+    // ── IsObstacle ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_WithObstacleTile_CorrespondingTileIsMarkedIsObstacle()
+    {
+        // Arrange: create a board with a Rock at (2, 3)
+        var obstaclePosition = new Position(2, 3);
+        var board = new Board();
+        board.AddRock(new Rock(obstaclePosition));
+
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+
+        var pieces1 = DefaultLineup
+            .Select(n => new Piece(Guid.NewGuid(), n, p1, EntryPointType.Borders, MovementType.Orthogonal, 3, 1))
+            .ToList();
+        var pieces2 = DefaultLineup
+            .Select(n => new Piece(Guid.NewGuid(), n, p2, EntryPointType.Borders, MovementType.Orthogonal, 3, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(pieces1));
+        game.SetLineup(p2, new Lineup(pieces2));
+        game.Start();
+
+        var reg = MakeRegistration(game.Id, p1);
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRepo = Substitute.For<IBotRegistrationRepository>();
+        gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+        botRepo.GetByTokenAsync(reg.Token, Arg.Any<CancellationToken>()).Returns(reg);
+
+        var handler = BuildHandler(gameRepo, botRepo);
+
+        // Act
+        var dto = await handler.Handle(new GetBoardStateQuery(game.Id, reg.Token), CancellationToken.None);
+
+        // Assert: the tile at the Rock's position is marked IsObstacle = true
+        var obstacleTile = dto.Board.Tiles
+            .Single(t => t.Position.Row == obstaclePosition.Row && t.Position.Col == obstaclePosition.Col);
+        Assert.True(obstacleTile.IsObstacle,
+            $"Tile at ({obstaclePosition.Row},{obstaclePosition.Col}) should be marked IsObstacle = true.");
+    }
+
+    // ── MovePhase ActivePlayer ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_DuringMovePhase_ActivePlayerEqualsExpectedPlayer()
+    {
+        // Arrange: advance game CoinSpawn → PlacePhase → MovePhase
+        // After Start(), game is in CoinSpawn phase.
+        var (game, p1, _) = NewStartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.AdvancePhase(); // PlacePhase → MovePhase; MovePhaseActivePlayer = PlayerOne
+
+        var reg = MakeRegistration(game.Id, p1);
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRepo = Substitute.For<IBotRegistrationRepository>();
+        gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+        botRepo.GetByTokenAsync(reg.Token, Arg.Any<CancellationToken>()).Returns(reg);
+
+        var handler = BuildHandler(gameRepo, botRepo);
+
+        // Act
+        var dto = await handler.Handle(new GetBoardStateQuery(game.Id, reg.Token), CancellationToken.None);
+
+        // Assert: activePlayer is set to PlayerOne's ID during MovePhase
+        Assert.NotNull(dto.ActivePlayer);
+        Assert.Equal(game.MovePhaseActivePlayer!.Value.ToString(), dto.ActivePlayer);
     }
 }
