@@ -493,29 +493,17 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
     [Fact]
     public async Task GetBoardState_WhenTokenBelongsToADifferentGame_Returns403()
     {
-        // Arrange: valid token format but game doesn't exist
-        // We need a real token; seed a game to get one then query a different ID
+        // Arrange: token belongs to a different game — auth check fires first, returns 403
         var (_, tokenP1, _) = await SeedGameAsync();
         var nonExistentGameId = Guid.NewGuid();
 
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
-        // Act: the token is for the seeded game, but we query a completely different game ID
-        // This should trigger 403 (token belongs to wrong game) — see note below.
-        // To get a clean 404, we query with a token that belongs to no registered game.
-        var unknownToken = Guid.NewGuid();
-        // First: a genuinely unknown game ID with the seeded token causes 403.
-        // A 404 happens when the token IS valid for a game but the game record is deleted.
-        // To keep this test deterministic, we directly test via the handler behavior:
-        // endpoint returns 404 when game is not found. Here we verify via an unknown token → 403.
-        // The 404 case is better covered in the unit test for the handler.
-        // Nonetheless: call with an entirely fabricated gameId and valid registered token.
-        client.DefaultRequestHeaders.Remove("X-Bot-Token");
-        client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
+        // Act
         var response = await client.GetAsync($"/api/games/{nonExistentGameId}/state");
 
-        // The token is registered for a different game, so we get 403 (auth check fires first).
+        // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
