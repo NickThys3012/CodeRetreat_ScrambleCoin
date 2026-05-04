@@ -11,7 +11,7 @@ namespace ScrambleCoin.Web.Tests;
 /// <summary>
 /// Verifies that key services are correctly registered in the ASP.NET Core DI container
 /// (acceptance criteria 5). Uses <see cref="WebApplicationFactory{T}"/> so the full
-/// <c>Program.cs</c> pipeline runs; SQL Server is replaced with an InMemory provider
+/// <c>ScrambleCoin.Api Program.cs</c> pipeline runs; SQL Server is replaced with an InMemory provider
 /// to avoid needing a real database connection.
 /// </summary>
 public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebApplicationFactory>
@@ -27,7 +27,7 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
     /// Custom factory that swaps SQL Server for an in-memory EF Core provider
     /// and suppresses the Application Insights telemetry to keep tests self-contained.
     /// </summary>
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -47,6 +47,10 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
                 // Re-register with an InMemory database so no SQL Server is required
                 services.AddDbContext<ScrambleCoinDbContext>(options =>
                     options.UseInMemoryDatabase("WebTestDb"));
+
+                // Clear health check registrations — no real DB in test environment
+                services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(
+                    opts => opts.Registrations.Clear());
             });
 
             // Use a non-conflicting URL to avoid port clashes when tests run in parallel

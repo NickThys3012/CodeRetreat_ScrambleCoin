@@ -5,6 +5,7 @@ using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
+using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Infrastructure.Persistence.Records;
 
 namespace ScrambleCoin.Infrastructure.Persistence;
@@ -35,7 +36,7 @@ public sealed class GameRepository : IGameRepository
     public async Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var record = await _context.Games.FindAsync([id], cancellationToken)
-            ?? throw new InvalidOperationException($"Game with id '{id}' was not found.");
+            ?? throw new GameNotFoundException(id);
 
         return ReconstructGame(record);
     }

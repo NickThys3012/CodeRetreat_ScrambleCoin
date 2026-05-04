@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
+using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
 using ScrambleCoin.Infrastructure.Persistence;
 
@@ -377,13 +378,13 @@ public sealed class GameRepositoryTests
     // ── GetByIdAsync: unknown ID ──────────────────────────────────────────────
 
     [Fact]
-    public async Task GetByIdAsync_UnknownId_ThrowsInvalidOperationException()
+    public async Task GetByIdAsync_UnknownId_ThrowsGameNotFoundException()
     {
-        var options = BuildOptions(nameof(GetByIdAsync_UnknownId_ThrowsInvalidOperationException));
+        var options = BuildOptions(nameof(GetByIdAsync_UnknownId_ThrowsGameNotFoundException));
         await using var ctx = new ScrambleCoinDbContext(options);
         var repo = new GameRepository(ctx);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<GameNotFoundException>(
             () => repo.GetByIdAsync(Guid.NewGuid()));
     }
 
@@ -395,7 +396,7 @@ public sealed class GameRepositoryTests
         var repo = new GameRepository(ctx);
 
         var unknownId = Guid.NewGuid();
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<GameNotFoundException>(
             () => repo.GetByIdAsync(unknownId));
 
         Assert.Contains(unknownId.ToString(), ex.Message);
