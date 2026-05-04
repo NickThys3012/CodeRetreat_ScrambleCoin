@@ -534,7 +534,7 @@ public sealed class Game
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         var lineup = GetLineupForPlayer(playerId);
         var piece = lineup.Pieces.SingleOrDefault(p => p.Id == pieceId)
@@ -598,7 +598,7 @@ public sealed class Game
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         if (existingPieceId == newPieceId)
             throw new DomainException("ExistingPieceId and NewPieceId must be different.");
@@ -675,7 +675,7 @@ public sealed class Game
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         MarkPlacePhaseActed(playerId);
     }

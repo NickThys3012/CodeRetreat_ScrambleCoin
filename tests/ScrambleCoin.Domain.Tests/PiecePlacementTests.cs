@@ -317,7 +317,7 @@ public class PiecePlacementTests
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
 
         // p2 has not yet acted, so phase is still PlacePhase — p1 cannot act again.
-        var ex = Assert.Throws<DomainException>(() => game.PlacePiece(p1, p1Pieces[1].Id, new Position(0, 1)));
+        var ex = Assert.ThrowsAny<DomainException>(() => game.PlacePiece(p1, p1Pieces[1].Id, new Position(0, 1)));
         Assert.Contains("already acted", ex.Message);
     }
 
@@ -382,7 +382,7 @@ public class PiecePlacementTests
         game.SkipPlacement(p1);
 
         // Phase hasn't advanced yet (p2 hasn't acted).
-        var ex = Assert.Throws<DomainException>(() => game.SkipPlacement(p1));
+        var ex = Assert.ThrowsAny<DomainException>(() => game.SkipPlacement(p1));
         Assert.Contains("already acted", ex.Message);
     }
 
@@ -638,7 +638,7 @@ public class PiecePlacementTests
         game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 1));
 
         // p2 has not yet acted — p1 tries again.
-        var ex = Assert.Throws<DomainException>(
+        var ex = Assert.ThrowsAny<DomainException>(
             () => game.ReplacePiece(p1, p1Pieces[1].Id, p1Pieces[2].Id, new Position(0, 2)));
         Assert.Contains("already acted", ex.Message);
     }
