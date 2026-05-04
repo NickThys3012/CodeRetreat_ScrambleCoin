@@ -1,6 +1,7 @@
 // Scramblecoin Azure Infrastructure
 // Provisions: Log Analytics Workspace, Application Insights, App Service Plan,
-//             App Service (.NET 9), Azure SQL Server, Azure SQL Database
+//             App Service Web (.NET 9 Blazor), App Service API (.NET 9 REST),
+//             Azure SQL Server, Azure SQL Database
 
 @description('Base name used to derive all resource names (e.g. "scramblecoin").')
 @minLength(3)
@@ -25,6 +26,7 @@ param sqlAdminPassword string
 // https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
 var planName       = 'asp-${appName}'
 var webName        = 'app-${appName}'
+var apiName        = 'app-${appName}-api'
 var aiName         = 'appi-${appName}'
 var lawName        = 'log-${appName}'
 var sqlServerName  = 'sql-${appName}'
@@ -108,6 +110,40 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
 }
 
 // ---------------------------------------------------------------------------
+// App Service — API (.NET 9 REST / Bot API)
+// ---------------------------------------------------------------------------
+resource appServiceApi 'Microsoft.Web/sites@2022-09-01' = {
+  name: apiName
+  location: location
+  properties: {
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
+    siteConfig: {
+      netFrameworkVersion: 'v9.0'
+      alwaysOn: false
+      appSettings: [
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: 'Production'
+        }
+        {
+          name: 'ConnectionStrings__DefaultConnection'
+          value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+        }
+      ]
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Azure SQL Server
 // ---------------------------------------------------------------------------
 resource sqlServer 'Microsoft.Sql/servers@2022-11-01-preview' = {
@@ -147,8 +183,11 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-11-01-preview' = {
 // ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
-@description('Default hostname of the deployed App Service.')
+@description('Default hostname of the deployed App Service (Blazor Web).')
 output appServiceUrl string = 'https://${appService.properties.defaultHostName}'
+
+@description('Default hostname of the deployed API App Service (Bot REST API).')
+output apiServiceUrl string = 'https://${appServiceApi.properties.defaultHostName}'
 
 @description('Application Insights connection string.')
 output appInsightsConnectionString string = appInsights.properties.ConnectionString

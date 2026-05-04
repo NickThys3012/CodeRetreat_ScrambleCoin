@@ -159,6 +159,13 @@ jobs:
           --configuration Release
           --output ${{ env.PUBLISH_DIR }}
 
+      - name: Publish API
+        run: >
+          dotnet publish src/ScrambleCoin.Api/ScrambleCoin.Api.csproj
+          --no-build
+          --configuration Release
+          --output ${{ env.PUBLISH_DIR }}-api
+
       # ── 11. Database migrations ───────────────────────────────────────────────
       - name: Install EF Core CLI tools
         run: dotnet tool install --global dotnet-ef --version 9.*
@@ -169,17 +176,24 @@ jobs:
         run: >
           dotnet ef database update
           --project src/ScrambleCoin.Infrastructure
-          --startup-project src/ScrambleCoin.Web
+          --startup-project src/ScrambleCoin.Api
           --configuration Release
           --no-build
 
       # ── 12. Deploy to Azure App Service ──────────────────────────────────────
-      - name: Deploy to Azure App Service
+      - name: Deploy Web to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
           app-name: app-scramblecoin
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ env.PUBLISH_DIR }}
+
+      - name: Deploy API to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-scramblecoin-api
+          publish-profile: ${{ secrets.AZURE_WEBAPP_API_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_DIR }}-api
 
       # ── 13. Commit updated changelog.json back to main ────────────────────────
       - name: Commit and push changelog.json
