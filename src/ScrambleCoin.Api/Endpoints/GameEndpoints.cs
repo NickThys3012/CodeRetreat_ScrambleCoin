@@ -1,5 +1,6 @@
 using MediatR;
 using ScrambleCoin.Application.Games.CreateGame;
+using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.JoinGame;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
@@ -33,6 +34,11 @@ public static class GameEndpoints
         // GET /api/games/queue/{queueId} — poll matchmaking status
         app.MapGet("/api/games/queue/{queueId}", PollQueue)
             .WithName("PollQueue")
+            .WithTags("Games");
+
+        // GET /api/games/{gameId}/state — bot reads current board state
+        app.MapGet("/api/games/{gameId}/state", GetBoardState)
+            .WithName("GetBoardState")
             .WithTags("Games");
     }
 
@@ -145,4 +151,42 @@ public static class GameEndpoints
     private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
 
     private sealed record QueueRequest(IReadOnlyList<string> Lineup);
+
+    /// <summary>Bot reads the current board state for a game.</summary>
+    private static async Task<IResult> GetBoardState(
+        Guid gameId,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!httpRequest.Headers.TryGetValue("X-Bot-Token", out var tokenHeader) ||
+            !Guid.TryParse(tokenHeader, out var botToken))
+        {
+            return Results.Problem(
+                detail: "Missing or invalid X-Bot-Token header.",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+
+        try
+        {
+            var result = await sender.Send(new GetBoardStateQuery(gameId, botToken), ct);
+            return Results.Ok(result);
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+    }
 }
+
