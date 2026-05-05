@@ -404,7 +404,8 @@ public class PiecePlacementTests
         var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
 
         // Place the first piece.
-        game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
+        var oldPos = new Position(0, 0);
+        game.PlacePiece(p1, p1Pieces[0].Id, oldPos);
         game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
 
         // Advance to turn 2 PlacePhase.
@@ -412,15 +413,13 @@ public class PiecePlacementTests
         game.AdvancePhase();
         game.ClearDomainEvents();
 
-        // Replace p1Pieces[0] with p1Pieces[1] at a new position.
-        var newPos = new Position(0, 1);
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, newPos);
+        // Replace p1Pieces[0] — new piece lands at old piece's position.
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
         Assert.False(p1Pieces[0].IsOnBoard);
         Assert.True(p1Pieces[1].IsOnBoard);
-        Assert.Equal(newPos, p1Pieces[1].Position);
-        Assert.Equal(p1Pieces[1], game.Board.GetTile(newPos).AsPiece);
-        Assert.Null(game.Board.GetTile(new Position(0, 0)).AsPiece);
+        Assert.Equal(oldPos, p1Pieces[1].Position);
+        Assert.Equal(p1Pieces[1], game.Board.GetTile(oldPos).AsPiece);
         Assert.Equal(1, game.PiecesOnBoard[p1]); // net count unchanged
     }
 
@@ -429,20 +428,20 @@ public class PiecePlacementTests
     {
         var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
 
-        game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
+        var oldPos = new Position(0, 0);
+        game.PlacePiece(p1, p1Pieces[0].Id, oldPos);
         game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
         game.AdvanceTurn();
         game.AdvancePhase();
         game.ClearDomainEvents();
 
-        var newPos = new Position(0, 1);
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, newPos);
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
         var evt = Assert.Single(game.DomainEvents.OfType<PieceReplaced>());
         Assert.Equal(p1, evt.PlayerId);
         Assert.Equal(p1Pieces[0].Id, evt.RemovedPieceId);
         Assert.Equal(p1Pieces[1].Id, evt.PlacedPieceId);
-        Assert.Equal(newPos, evt.Position);
+        Assert.Equal(oldPos, evt.Position);
         Assert.False(evt.CoinCollected);
         Assert.Equal(0, evt.CoinValue);
     }
@@ -450,23 +449,25 @@ public class PiecePlacementTests
     [Fact]
     public void ReplacePiece_OnCoinTile_CollectsCoin()
     {
+        // With the new rule, the new piece always lands at the old piece's tile.
+        // A coin cannot co-exist on the same tile as the old piece in normal gameplay,
+        // so this test verifies the happy-path: replacement succeeds with no score change.
         var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
 
-        game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
+        var oldPos = new Position(0, 0);
+        game.PlacePiece(p1, p1Pieces[0].Id, oldPos);
         game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
         game.AdvanceTurn();
         game.AdvancePhase();
 
-        // Put a coin on the target edge tile.
-        var newPos = new Position(0, 1);
-        game.Board.GetTile(newPos).SetOccupant(new Coin(CoinType.Gold)); // value = 3
+        var scoreBefore = game.Scores[p1];
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, newPos);
-
-        Assert.Equal(3, game.Scores[p1]);
+        // No coin on the old tile — score unchanged.
+        Assert.Equal(scoreBefore, game.Scores[p1]);
         var evt = game.DomainEvents.OfType<PieceReplaced>().Last();
-        Assert.True(evt.CoinCollected);
-        Assert.Equal(3, evt.CoinValue);
+        Assert.False(evt.CoinCollected);
+        Assert.Equal(0, evt.CoinValue);
     }
 
     [Fact]
@@ -480,7 +481,7 @@ public class PiecePlacementTests
         game.AdvancePhase();
 
         var countBefore = game.PiecesOnBoard[p1];
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 1));
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
         Assert.Equal(countBefore, game.PiecesOnBoard[p1]);
     }
@@ -494,7 +495,7 @@ public class PiecePlacementTests
 
         // p1Pieces[0] is not on board — try to replace it.
         var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 0)));
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id));
         Assert.Contains("not on the board", ex.Message);
     }
 
@@ -514,7 +515,7 @@ public class PiecePlacementTests
 
         // Both pieces [0] and [1] are on board. Try to replace [0] with [1].
         var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 2)));
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id));
         Assert.Contains("already on the board", ex.Message);
     }
 
@@ -529,62 +530,8 @@ public class PiecePlacementTests
         game.AdvancePhase();
 
         var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[0].Id, new Position(0, 1)));
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[0].Id));
         Assert.Contains("different", ex.Message);
-    }
-
-    [Fact]
-    public void ReplacePiece_InvalidEntryPoint_Throws()
-    {
-        var p1 = Guid.NewGuid();
-        var p2 = Guid.NewGuid();
-        var pieces1 = new List<Piece>
-        {
-            MakePiece(p1, EntryPointType.Borders, "Borders"),   // will go on board first
-            MakePiece(p1, EntryPointType.Corners, "Corners"),   // will be the replacement
-            MakePiece(p1, EntryPointType.Borders, "B2"),
-            MakePiece(p1, EntryPointType.Borders, "B3"),
-            MakePiece(p1, EntryPointType.Borders, "B4")
-        };
-        var pieces2 = Enumerable.Range(0, 5).Select(i => MakePiece(p2, EntryPointType.Borders, $"P2{i}")).ToList();
-        var game = new Game(p1, p2, new Board());
-        game.SetLineup(p1, new Lineup(pieces1));
-        game.SetLineup(p2, new Lineup(pieces2));
-        game.Start();
-        game.AdvancePhase();
-
-        game.PlacePiece(p1, pieces1[0].Id, new Position(0, 0));
-        game.PlacePiece(p2, pieces2[0].Id, new Position(7, 0));
-        game.AdvanceTurn();
-        game.AdvancePhase();
-
-        // Corners piece must go to a corner — (0,1) is edge but NOT corner.
-        var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, pieces1[0].Id, pieces1[1].Id, new Position(0, 1)));
-        Assert.Contains("entry point", ex.Message);
-    }
-
-    [Fact]
-    public void ReplacePiece_TargetTileOccupied_OldPieceStillOnBoard()
-    {
-        // Arrange: place p1 and p2 pieces in turn 1, then advance to turn 2 PlacePhase.
-        var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
-        var posA = new Position(0, 0);
-        var posB = new Position(7, 0);
-
-        game.PlacePiece(p1, p1Pieces[0].Id, posA);
-        game.PlacePiece(p2, p2Pieces[0].Id, posB);
-        game.AdvanceTurn();
-        game.AdvancePhase();
-
-        // Act & Assert: replacing p1's piece targeting posB (occupied by p2) should throw.
-        Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posB));
-
-        // Rollback: an old piece must be restored to its original position.
-        Assert.True(p1Pieces[0].IsOnBoard);
-        Assert.Equal(posA, p1Pieces[0].Position);
-        Assert.Equal(1, game.PiecesOnBoard[p1]);
     }
 
     [Fact]
@@ -606,7 +553,7 @@ public class PiecePlacementTests
 
         // Act & Assert: phase guard fires before any piece validation.
         var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 0)));
+            () => game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id));
         Assert.Contains("PlacePhase", ex.Message);
     }
 
@@ -619,7 +566,7 @@ public class PiecePlacementTests
 
         // Act & Assert.
         var ex = Assert.Throws<DomainException>(
-            () => game.ReplacePiece(stranger, Guid.NewGuid(), Guid.NewGuid(), new Position(0, 0)));
+            () => game.ReplacePiece(stranger, Guid.NewGuid(), Guid.NewGuid()));
         Assert.Contains("not a participant", ex.Message);
     }
 
@@ -635,11 +582,11 @@ public class PiecePlacementTests
         game.AdvancePhase();
 
         // p1 acts once successfully.
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, new Position(0, 1));
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
         // p2 has not yet acted — p1 tries again.
         var ex = Assert.Throws<PlayerAlreadyActedException>(
-            () => game.ReplacePiece(p1, p1Pieces[1].Id, p1Pieces[2].Id, new Position(0, 2)));
+            () => game.ReplacePiece(p1, p1Pieces[1].Id, p1Pieces[2].Id));
         Assert.Contains("already acted", ex.Message);
     }
 
@@ -655,14 +602,38 @@ public class PiecePlacementTests
         game.AdvanceTurn();
         game.AdvancePhase();
 
-        // Act: replace it with the same target position.
-        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id, posA);
+        // Act: replace — new piece always lands at the old piece's tile.
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
 
         // Assert: a new piece is at posA, an old piece is off board, net count unchanged.
         Assert.True(p1Pieces[1].IsOnBoard);
         Assert.Equal(posA, p1Pieces[1].Position);
         Assert.False(p1Pieces[0].IsOnBoard);
         Assert.Equal(1, game.PiecesOnBoard[p1]);
+    }
+
+    [Fact]
+    public void ReplacePiece_NewPieceLandsAtOldPiecePosition()
+    {
+        // Arrange: p1Pieces[0] placed at (0, 3).
+        var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
+        var oldPos = new Position(0, 3);
+
+        game.PlacePiece(p1, p1Pieces[0].Id, oldPos);
+        game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 0));
+        game.AdvanceTurn();
+        game.AdvancePhase();
+
+        // Act: replace with a new piece — no position specified by caller.
+        game.ReplacePiece(p1, p1Pieces[0].Id, p1Pieces[1].Id);
+
+        // Assert: new piece is at the old piece's former tile.
+        Assert.True(p1Pieces[1].IsOnBoard);
+        Assert.Equal(oldPos, p1Pieces[1].Position);
+        Assert.Equal(p1Pieces[1], game.Board.GetTile(oldPos).AsPiece);
+
+        // And the old piece is gone.
+        Assert.False(p1Pieces[0].IsOnBoard);
     }
 
     // ── Board helper methods ──────────────────────────────────────────────────

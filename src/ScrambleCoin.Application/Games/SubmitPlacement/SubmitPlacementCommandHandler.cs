@@ -39,13 +39,12 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
                 break;
 
             case "replace":
-                if (request.PieceId is null || request.ReplacedPieceId is null || request.Position is null)
-                    throw new DomainException("Action 'replace' requires 'pieceId', 'replacedPieceId', and 'position'.");
+                if (request.PieceId is null || request.ReplacedPieceId is null)
+                    throw new DomainException("Action 'replace' requires 'pieceId' and 'replacedPieceId'.");
                 game.ReplacePiece(
                     request.PlayerId,
                     request.ReplacedPieceId.Value,
-                    request.PieceId.Value,
-                    new Position(request.Position.Row, request.Position.Col));
+                    request.PieceId.Value);
                 break;
 
             case "skip":

@@ -326,7 +326,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
             action = "replace",
             pieceId = offBoardPieceId,          // new piece (currently off-board)
             replacedPieceId = onBoardPieceId,   // piece to remove (currently at (0, 0))
-            position = new { row = 0, col = 1 } // valid edge target (not (0,0) to avoid occupant conflict)
+            // position is no longer required for replace — new piece lands at old piece's tile
         };
 
         // Act
