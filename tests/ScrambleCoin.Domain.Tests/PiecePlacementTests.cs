@@ -447,11 +447,10 @@ public class PiecePlacementTests
     }
 
     [Fact]
-    public void ReplacePiece_OnCoinTile_CollectsCoin()
+    public void ReplacePiece_OldPieceTileHasNoCoexistingCoin_ScoreUnchanged()
     {
-        // With the new rule, the new piece always lands at the old piece's tile.
-        // A coin cannot co-exist on the same tile as the old piece in normal gameplay,
-        // so this test verifies the happy-path: replacement succeeds with no score change.
+        // A tile occupied by a piece cannot simultaneously hold a coin, so replacement
+        // always results in no coin collected and no score change.
         var (game, p1, p2, p1Pieces, p2Pieces) = GameInPlacePhase();
 
         var oldPos = new Position(0, 0);
