@@ -443,3 +443,5 @@ src/ScrambleCoin.Web/appsettings.Development.json
 
 # Bicep compiled output
 infra/main.json
+.DS_Store
+.idea/

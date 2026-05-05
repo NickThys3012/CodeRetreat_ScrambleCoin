@@ -1,7 +1,10 @@
 using MediatR;
+using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.JoinGame;
+using ScrambleCoin.Application.Games.SubmitPlacement;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
 
@@ -39,6 +42,11 @@ public static class GameEndpoints
         // GET /api/games/{gameId}/state — bot reads current board state
         app.MapGet("/api/games/{gameId}/state", GetBoardState)
             .WithName("GetBoardState")
+            .WithTags("Games");
+
+        // POST /api/games/{gameId}/place — bot submits placement decision
+        app.MapPost("/api/games/{gameId}/place", PlacePiece)
+            .WithName("PlacePiece")
             .WithTags("Games");
     }
 
@@ -146,11 +154,99 @@ public static class GameEndpoints
         });
     }
 
+    /// <summary>Bot submits a placement decision (place, replace, or skip) during PlacePhase.</summary>
+    private static async Task<IResult> PlacePiece(
+        Guid gameId,
+        PlacementRequest body,
+        HttpRequest httpRequest,
+        ISender sender,
+        IBotRegistrationRepository botRegistrationRepository,
+        CancellationToken ct)
+    {
+        // 1. Validate X-Bot-Token header
+        if (!httpRequest.Headers.TryGetValue("X-Bot-Token", out var tokenHeader) ||
+            !Guid.TryParse(tokenHeader, out var botToken))
+        {
+            return Results.Problem(
+                detail: "Missing or invalid X-Bot-Token header.",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+
+        // 2. Resolve player identity from token
+        var registration = await botRegistrationRepository.GetByTokenAsync(botToken, ct);
+        if (registration is null || registration.GameId != gameId)
+        {
+            return Results.Problem(
+                detail: "The provided token does not match any player in this game.",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+
+        var playerId = registration.PlayerId;
+
+        try
+        {
+            var result = await sender.Send(
+                new SubmitPlacementCommand(
+                    gameId,
+                    playerId,
+                    body.Action,
+                    body.PieceId,
+                    body.ReplacedPieceId,
+                    body.Position is null ? null : new PositionRequest(body.Position.Row, body.Position.Col)),
+                ct);
+
+            return Results.Ok(new { phase = result.Phase, activePlayer = result.ActivePlayer });
+        }
+        catch (PlayerAlreadyActedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+    }
+
     // ── Request bodies ────────────────────────────────────────────────────────
 
     private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
 
     private sealed record QueueRequest(IReadOnlyList<string> Lineup);
+
+    /// <summary>
+    /// Request body for <c>POST /api/games/{gameId}/place</c>.
+    /// </summary>
+    /// <param name="Action">One of: "place", "replace", "skip".</param>
+    /// <param name="PieceId">The piece to place or use as replacement (required for "place" and "replace").</param>
+    /// <param name="ReplacedPieceId">The on-board piece to remove (required for "replace" only).</param>
+    /// <param name="Position">Target board position (required for "place" and "replace").</param>
+    private sealed record PlacementRequest(
+        string? Action,
+        Guid? PieceId,
+        Guid? ReplacedPieceId,
+        PositionRequest? Position);
 
     /// <summary>Bot reads the current board state for a game.</summary>
     private static async Task<IResult> GetBoardState(
