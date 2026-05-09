@@ -1,10 +1,8 @@
 using MediatR;
-using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.JoinGame;
 using ScrambleCoin.Application.Games.SubmitPlacement;
-using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
 
@@ -160,37 +158,17 @@ public static class GameEndpoints
         PlacementRequest body,
         HttpRequest httpRequest,
         ISender sender,
-        IBotRegistrationRepository botRegistrationRepository,
         CancellationToken ct)
     {
-        // 1. Validate X-Bot-Token header
-        if (!httpRequest.Headers.TryGetValue("X-Bot-Token", out var tokenHeader) ||
-            !Guid.TryParse(tokenHeader, out var botToken))
-        {
-            return Results.Problem(
-                detail: "Missing or invalid X-Bot-Token header.",
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Forbidden");
-        }
-
-        // 2. Resolve player identity from token
-        var registration = await botRegistrationRepository.GetByTokenAsync(botToken, ct);
-        if (registration is null || registration.GameId != gameId)
-        {
-            return Results.Problem(
-                detail: "The provided token does not match any player in this game.",
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Forbidden");
-        }
-
-        var playerId = registration.PlayerId;
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
 
         try
         {
             var result = await sender.Send(
                 new SubmitPlacementCommand(
                     gameId,
-                    playerId,
+                    botToken,
                     body.Action,
                     body.PieceId,
                     body.ReplacedPieceId,
@@ -229,6 +207,21 @@ public static class GameEndpoints
         }
     }
 
+    // ── Shared helpers ────────────────────────────────────────────────────────
+
+    private static bool TryExtractBotToken(HttpRequest request, out Guid token)
+    {
+        token = Guid.Empty;
+        return request.Headers.TryGetValue("X-Bot-Token", out var header) &&
+               Guid.TryParse(header, out token);
+    }
+
+    private static IResult ForbiddenBotToken() =>
+        Results.Problem(
+            detail: "Missing or invalid X-Bot-Token header.",
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Forbidden");
+
     // ── Request bodies ────────────────────────────────────────────────────────
 
     private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
@@ -255,14 +248,8 @@ public static class GameEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        if (!httpRequest.Headers.TryGetValue("X-Bot-Token", out var tokenHeader) ||
-            !Guid.TryParse(tokenHeader, out var botToken))
-        {
-            return Results.Problem(
-                detail: "Missing or invalid X-Bot-Token header.",
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Forbidden");
-        }
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
 
         try
         {

@@ -4,7 +4,7 @@ namespace ScrambleCoin.Application.Games.SubmitPlacement;
 
 public sealed record SubmitPlacementCommand(
     Guid GameId,
-    Guid PlayerId,
+    Guid BotToken,
     string? Action,
     Guid? PieceId,
     Guid? ReplacedPieceId,
