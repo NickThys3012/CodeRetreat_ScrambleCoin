@@ -39,7 +39,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 // ── MediatR ───────────────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblies(
-        typeof(ScrambleCoin.Application.Games.PlacePiece.PlacePieceCommandHandler).Assembly));
+        typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
