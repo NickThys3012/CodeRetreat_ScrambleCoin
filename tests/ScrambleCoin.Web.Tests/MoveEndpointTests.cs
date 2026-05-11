@@ -655,6 +655,6 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
 
         // The activePlayer ID should NOT be the same as the game's PlayerOne (P1)
         var activePlayerId = Guid.Parse(activePlayerElement.GetString()!);
-        Assert.NotEqual(game.PlayerOne, activePlayerId);
+        Assert.Equal(game.PlayerTwo, activePlayerId);
     }
 }
