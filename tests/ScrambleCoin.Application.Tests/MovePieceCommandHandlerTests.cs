@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
@@ -9,6 +10,7 @@ using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
+using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 namespace ScrambleCoin.Application.Tests;
 
 /// <summary>
@@ -76,8 +78,22 @@ public class MovePieceCommandHandlerTests
         return (game, p1);
     }
 
-    private static MovePieceCommandHandler BuildHandler(IGameRepository repo, IPublisher? publisher = null)
-        => new(repo, publisher ?? Substitute.For<IPublisher>(),
+    /// <summary>Creates a mock <see cref="IBotRegistrationRepository"/> that maps a token to a player+game.</summary>
+    private static IBotRegistrationRepository BotRepo(Guid token, Guid playerId, Guid gameId)
+    {
+        var repo = Substitute.For<IBotRegistrationRepository>();
+        repo.GetByTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns(new DomainBotReg(token, playerId, gameId));
+        return repo;
+    }
+
+    private static MovePieceCommandHandler BuildHandler(
+        IGameRepository repo,
+        IBotRegistrationRepository? botRepo = null,
+        IPublisher? publisher = null)
+        => new(repo,
+               botRepo ?? Substitute.For<IBotRegistrationRepository>(),
+               publisher ?? Substitute.For<IPublisher>(),
                Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     // ── Test 1: Handler delegates to domain and saves ──────────────────────────
@@ -87,11 +103,12 @@ public class MovePieceCommandHandlerTests
     {
         // Arrange
         var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
+        var token = Guid.NewGuid();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var handler = BuildHandler(repo);
+        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id));
 
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -99,7 +116,7 @@ public class MovePieceCommandHandlerTests
         }.AsReadOnly();
 
         // Act
-        await handler.Handle(new MovePieceCommand(game.Id, p1, p1Piece.Id, segments), CancellationToken.None);
+        await handler.Handle(new MovePieceCommand(game.Id, token, p1Piece.Id, segments), CancellationToken.None);
 
         // Assert: domain applied the move
         Assert.Equal(new Position(0, 4), p1Piece.Position);
@@ -112,6 +129,7 @@ public class MovePieceCommandHandlerTests
     public async Task Handle_ValidCommand_DoesNotThrow()
     {
         var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
+        var token = Guid.NewGuid();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
@@ -122,7 +140,8 @@ public class MovePieceCommandHandlerTests
         }.AsReadOnly();
 
         var ex = await Record.ExceptionAsync(() =>
-            BuildHandler(repo).Handle(new MovePieceCommand(game.Id, p1, p1Piece.Id, segments), CancellationToken.None));
+            BuildHandler(repo, BotRepo(token, p1, game.Id))
+                .Handle(new MovePieceCommand(game.Id, token, p1Piece.Id, segments), CancellationToken.None));
 
         Assert.Null(ex);
     }
@@ -133,27 +152,29 @@ public class MovePieceCommandHandlerTests
     public async Task Handle_WhenDomainThrows_ExceptionPropagates()
     {
         var (game, p1) = GameInCoinSpawnPhase();
+        var token = Guid.NewGuid();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
+        var command = new MovePieceCommand(game.Id, token, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
         await Assert.ThrowsAsync<DomainException>(() =>
-            BuildHandler(repo).Handle(command, CancellationToken.None));
+            BuildHandler(repo, BotRepo(token, p1, game.Id)).Handle(command, CancellationToken.None));
     }
 
     [Fact]
     public async Task Handle_WhenDomainThrows_GameIsNotSaved()
     {
         var (game, p1) = GameInCoinSpawnPhase();
+        var token = Guid.NewGuid();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var command = new MovePieceCommand(game.Id, p1, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
+        var command = new MovePieceCommand(game.Id, token, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
 
-        try { await BuildHandler(repo).Handle(command, CancellationToken.None); } catch { /* expected */ }
+        try { await BuildHandler(repo, BotRepo(token, p1, game.Id)).Handle(command, CancellationToken.None); } catch { /* expected */ }
 
         await repo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
@@ -165,6 +186,8 @@ public class MovePieceCommandHandlerTests
     {
         // Arrange: P1 has already moved; P2's move will complete the turn.
         var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithPieces();
+        var p1Token = Guid.NewGuid();
+        var p2Token = Guid.NewGuid();
 
         var p1Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -176,7 +199,7 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var publisher = Substitute.For<IPublisher>();
-        var handler = BuildHandler(repo, publisher);
+        var handler = BuildHandler(repo, BotRepo(p2Token, p2, game.Id), publisher);
 
         var p2Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -184,7 +207,7 @@ public class MovePieceCommandHandlerTests
         }.AsReadOnly();
 
         // Act
-        await handler.Handle(new MovePieceCommand(game.Id, p2, p2Piece.Id, p2Segments), CancellationToken.None);
+        await handler.Handle(new MovePieceCommand(game.Id, p2Token, p2Piece.Id, p2Segments), CancellationToken.None);
 
         // Assert: TurnRolledOver notification published for the correct game
         await publisher.Received(1).Publish(
@@ -197,12 +220,13 @@ public class MovePieceCommandHandlerTests
     {
         // Arrange: only P1 moves — turn is not yet complete.
         var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
+        var token = Guid.NewGuid();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var publisher = Substitute.For<IPublisher>();
-        var handler = BuildHandler(repo, publisher);
+        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), publisher);
 
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -210,7 +234,7 @@ public class MovePieceCommandHandlerTests
         }.AsReadOnly();
 
         // Act
-        await handler.Handle(new MovePieceCommand(game.Id, p1, p1Piece.Id, segments), CancellationToken.None);
+        await handler.Handle(new MovePieceCommand(game.Id, token, p1Piece.Id, segments), CancellationToken.None);
 
         // Assert: no TurnRolledOver published
         await publisher.DidNotReceive().Publish(Arg.Any<TurnRolledOver>(), Arg.Any<CancellationToken>());
