@@ -2,9 +2,11 @@ using MediatR;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.JoinGame;
+using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Games.SubmitPlacement;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Api.Endpoints;
 
@@ -45,6 +47,11 @@ public static class GameEndpoints
         // POST /api/games/{gameId}/place — bot submits placement decision
         app.MapPost("/api/games/{gameId}/place", PlacePiece)
             .WithName("PlacePiece")
+            .WithTags("Games");
+
+        // POST /api/games/{gameId}/move — bot submits a piece move during MovePhase
+        app.MapPost("/api/games/{gameId}/move", MovePiece)
+            .WithName("MovePiece")
             .WithTags("Games");
     }
 
@@ -229,6 +236,13 @@ public static class GameEndpoints
     private sealed record QueueRequest(IReadOnlyList<string> Lineup);
 
     /// <summary>
+    /// Request body for <c>POST /api/games/{gameId}/move</c>.
+    /// </summary>
+    /// <param name="PieceId">The piece to move.</param>
+    /// <param name="Segments">One segment per MovesPerTurn; each segment is an ordered list of positions.</param>
+    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>> Segments);
+
+    /// <summary>
     /// Request body for <c>POST /api/games/{gameId}/place</c>.
     /// </summary>
     /// <param name="Action">One of: "place", "replace", "skip".</param>
@@ -240,6 +254,53 @@ public static class GameEndpoints
         Guid? PieceId,
         Guid? ReplacedPieceId,
         PositionRequest? Position);
+
+    /// <summary>Bot submits a piece move during MovePhase.</summary>
+    private static async Task<IResult> MovePiece(
+        Guid gameId,
+        MoveRequest body,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            if (body.Segments is null)
+                return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+
+            IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
+                .Select(seg => (IReadOnlyList<Position>)seg
+                    .Select(p => new Position(p.Row, p.Col))
+                    .ToList()
+                    .AsReadOnly())
+                .ToList()
+                .AsReadOnly();
+
+            var result = await sender.Send(new MovePieceCommand(gameId, botToken, body.PieceId, segments), ct);
+            return Results.Ok(new
+            {
+                phase = result.Phase,
+                activePlayer = result.ActivePlayer,
+                yourScore = result.YourScore,
+                opponentScore = result.OpponentScore
+            });
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status404NotFound, title: "Not Found");
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        }
+    }
 
     /// <summary>Bot reads the current board state for a game.</summary>
     private static async Task<IResult> GetBoardState(
