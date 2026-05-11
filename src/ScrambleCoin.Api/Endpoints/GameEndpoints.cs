@@ -266,16 +266,19 @@ public static class GameEndpoints
         if (!TryExtractBotToken(httpRequest, out var botToken))
             return ForbiddenBotToken();
 
-        IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
-            .Select(seg => (IReadOnlyList<Position>)seg
-                .Select(p => new Position(p.Row, p.Col))
-                .ToList()
-                .AsReadOnly())
-            .ToList()
-            .AsReadOnly();
-
         try
         {
+            if (body.Segments is null)
+                return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+
+            IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
+                .Select(seg => (IReadOnlyList<Position>)seg
+                    .Select(p => new Position(p.Row, p.Col))
+                    .ToList()
+                    .AsReadOnly())
+                .ToList()
+                .AsReadOnly();
+
             var result = await sender.Send(new MovePieceCommand(gameId, botToken, body.PieceId, segments), ct);
             return Results.Ok(new
             {

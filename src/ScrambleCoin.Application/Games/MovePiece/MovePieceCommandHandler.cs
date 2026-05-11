@@ -53,16 +53,16 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
 
         game.MovePiece(playerId, request.PieceId, request.Segments);
 
-        _logger.LogInformation(
-            "Piece {PieceId} moved by bot {BotId} in game {GameId} on turn {Turn}.",
-            request.PieceId, playerId, request.GameId, turnNumber);
-
         // Capture whether the turn rolled over BEFORE SaveAsync clears domain events.
         var turnRolledOver = game.DomainEvents
             .OfType<TurnPhaseAdvanced>()
             .Any(e => e.NewPhase == TurnPhase.CoinSpawn);
 
         await _gameRepository.SaveAsync(game, cancellationToken);
+
+        _logger.LogInformation(
+            "Piece {PieceId} moved by bot {BotId} in game {GameId} on turn {Turn}.",
+            request.PieceId, playerId, request.GameId, turnNumber);
 
         if (turnRolledOver)
             await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);
