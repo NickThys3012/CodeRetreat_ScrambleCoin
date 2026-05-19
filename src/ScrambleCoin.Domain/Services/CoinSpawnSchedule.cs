@@ -19,8 +19,10 @@ public static class CoinSpawnSchedule
     public static IReadOnlyList<CoinType> For(int turnNumber, Random random) =>
         turnNumber switch
         {
+ #pragma warning disable CA5394
             1 => Repeat(CoinType.Silver, random.Next(7, 10)),
             2 or 3 => Repeat(CoinType.Silver, random.Next(2, 5)),
+ #pragma warning restore CA5394
             4 => Repeat(CoinType.Gold, 4),
             5 => Repeat(CoinType.Gold, 3),
             _ => throw new DomainException($"No coin spawn schedule defined for turn {turnNumber}. Valid turns are 1–5.")

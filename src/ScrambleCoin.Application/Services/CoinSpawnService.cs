@@ -63,7 +63,9 @@ public sealed class CoinSpawnService : ICoinSpawnService
         var shuffled = freeTiles.ToList();
         for (var i = shuffled.Count - 1; i > 0; i--)
         {
+ #pragma warning disable CA5394
             var j = _random.Next(i + 1);
+ #pragma warning restore CA5394
             (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
         }
 

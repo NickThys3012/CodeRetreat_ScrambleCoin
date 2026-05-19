@@ -5,4 +5,6 @@ namespace ScrambleCoin.Domain.Events;
 /// Domain events are raised (not dispatched) — the infrastructure layer is
 /// responsible for reading and dispatching them after a unit of work commits.
 /// </summary>
+ #pragma warning disable CA1040
 public interface IDomainEvent;
+ #pragma warning restore CA1040
