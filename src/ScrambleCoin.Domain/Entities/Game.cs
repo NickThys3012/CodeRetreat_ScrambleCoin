@@ -802,6 +802,9 @@ public sealed class Game
                     case MovementType.AnyDirection:
                         // Any direction: no restriction (already checked not same position above)
                         break;
+                    case MovementType.Jump:
+                        // Jump can go in any direction; no directional constraint
+                        break;
                 }
 
                 // Calculate distance based on the direction of jump
