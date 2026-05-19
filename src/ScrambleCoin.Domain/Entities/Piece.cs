@@ -86,7 +86,7 @@ public sealed class Piece
             .ToList();
 
         if (patterns.Count != movesPerTurn)
-            throw new DomainException($"MovementPatterns count ({patterns.Count}) must equal MovesPerTurn ({movesPerTurn}).");
+            throw new DomainException($"MovementPatterns count ({patterns.Count}) must match MovesPerTurn ({movesPerTurn}).");
 
         Id = id;
         Name = name;
