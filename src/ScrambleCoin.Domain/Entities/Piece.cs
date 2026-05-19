@@ -96,16 +96,8 @@ public sealed class Piece
 
     /// <summary>Places this piece at the given board position.</summary>
     /// <exception cref="DomainException">Thrown when <paramref name="position"/> is null.</exception>
-    public void PlaceAt(Position position)
-    {
-        if (position is null)
-            throw new DomainException("Position must not be null.");
-        Position = position;
-    }
+    public void PlaceAt(Position position) => Position = position ?? throw new DomainException("Position must not be null.");
 
     /// <summary>Removes this piece from the board; <see cref="Position"/> becomes <c>null</c>.</summary>
-    public void RemoveFromBoard()
-    {
-        Position = null;
-    }
+    public void RemoveFromBoard() => Position = null;
 }

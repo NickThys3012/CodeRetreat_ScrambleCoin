@@ -30,7 +30,7 @@ public sealed class Position : IEquatable<Position>
     {
         var rowDiff = Math.Abs(Row - other.Row);
         var colDiff = Math.Abs(Col - other.Col);
-        return (rowDiff == 1 && colDiff == 0) || (rowDiff == 0 && colDiff == 1);
+        return rowDiff == 1 && colDiff == 0 || rowDiff == 0 && colDiff == 1;
     }
 
     /// <summary>Returns true if this position is diagonally adjacent to <paramref name="other"/>.</summary>

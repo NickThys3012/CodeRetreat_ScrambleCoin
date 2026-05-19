@@ -1,0 +1,336 @@
+using MediatR;
+using ScrambleCoin.Application.Games.CreateGame;
+using ScrambleCoin.Application.Games.GetBoardState;
+using ScrambleCoin.Application.Games.JoinGame;
+using ScrambleCoin.Application.Games.MovePiece;
+using ScrambleCoin.Application.Games.SubmitPlacement;
+using ScrambleCoin.Application.Services;
+using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.ValueObjects;
+
+namespace ScrambleCoin.Api.Endpoints;
+
+/// <summary>
+/// Minimal API endpoints for game session management and bot registration.
+/// </summary>
+public static class GameEndpoints
+{
+    private const string AdminKey = "scramblecoin-admin";
+
+    public static void MapGameEndpoints(this WebApplication app)
+    {
+        // POST /api/games — admin creates a game shell
+        app.MapPost("/api/games", CreateGame)
+            .WithName("CreateGame")
+            .WithTags("Games");
+
+        // POST /api/games/{gameId}/join — bot registers and submits a lineup
+        app.MapPost("/api/games/{gameId:guid}/join", JoinGame)
+            .WithName("JoinGame")
+            .WithTags("Games");
+
+        // POST /api/games/queue — bot joins matchmaking queue
+        app.MapPost("/api/games/queue", QueueBot)
+            .WithName("QueueBot")
+            .WithTags("Games");
+
+        // GET /api/games/queue/{queueId} — poll matchmaking status
+        app.MapGet("/api/games/queue/{queueId:guid}", PollQueue)
+            .WithName("PollQueue")
+            .WithTags("Games");
+
+        // GET /api/games/{gameId}/state — bot reads current board state
+        app.MapGet("/api/games/{gameId:guid}/state", GetBoardState)
+            .WithName("GetBoardState")
+            .WithTags("Games");
+
+        // POST /api/games/{gameId}/place — bot submits placement decision
+        app.MapPost("/api/games/{gameId:guid}/place", PlacePiece)
+            .WithName("PlacePiece")
+            .WithTags("Games");
+
+        // POST /api/games/{gameId}/move — bot submits a piece move during MovePhase
+        app.MapPost("/api/games/{gameId}/move", MovePiece)
+            .WithName("MovePiece")
+            .WithTags("Games");
+    }
+
+    // ── Handlers ──────────────────────────────────────────────────────────────
+
+    /// <summary>Admin creates a game shell. Requires <c>X-Admin-Key: scramblecoin-admin</c>.</summary>
+    private static async Task<IResult> CreateGame(
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!httpRequest.Headers.TryGetValue("X-Admin-Key", out var adminKey) ||
+            adminKey != AdminKey)
+        {
+            return Results.Problem(
+                detail: "Missing or invalid X-Admin-Key header.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        var result = await sender.Send(new CreateGameCommand(), ct);
+
+        return Results.Created($"/api/games/{result.GameId}", new { gameId = result.GameId });
+    }
+
+    /// <summary>Bot joins a game and submits a lineup of 5-piece names.</summary>
+    private static async Task<IResult> JoinGame(
+        Guid gameId,
+        JoinGameRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await sender.Send(new JoinGameCommand(gameId, body.Lineup), ct);
+            return Results.Created($"/api/games/{gameId}", new { playerId = result.PlayerId, token = result.Token });
+        }
+        catch (GameFullException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Game Full");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+    }
+
+    /// <summary>Bot joins the matchmaking queue with a lineup.</summary>
+    private static async Task<IResult> QueueBot(
+        QueueRequest body,
+        IQueueService queueService,
+        CancellationToken ct)
+    {
+        var entry = await queueService.EnqueueAsync(body.Lineup, ct);
+
+        if (entry.Status == "matched")
+        {
+            return Results.Ok(new
+            {
+                gameId = entry.GameId,
+                playerId = entry.PlayerId,
+                token = entry.Token
+            });
+        }
+
+        // 202 Accepted — bot is waiting in the queue
+        return Results.Accepted(
+            $"/api/games/queue/{entry.QueueId}",
+            new { queueId = entry.QueueId });
+    }
+
+    /// <summary>Polls a queue entry for matchmaking status.</summary>
+    private static async Task<IResult> PollQueue(
+        Guid queueId,
+        IQueueService queueService,
+        CancellationToken ct)
+    {
+        var entry = await queueService.PollAsync(queueId, ct);
+
+        if (entry is null)
+        {
+            return Results.Problem(
+                detail: $"Queue entry '{queueId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+
+        if (entry.Status == "waiting")
+        {
+            return Results.Ok(new { status = "waiting" });
+        }
+
+        return Results.Ok(new
+        {
+            status = "matched",
+            gameId = entry.GameId,
+            playerId = entry.PlayerId,
+            token = entry.Token
+        });
+    }
+
+    /// <summary>Bot submits a placement decision (place, replace, or skip) during PlacePhase.</summary>
+    private static async Task<IResult> PlacePiece(
+        Guid gameId,
+        PlacementRequest body,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            var result = await sender.Send(
+                new SubmitPlacementCommand(
+                    gameId,
+                    botToken,
+                    body.Action,
+                    body.PieceId,
+                    body.ReplacedPieceId,
+                    body.Position is null ? null : new PositionRequest(body.Position.Row, body.Position.Col)),
+                ct);
+
+            return Results.Ok(new { phase = result.Phase, activePlayer = result.ActivePlayer });
+        }
+        catch (PlayerAlreadyActedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+    }
+
+    // ── Shared helpers ────────────────────────────────────────────────────────
+
+    private static bool TryExtractBotToken(HttpRequest request, out Guid token)
+    {
+        token = Guid.Empty;
+        return request.Headers.TryGetValue("X-Bot-Token", out var header) &&
+               Guid.TryParse(header, out token);
+    }
+
+    private static IResult ForbiddenBotToken() =>
+        Results.Problem(
+            detail: "Missing or invalid X-Bot-Token header.",
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Forbidden");
+
+    // ── Request bodies ────────────────────────────────────────────────────────
+
+    private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
+
+    private sealed record QueueRequest(IReadOnlyList<string> Lineup);
+
+    /// <summary>
+    /// Request body for <c>POST /api/games/{gameId}/move</c>.
+    /// </summary>
+    /// <param name="PieceId">The piece to move.</param>
+    /// <param name="Segments">One segment per MovesPerTurn; each segment is an ordered list of positions.</param>
+    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>> Segments);
+
+    /// <summary>
+    /// Request body for <c>POST /api/games/{gameId}/place</c>.
+    /// </summary>
+    /// <param name="Action">One of: "place", "replace", "skip".</param>
+    /// <param name="PieceId">The piece to place or use as a replacement (required for "place" and "replace").</param>
+    /// <param name="ReplacedPieceId">The on-board piece to remove (required for "replace" only).</param>
+    /// <param name="Position">Target board position (required for "place" and "replace").</param>
+    private sealed record PlacementRequest(
+        string? Action,
+        Guid? PieceId,
+        Guid? ReplacedPieceId,
+        PositionRequest? Position);
+
+    /// <summary>Bot submits a piece move during MovePhase.</summary>
+    private static async Task<IResult> MovePiece(
+        Guid gameId,
+        MoveRequest body,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            if (body.Segments is null)
+                return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+
+            IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
+                .Select(seg => (IReadOnlyList<Position>)seg
+                    .Select(p => new Position(p.Row, p.Col))
+                    .ToList()
+                    .AsReadOnly())
+                .ToList()
+                .AsReadOnly();
+
+            var result = await sender.Send(new MovePieceCommand(gameId, botToken, body.PieceId, segments), ct);
+            return Results.Ok(new
+            {
+                phase = result.Phase,
+                activePlayer = result.ActivePlayer,
+                yourScore = result.YourScore,
+                opponentScore = result.OpponentScore
+            });
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status404NotFound, title: "Not Found");
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+        }
+    }
+
+    /// <summary>Bot reads the current board state for a game.</summary>
+    private static async Task<IResult> GetBoardState(
+        Guid gameId,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            var result = await sender.Send(new GetBoardStateQuery(gameId, botToken), ct);
+            return Results.Ok(result);
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+    }
+}
+

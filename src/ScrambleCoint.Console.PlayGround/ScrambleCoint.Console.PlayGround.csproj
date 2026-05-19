@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ScrambleCoin.Domain\ScrambleCoin.Domain.csproj" />
+      <ProjectReference Include="..\ScrambleCoin.Application\ScrambleCoin.Application.csproj" />
     </ItemGroup>
 
 </Project>

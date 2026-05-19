@@ -7,7 +7,7 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 /// Submits a single piece's move action(s) during MovePhase.
 /// </summary>
 /// <param name="GameId">The game identifier.</param>
-/// <param name="PlayerId">The player submitting the move.</param>
+/// <param name="BotToken">The bearer token of the bot submitting the move.</param>
 /// <param name="PieceId">The piece to move.</param>
 /// <param name="Segments">
 /// One segment per <c>MovesPerTurn</c>. Each segment is an ordered list of positions
@@ -15,6 +15,6 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 /// </param>
 public sealed record MovePieceCommand(
     Guid GameId,
-    Guid PlayerId,
+    Guid BotToken,
     Guid PieceId,
-    IReadOnlyList<IReadOnlyList<Position>> Segments) : IRequest;
+    IReadOnlyList<IReadOnlyList<Position>> Segments) : IRequest<MoveResult>;

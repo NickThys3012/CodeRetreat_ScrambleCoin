@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\ScrambleCoin.Api\ScrambleCoin.Api.csproj" />
     <ProjectReference Include="..\..\src\ScrambleCoin.Web\ScrambleCoin.Web.csproj" />
   </ItemGroup>
 

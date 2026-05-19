@@ -41,10 +41,8 @@ public sealed class Lineup : IEquatable<Lineup>
                 $"A lineup must contain exactly {RequiredPieceCount} pieces, but {list.Count} were provided.");
 
         for (var i = 0; i < list.Count; i++)
-        {
             if (list[i] is null)
                 throw new DomainException($"Piece at index {i} must not be null.");
-        }
 
         var ids = list.Select(p => p.Id).ToList();
         var duplicates = ids.GroupBy(id => id).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
@@ -60,8 +58,8 @@ public sealed class Lineup : IEquatable<Lineup>
     public bool Equals(Lineup? other)
     {
         if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Pieces.Select(p => p.Id).SequenceEqual(other.Pieces.Select(p => p.Id));
+        return ReferenceEquals(this, other) ||
+               Pieces.Select(p => p.Id).SequenceEqual(other.Pieces.Select(p => p.Id));
     }
 
     /// <inheritdoc/>

@@ -77,7 +77,7 @@ public class LineupTests
     [Fact]
     public void Constructor_WithZeroPieces_ThrowsDomainException()
     {
-        Assert.Throws<DomainException>(() => new Lineup(Enumerable.Empty<Piece>()));
+        Assert.Throws<DomainException>(() => new Lineup([]));
     }
 
     // ── Null pieces in the collection ─────────────────────────────────────────

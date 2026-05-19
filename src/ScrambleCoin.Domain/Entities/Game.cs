@@ -88,7 +88,7 @@ public sealed class Game
 
     // ── Move-phase tracking ───────────────────────────────────────────────────
 
-    private readonly HashSet<Guid> _movedPieceIds = new HashSet<Guid>();
+    private readonly HashSet<Guid> _movedPieceIds = [];
 
     /// <summary>
     /// The player whose turn it currently is to submit a piece moves during MovePhase.
@@ -124,13 +124,10 @@ public sealed class Game
         if (playerOne == playerTwo)
             throw new DomainException("PlayerOne and PlayerTwo must be different players.");
 
-        if (board is null)
-            throw new DomainException("Board must not be null.");
-
         Id = id;
         PlayerOne = playerOne;
         PlayerTwo = playerTwo;
-        Board = board;
+        Board = board ?? throw new DomainException("Board must not be null.");
         Status = GameStatus.WaitingForBots;
         TurnNumber = 0;
         CurrentPhase = null;
@@ -155,6 +152,17 @@ public sealed class Game
         : this(Guid.NewGuid(), playerOne, playerTwo, board)
     {
     }
+
+    /// <summary>
+    /// Creates a new game shell in <see cref="GameStatus.WaitingForBots"/> state,
+    /// with two randomly-generated player slot identifiers.
+    /// Bots joining via <c>POST /api/games/{gameId}/join</c> will receive one of these
+    /// slot IDs as their <c>playerId</c> and use it for all subsequent game actions.
+    /// </summary>
+    /// <param name="board">The pre-constructed game board.</param>
+    /// <returns>A new <see cref="Game"/> with empty lineups awaiting bot registration.</returns>
+    public static Game CreateShell(Board board) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), board);
 
     // ── Lineup management ─────────────────────────────────────────────────────
 
@@ -243,7 +251,7 @@ public sealed class Game
         var isDraw = scoreOne == scoreTwo;
         Guid? winnerId = isDraw
             ? null
-            : (scoreOne > scoreTwo ? PlayerOne : PlayerTwo);
+            : scoreOne > scoreTwo ? PlayerOne : PlayerTwo;
 
         _domainEvents.Add(new GameEnded(Id, scoreOne, scoreTwo, winnerId, isDraw, DateTimeOffset.UtcNow));
     }
@@ -481,12 +489,9 @@ public sealed class Game
     /// <exception cref="DomainException">
     /// Thrown when <paramref name="playerId"/> is not a participant of this game.
     /// </exception>
-    public int GetScore(Guid playerId)
-    {
-        if (!_scores.TryGetValue(playerId, out var score))
-            throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
-        return score;
-    }
+    public int GetScore(Guid playerId) =>
+        !_scores.TryGetValue(playerId, out var score) ?
+            throw new DomainException($"Player {playerId} is not a participant of game {Id}.") : score;
 
     /// <summary>
     /// Returns the number of pieces <paramref name="playerId"/> currently has on the board.
@@ -494,12 +499,9 @@ public sealed class Game
     /// <exception cref="DomainException">
     /// Thrown when <paramref name="playerId"/> is not a participant of this game.
     /// </exception>
-    public int GetPiecesOnBoardCount(Guid playerId)
-    {
-        if (!_piecesOnBoard.TryGetValue(playerId, out var count))
-            throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
-        return count;
-    }
+    public int GetPiecesOnBoardCount(Guid playerId) =>
+        !_piecesOnBoard.TryGetValue(playerId, out var count) ?
+            throw new DomainException($"Player {playerId} is not a participant of game {Id}.") : count;
 
     // ── Piece placement ───────────────────────────────────────────────────────
 
@@ -523,7 +525,7 @@ public sealed class Game
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         var lineup = GetLineupForPlayer(playerId);
         var piece = lineup.Pieces.SingleOrDefault(p => p.Id == pieceId)
@@ -576,18 +578,15 @@ public sealed class Game
     /// when either piece is not in the player's lineup,
     /// when the existing piece is not on the board,
     /// when the new piece is already on the board,
-    /// when <paramref name="existingPieceId"/> equals <paramref name="newPieceId"/>,
-    /// when the target position violates the new piece's entry-point type,
-    /// when the target tile is covered by an obstacle,
-    /// or when the target tile is already occupied by a different piece.
+    /// or when <paramref name="existingPieceId"/> equals <paramref name="newPieceId"/>.
     /// </exception>
-    public void ReplacePiece(Guid playerId, Guid existingPieceId, Guid newPieceId, Position position)
+    public void ReplacePiece(Guid playerId, Guid existingPieceId, Guid newPieceId)
     {
         EnsureInPlacePhase();
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         if (existingPieceId == newPieceId)
             throw new DomainException("ExistingPieceId and NewPieceId must be different.");
@@ -600,35 +599,23 @@ public sealed class Game
         if (!existingPiece.IsOnBoard)
             throw new DomainException($"Piece {existingPieceId} is not on the board; cannot replace it.");
 
+        // The new piece always lands at the tile the old piece occupied.
+        var targetPosition = existingPiece.Position!;
+
         var newPiece = lineup.Pieces.SingleOrDefault(p => p.Id == newPieceId)
             ?? throw new DomainException($"Piece {newPieceId} is not in player {playerId}'s lineup.");
 
         if (newPiece.IsOnBoard)
             throw new DomainException($"Piece {newPieceId} is already on the board; cannot use it as the replacement.");
 
-        if (!Board.IsValidEntryPoint(position, newPiece.EntryPointType))
-            throw new DomainException($"Position {position} is not a valid entry point for entry type {newPiece.EntryPointType}.");
-
-        if (Board.IsObstacleCovering(position))
-            throw new DomainException($"Cannot place piece at {position}: position is covered by an obstacle.");
-
-        // Remove the existing piece from its current tile so the tile.AsPiece check handles same-tile replacement correctly.
-        var existingTile = Board.GetTile(existingPiece.Position!);
+        // Remove the existing piece — this clears the tile the new piece will occupy.
+        var existingTile = Board.GetTile(targetPosition);
         existingTile.ClearOccupant();
         existingPiece.RemoveFromBoard();
         _piecesOnBoard[playerId]--;
 
-        // Now check the target tile (maybe the same tile — now clear after the removal above).
-        var tile = Board.GetTile(position);
-
-        if (tile.AsPiece is not null)
-        {
-            // Undo the removal before throwing.
-            existingPiece.PlaceAt(existingTile.Position);
-            existingTile.SetOccupant(existingPiece);
-            _piecesOnBoard[playerId]++;
-            throw new DomainException($"Cannot place piece at {position}: tile is already occupied by another piece.");
-        }
+        // The tile was occupied by the old piece, so it is now clear. No occupant check needed.
+        var tile = Board.GetTile(targetPosition);
 
         // Collect coin if present at the target tile.
         var coin = tile.AsCoin;
@@ -640,11 +627,11 @@ public sealed class Game
             _scores[playerId] += coinValue;
         }
 
-        newPiece.PlaceAt(position);
+        newPiece.PlaceAt(targetPosition);
         tile.SetOccupant(newPiece);
         _piecesOnBoard[playerId]++;
 
-        _domainEvents.Add(new PieceReplaced(Id, TurnNumber, playerId, existingPieceId, newPieceId, position, coinCollected, coinValue, DateTimeOffset.UtcNow));
+        _domainEvents.Add(new PieceReplaced(Id, TurnNumber, playerId, existingPieceId, newPieceId, targetPosition, coinCollected, coinValue, DateTimeOffset.UtcNow));
 
         MarkPlacePhaseActed(playerId);
     }
@@ -664,7 +651,7 @@ public sealed class Game
         EnsureIsParticipant(playerId);
 
         if (_placePhaseDone.Contains(playerId))
-            throw new DomainException($"Player {playerId} has already acted during the Place Phase this turn.");
+            throw new PlayerAlreadyActedException(playerId);
 
         MarkPlacePhaseActed(playerId);
     }
@@ -749,8 +736,7 @@ public sealed class Game
             var allowedStuckException =
                 !hasAnyValidMove &&
                 piece.MovesPerTurn == 1 &&
-                segments.Count == 1 &&
-                segments[0].Count == 0;
+                segments is [{ Count: 0 }];
 
             if (!allowedStuckException)
                 throw new DomainException(
@@ -861,18 +847,17 @@ public sealed class Game
         var activeLineup = MovePhaseActivePlayer == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
         var activePieceIds = activeLineup.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id).ToHashSet();
 
-        if (activePieceIds.All(id => _movedPieceIds.Contains(id)))
+        if (!activePieceIds.All(id => _movedPieceIds.Contains(id)))
+            return;
+        if (MovePhaseActivePlayer == PlayerOne)
         {
-            if (MovePhaseActivePlayer == PlayerOne)
-            {
-                MovePhaseActivePlayer = PlayerTwo;
-                TryAutoAdvanceMovePhase(); // PlayerTwo may also have 0 pieces
-            }
-            else
-            {
-                MovePhaseActivePlayer = null;
-                AdvanceTurn();
-            }
+            MovePhaseActivePlayer = PlayerTwo;
+            TryAutoAdvanceMovePhase(); // PlayerTwo may also have 0 pieces
+        }
+        else
+        {
+            MovePhaseActivePlayer = null;
+            AdvanceTurn();
         }
     }
 
