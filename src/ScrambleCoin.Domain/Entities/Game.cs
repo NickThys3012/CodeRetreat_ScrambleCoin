@@ -814,7 +814,11 @@ public sealed class Game
                     throw new DomainException(
                         $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {piece.MaxDistance}.");
 
-                // Destination must not be occupied by a piece.
+                // Destination must not be occupied by a piece or obstacle.
+                if (Board.IsObstacleCovering(destination))
+                    throw new DomainException(
+                        $"Piece {pieceId}: tile {destination} is occupied by an obstacle.");
+                
                 var destinationTile = Board.GetTile(destination);
                 if (destinationTile.AsPiece is not null)
                     throw new DomainException(

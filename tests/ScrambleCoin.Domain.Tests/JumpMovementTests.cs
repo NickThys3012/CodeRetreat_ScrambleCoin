@@ -367,19 +367,17 @@ public class JumpMovementTests
     [Fact]
     public void Jump_ToDestinationWithLake_ThrowsDomainException()
     {
-        // Arrange: Jump piece at (0,0), lake at destination (4,4)
-        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithJumpPiece(p1StartPos: new Position(0, 0));
-        game.Board.AddLake(new Lake(new Position(4, 4)));
-
-        // Act & Assert: Jump to lake tile should fail
-        // (Lake is a 2x2 obstacle; check if (4,4) is covered)
-        // This test may fail if (4,4) is not actually covered by the lake
-        // Let me adjust to use a position that's definitely covered
-        var ex = Assert.Throws<DomainException>(() =>
-            game.MovePiece(p1, p1Piece.Id, BuildJumpSegment(new Position(4, 4))));
+        // Arrange: Piece at (0,0), Lake at (2,2), MaxDistance = 5 (so distance check passes)
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithJumpPiece(
+            p1MaxDistance: 5,
+            p1StartPos: new Position(0, 0));
+        game.Board.AddLake(new Lake(new Position(2, 2)));
         
-        // Should fail because lake blocks the destination
-        Assert.NotNull(ex);
+        // Act & Assert: Should throw because destination has lake obstacle
+        // Jump to (2,2) has distance = 2, within MaxDistance = 5
+        var ex = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, p1Piece.Id, BuildJumpSegment(new Position(2, 2))));
+        Assert.Contains("occupied", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
