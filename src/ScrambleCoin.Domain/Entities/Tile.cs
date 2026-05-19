@@ -23,10 +23,7 @@ public sealed class Tile
     /// <summary>Returns the occupant as a <see cref="Piece"/>, or null if the occupant is not a piece.</summary>
     public Piece? AsPiece => Occupant as Piece;
 
-    public Tile(Position position)
-    {
-        Position = position;
-    }
+    public Tile(Position position) => Position = position;
 
     /// <summary>Places an occupant on this tile, replacing any existing occupant.</summary>
     public void SetOccupant(object? occupant)

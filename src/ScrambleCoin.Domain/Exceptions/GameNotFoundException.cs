@@ -5,5 +5,6 @@ public class GameNotFoundException : DomainException
     public Guid GameId { get; }
 
     public GameNotFoundException(Guid gameId)
-        : base($"Game {gameId} was not found.") { GameId = gameId; }
+        : base($"Game {gameId} was not found.") =>
+        GameId = gameId;
 }

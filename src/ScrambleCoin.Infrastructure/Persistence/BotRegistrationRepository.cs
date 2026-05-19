@@ -20,9 +20,9 @@ public sealed class BotRegistrationRepository : IBotRegistrationRepository
     public async Task<BotRegistration?> GetByTokenAsync(Guid token, CancellationToken cancellationToken = default)
     {
         var record = await _context.BotRegistrations.FindAsync([token], cancellationToken);
-        if (record is null) return null;
-
-        return new BotRegistration(record.Token, record.PlayerId, record.GameId);
+        return record is null ? 
+            null : 
+            new BotRegistration(record.Token, record.PlayerId, record.GameId);
     }
 
     /// <inheritdoc/>

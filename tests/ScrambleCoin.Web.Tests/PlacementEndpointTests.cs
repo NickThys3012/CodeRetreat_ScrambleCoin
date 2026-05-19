@@ -37,7 +37,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
 
     // ── Test factory ──────────────────────────────────────────────────────────
 
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
         // Unique DB name per factory instance so test classes don't share state.
         private readonly string _dbName = $"PlacementTestDb_{Guid.NewGuid()}";
@@ -238,7 +238,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         return (game, tokenP1, tokenP2, p1Pieces[0].Id, p1Pieces[1].Id);
     }
 
-    // ── AC 1 : action "place" → 200 with { phase, activePlayer } ─────────────
+    // ── AC: action "place" → 200 with { phase, activePlayer } ─────────────
 
     [Fact]
     public async Task Place_WithPlaceAction_Returns200()
@@ -325,7 +325,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         {
             action = "replace",
             pieceId = offBoardPieceId,          // new piece (currently off-board)
-            replacedPieceId = onBoardPieceId,   // piece to remove (currently at (0, 0))
+            replacedPieceId = onBoardPieceId // piece to remove (currently at (0, 0))
             // position is no longer required for replace — new piece lands at old piece's tile
         };
 

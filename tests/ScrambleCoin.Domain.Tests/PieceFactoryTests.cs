@@ -1,4 +1,3 @@
-using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Factories;
@@ -114,7 +113,7 @@ public class PieceFactoryTests
             new object[] { "Minnie"  },
             new object[] { "Donald"  },
             new object[] { "Goofy"   },
-            new object[] { "Scrooge" },
+            new object[] { "Scrooge" }
         };
 
     [Theory]

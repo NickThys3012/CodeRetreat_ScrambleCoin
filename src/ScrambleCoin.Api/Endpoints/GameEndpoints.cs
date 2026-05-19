@@ -24,8 +24,8 @@ public static class GameEndpoints
             .WithName("CreateGame")
             .WithTags("Games");
 
-        // POST /api/games/{gameId}/join — bot registers and submits lineup
-        app.MapPost("/api/games/{gameId}/join", JoinGame)
+        // POST /api/games/{gameId}/join — bot registers and submits a lineup
+        app.MapPost("/api/games/{gameId:guid}/join", JoinGame)
             .WithName("JoinGame")
             .WithTags("Games");
 
@@ -35,17 +35,17 @@ public static class GameEndpoints
             .WithTags("Games");
 
         // GET /api/games/queue/{queueId} — poll matchmaking status
-        app.MapGet("/api/games/queue/{queueId}", PollQueue)
+        app.MapGet("/api/games/queue/{queueId:guid}", PollQueue)
             .WithName("PollQueue")
             .WithTags("Games");
 
         // GET /api/games/{gameId}/state — bot reads current board state
-        app.MapGet("/api/games/{gameId}/state", GetBoardState)
+        app.MapGet("/api/games/{gameId:guid}/state", GetBoardState)
             .WithName("GetBoardState")
             .WithTags("Games");
 
         // POST /api/games/{gameId}/place — bot submits placement decision
-        app.MapPost("/api/games/{gameId}/place", PlacePiece)
+        app.MapPost("/api/games/{gameId:guid}/place", PlacePiece)
             .WithName("PlacePiece")
             .WithTags("Games");
 
@@ -77,7 +77,7 @@ public static class GameEndpoints
         return Results.Created($"/api/games/{result.GameId}", new { gameId = result.GameId });
     }
 
-    /// <summary>Bot joins a game and submits a lineup of 5 piece names.</summary>
+    /// <summary>Bot joins a game and submits a lineup of 5-piece names.</summary>
     private static async Task<IResult> JoinGame(
         Guid gameId,
         JoinGameRequest body,
@@ -246,7 +246,7 @@ public static class GameEndpoints
     /// Request body for <c>POST /api/games/{gameId}/place</c>.
     /// </summary>
     /// <param name="Action">One of: "place", "replace", "skip".</param>
-    /// <param name="PieceId">The piece to place or use as replacement (required for "place" and "replace").</param>
+    /// <param name="PieceId">The piece to place or use as a replacement (required for "place" and "replace").</param>
     /// <param name="ReplacedPieceId">The on-board piece to remove (required for "replace" only).</param>
     /// <param name="Position">Target board position (required for "place" and "replace").</param>
     private sealed record PlacementRequest(

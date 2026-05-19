@@ -41,7 +41,7 @@ public sealed class Board
     public Tile GetTile(Position position)
     {
         // Position already validates bounds in its constructor; this guard is
-        // a defensive double-check in case a Position was constructed 
+        // a defensive double-check in case a Position was constructed
         // unusually (e.g., reflection).
         if (position.Row < 0 || position.Row >= Size ||
             position.Col < 0 || position.Col >= Size)
@@ -96,8 +96,8 @@ public sealed class Board
         var rowDiff = to.Row - from.Row;
         var colDiff = to.Col - from.Col;
 
-        var isOrthogonal = (Math.Abs(rowDiff) == 1 && colDiff == 0) ||
-                           (rowDiff == 0 && Math.Abs(colDiff) == 1);
+        var isOrthogonal = Math.Abs(rowDiff) == 1 && colDiff == 0 ||
+                           rowDiff == 0 && Math.Abs(colDiff) == 1;
 
         var isDiagonal = Math.Abs(rowDiff) == 1 && Math.Abs(colDiff) == 1;
 
@@ -177,7 +177,7 @@ public sealed class Board
 
     /// <summary>Returns all obstacles currently on the board.</summary>
     public BoardObstacles GetAllObstacles() =>
-        new BoardObstacles(
+        new(
             _rocks.AsReadOnly(),
             _lakes.AsReadOnly(),
             _fences.AsReadOnly());
@@ -236,12 +236,12 @@ public sealed class Board
     // ── Entry-point helpers ───────────────────────────────────────────────────
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is on any board edge (row = 0 or 7, or col = 0 or 7).</summary>
-    public bool IsEdgeTile(Position position) =>
+    public static bool IsEdgeTile(Position position) =>
         position.Row == 0 || position.Row == Size - 1 ||
         position.Col == 0 || position.Col == Size - 1;
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is one of the 4 corner tiles.</summary>
-    public bool IsCornerTile(Position position) =>
+    public static bool IsCornerTile(Position position) =>
         position.Row is 0 or Size - 1 &&
         position.Col is 0 or Size - 1;
 

@@ -101,11 +101,11 @@ public sealed class GameRepository : IGameRepository
         // 1. Deserialize pieces for both lineups (with their current positions).
         var pieceDtosOne = record.LineupPlayerOneJson is not null
             ? JsonSerializer.Deserialize<List<PieceDto>>(record.LineupPlayerOneJson, JsonOptions) ?? []
-            : new List<PieceDto>();
+            : [];
 
         var pieceDtosTwo = record.LineupPlayerTwoJson is not null
             ? JsonSerializer.Deserialize<List<PieceDto>>(record.LineupPlayerTwoJson, JsonOptions) ?? []
-            : new List<PieceDto>();
+            : [];
 
         // 2. Materialise Piece domain objects (Position is applied below).
         var piecesOne = pieceDtosOne.Select(ReconstructPiece).ToList();
@@ -136,16 +136,17 @@ public sealed class GameRepository : IGameRepository
             foreach (var occ in boardState.Occupants)
             {
                 var tile = board.GetTile(new Position(occ.Row, occ.Col));
-                if (occ.IsCoin && occ.CoinType.HasValue)
+                switch (occ)
                 {
-                    tile.SetOccupant(new Coin((CoinType)occ.CoinType.Value));
-                }
-                else if (!occ.IsCoin && occ.PieceId.HasValue &&
-                         allPiecesById.TryGetValue(occ.PieceId.Value, out var piece))
-                {
-                    // Restore piece's board position.
-                    piece.PlaceAt(new Position(occ.Row, occ.Col));
-                    tile.SetOccupant(piece);
+                    case { IsCoin: true, CoinType: not null }:
+                        tile.SetOccupant(new Coin((CoinType)occ.CoinType.Value));
+                        break;
+                    case { IsCoin: false, PieceId: not null } when
+                        allPiecesById.TryGetValue(occ.PieceId.Value, out var piece):
+                        // Restore the piece's board position.
+                        piece.PlaceAt(new Position(occ.Row, occ.Col));
+                        tile.SetOccupant(piece);
+                        break;
                 }
             }
         }
@@ -160,7 +161,7 @@ public sealed class GameRepository : IGameRepository
         SetPrivateProperty(gameType, nameof(Game.Status), game, (GameStatus)record.Status);
         SetPrivateProperty(gameType, nameof(Game.TurnNumber), game, record.TurnNumber);
         SetPrivateProperty(gameType, nameof(Game.CurrentPhase), game,
-            record.CurrentPhase.HasValue ? (TurnPhase?)((TurnPhase)record.CurrentPhase.Value) : null);
+            record.CurrentPhase.HasValue ? (TurnPhase?)(TurnPhase)record.CurrentPhase.Value : null);
         SetPrivateProperty(gameType, nameof(Game.MovePhaseActivePlayer), game, record.MovePhaseActivePlayer);
 
         // 7. Restore Lineups (bypasses the WaitingForBots guard in SetLineup).

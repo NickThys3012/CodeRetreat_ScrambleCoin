@@ -27,7 +27,7 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
     /// Custom factory that swaps SQL Server for an in-memory EF Core provider
     /// and suppresses the Application Insights telemetry to keep tests self-contained.
     /// </summary>
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {

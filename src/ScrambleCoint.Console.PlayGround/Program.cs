@@ -6,7 +6,7 @@ using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
-var rng = new Random(); // change to new Random(42) for a reproducible run
+var rng = new Random(42); // change to new Random(42) for a reproducible run
 var board = new Board();
 var p1 = Guid.NewGuid();
 var p2 = Guid.NewGuid();
@@ -165,7 +165,9 @@ Position? FindAdjacentFree(Game g, Position from, MovementType mt)
         .Select(c => new Position(c.row, c.col))
         .Where(p => g.Board.IsPassable(from, p))
         .Where(p => g.Board.GetTile(p).AsPiece is null)
+        #pragma warning disable CA5394
         .OrderBy(_ => rng.Next())
+        #pragma warning restore CA5394
         .FirstOrDefault();
 }
 

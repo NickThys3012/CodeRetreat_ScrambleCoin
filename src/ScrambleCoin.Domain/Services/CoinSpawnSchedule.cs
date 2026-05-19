@@ -16,9 +16,8 @@ public static class CoinSpawnSchedule
     /// Returns the ordered list of <see cref="CoinType"/> values to spawn for <paramref name="turnNumber"/>.
     /// </summary>
     /// <exception cref="DomainException">Thrown for any turn number outside [1, 5].</exception>
-    public static IReadOnlyList<CoinType> For(int turnNumber, Random random)
-    {
-        return turnNumber switch
+    public static IReadOnlyList<CoinType> For(int turnNumber, Random random) =>
+        turnNumber switch
         {
             1 => Repeat(CoinType.Silver, random.Next(7, 10)),
             2 or 3 => Repeat(CoinType.Silver, random.Next(2, 5)),
@@ -26,7 +25,6 @@ public static class CoinSpawnSchedule
             5 => Repeat(CoinType.Gold, 3),
             _ => throw new DomainException($"No coin spawn schedule defined for turn {turnNumber}. Valid turns are 1–5.")
         };
-    }
 
     private static IReadOnlyList<CoinType> Repeat(CoinType coinType, int count) =>
         Enumerable.Repeat(coinType, count).ToList().AsReadOnly();

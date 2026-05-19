@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
@@ -88,13 +87,13 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
     {
         var lineup = playerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
         if (lineup is null)
-            return Array.Empty<PieceDto>();
+            return [];
 
         return lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
     }
 
     private static PieceDto MapPiece(Piece piece) =>
-        new PieceDto(
+        new(
             PieceId: piece.Id,
             Name: piece.Name,
             Position: piece.Position is not null ? new PositionDto(piece.Position.Row, piece.Position.Col) : null,
@@ -103,7 +102,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             MovesPerTurn: piece.MovesPerTurn,
             IsOnBoard: piece.IsOnBoard);
 
-    private static IReadOnlyList<TileDto> BuildTiles(Board board, Domain.Entities.BoardObstacles obstacles)
+    private static IReadOnlyList<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
     {
         var tiles = new List<TileDto>(Board.Size * Board.Size);
 
@@ -173,12 +172,12 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
         }
 
         // East: (row, col+1)
-        if (position.Col < Board.Size - 1)
-        {
-            var east = new Position(position.Row, position.Col + 1);
-            if (fences.Any(f => f.IsOnEdge(position, east)))
-                edges.Add("East");
-        }
+        if (position.Col >= Board.Size - 1)
+            return edges.AsReadOnly();
+        
+        var east = new Position(position.Row, position.Col + 1);
+        if (fences.Any(f => f.IsOnEdge(position, east)))
+            edges.Add("East");
 
         return edges.AsReadOnly();
     }

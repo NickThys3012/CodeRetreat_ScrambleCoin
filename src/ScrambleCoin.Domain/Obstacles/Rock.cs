@@ -9,8 +9,5 @@ public sealed class Rock
 {
     public Position Position { get; }
 
-    public Rock(Position position)
-    {
-        Position = position;
-    }
+    public Rock(Position position) => Position = position;
 }

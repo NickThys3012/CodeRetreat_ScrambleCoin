@@ -88,7 +88,7 @@ public sealed class Game
 
     // ── Move-phase tracking ───────────────────────────────────────────────────
 
-    private readonly HashSet<Guid> _movedPieceIds = new HashSet<Guid>();
+    private readonly HashSet<Guid> _movedPieceIds = [];
 
     /// <summary>
     /// The player whose turn it currently is to submit a piece moves during MovePhase.
@@ -124,13 +124,10 @@ public sealed class Game
         if (playerOne == playerTwo)
             throw new DomainException("PlayerOne and PlayerTwo must be different players.");
 
-        if (board is null)
-            throw new DomainException("Board must not be null.");
-
         Id = id;
         PlayerOne = playerOne;
         PlayerTwo = playerTwo;
-        Board = board;
+        Board = board ?? throw new DomainException("Board must not be null.");
         Status = GameStatus.WaitingForBots;
         TurnNumber = 0;
         CurrentPhase = null;
@@ -254,7 +251,7 @@ public sealed class Game
         var isDraw = scoreOne == scoreTwo;
         Guid? winnerId = isDraw
             ? null
-            : (scoreOne > scoreTwo ? PlayerOne : PlayerTwo);
+            : scoreOne > scoreTwo ? PlayerOne : PlayerTwo;
 
         _domainEvents.Add(new GameEnded(Id, scoreOne, scoreTwo, winnerId, isDraw, DateTimeOffset.UtcNow));
     }
@@ -492,12 +489,9 @@ public sealed class Game
     /// <exception cref="DomainException">
     /// Thrown when <paramref name="playerId"/> is not a participant of this game.
     /// </exception>
-    public int GetScore(Guid playerId)
-    {
-        if (!_scores.TryGetValue(playerId, out var score))
-            throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
-        return score;
-    }
+    public int GetScore(Guid playerId) =>
+        !_scores.TryGetValue(playerId, out var score) ?
+            throw new DomainException($"Player {playerId} is not a participant of game {Id}.") : score;
 
     /// <summary>
     /// Returns the number of pieces <paramref name="playerId"/> currently has on the board.
@@ -505,12 +499,9 @@ public sealed class Game
     /// <exception cref="DomainException">
     /// Thrown when <paramref name="playerId"/> is not a participant of this game.
     /// </exception>
-    public int GetPiecesOnBoardCount(Guid playerId)
-    {
-        if (!_piecesOnBoard.TryGetValue(playerId, out var count))
-            throw new DomainException($"Player {playerId} is not a participant of game {Id}.");
-        return count;
-    }
+    public int GetPiecesOnBoardCount(Guid playerId) =>
+        !_piecesOnBoard.TryGetValue(playerId, out var count) ?
+            throw new DomainException($"Player {playerId} is not a participant of game {Id}.") : count;
 
     // ── Piece placement ───────────────────────────────────────────────────────
 
@@ -745,8 +736,7 @@ public sealed class Game
             var allowedStuckException =
                 !hasAnyValidMove &&
                 piece.MovesPerTurn == 1 &&
-                segments.Count == 1 &&
-                segments[0].Count == 0;
+                segments is [{ Count: 0 }];
 
             if (!allowedStuckException)
                 throw new DomainException(
@@ -857,18 +847,17 @@ public sealed class Game
         var activeLineup = MovePhaseActivePlayer == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
         var activePieceIds = activeLineup.Pieces.Where(p => p.IsOnBoard).Select(p => p.Id).ToHashSet();
 
-        if (activePieceIds.All(id => _movedPieceIds.Contains(id)))
+        if (!activePieceIds.All(id => _movedPieceIds.Contains(id)))
+            return;
+        if (MovePhaseActivePlayer == PlayerOne)
         {
-            if (MovePhaseActivePlayer == PlayerOne)
-            {
-                MovePhaseActivePlayer = PlayerTwo;
-                TryAutoAdvanceMovePhase(); // PlayerTwo may also have 0 pieces
-            }
-            else
-            {
-                MovePhaseActivePlayer = null;
-                AdvanceTurn();
-            }
+            MovePhaseActivePlayer = PlayerTwo;
+            TryAutoAdvanceMovePhase(); // PlayerTwo may also have 0 pieces
+        }
+        else
+        {
+            MovePhaseActivePlayer = null;
+            AdvanceTurn();
         }
     }
 

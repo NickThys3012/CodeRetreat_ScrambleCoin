@@ -8,8 +8,8 @@ namespace ScrambleCoin.Application.Interfaces;
 public interface IGameRepository
 {
     /// <summary>Retrieves a game by its unique identifier.</summary>
-    Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>Persists the current state of a game.</summary>
-    Task SaveAsync(Game game, CancellationToken cancellationToken = default);
+    public Task SaveAsync(Game game, CancellationToken cancellationToken = default);
 }

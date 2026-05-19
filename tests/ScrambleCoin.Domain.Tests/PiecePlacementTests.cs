@@ -649,7 +649,7 @@ public class PiecePlacementTests
     public void Board_IsEdgeTile_ReturnsCorrectly(int row, int col, bool expected)
     {
         var board = new Board();
-        Assert.Equal(expected, board.IsEdgeTile(new Position(row, col)));
+        Assert.Equal(expected, Board.IsEdgeTile(new Position(row, col)));
     }
 
     [Theory]
@@ -663,7 +663,7 @@ public class PiecePlacementTests
     public void Board_IsCornerTile_ReturnsCorrectly(int row, int col, bool expected)
     {
         var board = new Board();
-        Assert.Equal(expected, board.IsCornerTile(new Position(row, col)));
+        Assert.Equal(expected, Board.IsCornerTile(new Position(row, col)));
     }
 
     [Theory]

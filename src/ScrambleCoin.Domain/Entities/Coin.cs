@@ -12,8 +12,5 @@ public sealed class Coin
     /// <summary>Point value of this coin (Silver = 1, Gold = 3).</summary>
     public int Value => (int)CoinType;
 
-    public Coin(CoinType coinType)
-    {
-        CoinType = coinType;
-    }
+    public Coin(CoinType coinType) => CoinType = coinType;
 }

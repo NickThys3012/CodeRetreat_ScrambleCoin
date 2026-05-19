@@ -102,17 +102,15 @@ public sealed class QueueService : IQueueService
                 PlayerId: game.PlayerTwo,
                 Token: tokenTwo);
         }
-        else
-        {
-            // ── No match yet — park this bot and return 202 ───────────────────
-            var entry = new QueueEntry(queueId, Status: "waiting");
-            _entries[queueId] = entry;
-            _waitingQueue.Enqueue(new WaitingBot(queueId, lineupPieceNames));
 
-            _logger.LogInformation("Bot queued, waiting for opponent: QueueId={QueueId}", queueId);
+        // ── No match yet — park this bot and return 202 ───────────────────
+        var entry = new QueueEntry(queueId, Status: "waiting");
+        _entries[queueId] = entry;
+        _waitingQueue.Enqueue(new WaitingBot(queueId, lineupPieceNames));
 
-            return entry;
-        }
+        _logger.LogInformation("Bot queued, waiting for opponent: QueueId={QueueId}", queueId);
+
+        return entry;
     }
 
     /// <inheritdoc />

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -39,7 +38,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
 
     // ── Test factory ──────────────────────────────────────────────────────────
 
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
         // Unique DB name per factory instance so tests don't share state.
         private readonly string _dbName = $"BoardStateTestDb_{Guid.NewGuid()}";
@@ -702,11 +701,10 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         game.SetLineup(p1, new Lineup(pieces1));
         game.SetLineup(p2, new Lineup(pieces2));
         game.Start();
-        game.SpawnCoins(new[]
-        {
+        game.SpawnCoins([
             (new Position(0, 0), CoinType.Silver),
             (new Position(7, 7), CoinType.Gold)
-        });
+        ]);
 
         await gameRepo.SaveAsync(game);
 
@@ -747,7 +745,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         game.SetLineup(p1, new Lineup(pieces1));
         game.SetLineup(p2, new Lineup(pieces2));
         game.Start();
-        game.SpawnCoins(new[] { (new Position(3, 3), CoinType.Gold) });
+        game.SpawnCoins([(new Position(3, 3), CoinType.Gold)]);
 
         await gameRepo.SaveAsync(game);
         var tokenP1 = Guid.NewGuid();

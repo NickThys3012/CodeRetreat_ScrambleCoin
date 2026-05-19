@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
 using ScrambleCoin.Application.BotRegistration;
@@ -66,7 +66,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new()
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "ScrambleCoin Bot API",
         Version = "v1",

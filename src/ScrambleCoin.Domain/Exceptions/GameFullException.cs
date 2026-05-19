@@ -9,8 +9,6 @@ public sealed class GameFullException : DomainException
     public Guid GameId { get; }
 
     public GameFullException(Guid gameId)
-        : base($"Game {gameId} already has two registered players and cannot accept more.")
-    {
+        : base($"Game {gameId} already has two registered players and cannot accept more.") =>
         GameId = gameId;
-    }
 }

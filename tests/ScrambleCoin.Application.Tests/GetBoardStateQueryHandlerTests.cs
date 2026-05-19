@@ -500,12 +500,11 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange: spawn 3 coins during CoinSpawn phase
         var (game, p1, _) = NewStartedGame();
-        game.SpawnCoins(new[]
-        {
+        game.SpawnCoins([
             (new Position(0, 0), CoinType.Silver),
             (new Position(3, 4), CoinType.Gold),
             (new Position(7, 7), CoinType.Silver)
-        });
+        ]);
 
         var reg = MakeRegistration(game.Id, p1);
 
@@ -528,7 +527,7 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange: spawn a silver coin at (2, 5)
         var (game, p1, _) = NewStartedGame();
-        game.SpawnCoins(new[] { (new Position(2, 5), CoinType.Silver) });
+        game.SpawnCoins([(new Position(2, 5), CoinType.Silver)]);
 
         var reg = MakeRegistration(game.Id, p1);
 
@@ -553,7 +552,7 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange
         var (game, p1, _) = NewStartedGame();
-        game.SpawnCoins(new[] { (new Position(4, 4), CoinType.Gold) });
+        game.SpawnCoins([(new Position(4, 4), CoinType.Gold)]);
 
         var reg = MakeRegistration(game.Id, p1);
 
@@ -578,7 +577,7 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange
         var (game, p1, _) = NewStartedGame();
-        game.SpawnCoins(new[] { (new Position(1, 1), CoinType.Silver) });
+        game.SpawnCoins([(new Position(1, 1), CoinType.Silver)]);
 
         var reg = MakeRegistration(game.Id, p1);
 
@@ -603,7 +602,7 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange
         var (game, p1, _) = NewStartedGame();
-        game.SpawnCoins(new[] { (new Position(3, 3), CoinType.Silver) });
+        game.SpawnCoins([(new Position(3, 3), CoinType.Silver)]);
 
         var reg = MakeRegistration(game.Id, p1);
 

@@ -31,5 +31,5 @@ public sealed class Fence
     /// (regardless of direction).
     /// </summary>
     public bool IsOnEdge(Position a, Position b) =>
-        (From == a && To == b) || (From == b && To == a);
+        From == a && To == b || From == b && To == a;
 }
