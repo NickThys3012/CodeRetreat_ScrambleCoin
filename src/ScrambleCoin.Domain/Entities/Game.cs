@@ -765,9 +765,80 @@ public sealed class Game
                 continue;
             }
 
+            // For Charge movement, the segment contains exactly 1 position (the direction tile).
+            // The engine resolves the full slide based on board state.
             // For Jump movement, each segment should be a single destination position.
             // For other movement types, the segment is a sequence of steps.
-            if (piece.MovementType == MovementType.Jump)
+            if (piece.MovementType == MovementType.Charge)
+            {
+                if (segment.Count != 1)
+                    throw new DomainException(
+                        $"Piece {pieceId}, segment {segIndex}: Charge movement requires exactly 1 direction position, but {segment.Count} were provided.");
+
+                var directionTile = segment[0];
+
+                // Validate that directionTile is orthogonally adjacent to current position
+                if (!currentPosition.IsOrthogonallyAdjacentTo(directionTile))
+                    throw new DomainException(
+                        $"Piece {pieceId}: Charge direction from {currentPosition} to {directionTile} is not orthogonal (must move only horizontally or vertically).");
+
+                // Determine the direction (row and column increments)
+                var rowDir = Math.Sign(directionTile.Row - currentPosition.Row);
+                var colDir = Math.Sign(directionTile.Col - currentPosition.Col);
+
+                // Check if the first tile in the direction is passable
+                if (!Board.IsPassable(currentPosition, directionTile))
+                {
+                    // First tile is blocked: piece stays in place, counts as moved (empty path)
+                    // Do nothing — piece doesn't move
+                }
+                else if (Board.GetTile(directionTile).AsPiece is not null)
+                {
+                    // First tile has another piece: stay in place
+                    // Do nothing — piece doesn't move
+                }
+                else
+                {
+                    // First tile is passable and empty — start sliding
+                    var slidePos = directionTile;
+                    // Slide until blocked
+                    while (true)
+                    {
+                        // Collect coin if present at current slide position
+                        var chargeSpeedCoin = Board.GetTile(slidePos).AsCoin;
+                        if (chargeSpeedCoin is not null)
+                        {
+                            Board.GetTile(slidePos).ClearOccupant();
+                            AddScore(playerId, chargeSpeedCoin.Value);
+                            _domainEvents.Add(new CoinCollected(
+                                Id, TurnNumber, playerId, pieceId, slidePos,
+                                chargeSpeedCoin.CoinType, chargeSpeedCoin.Value, DateTimeOffset.UtcNow));
+                        }
+
+                        fullPath.Add(slidePos);
+                        currentPosition = slidePos;
+
+                        // Try to move further in the same direction
+                        var nextPos = new Position(slidePos.Row + rowDir, slidePos.Col + colDir);
+
+                        // Check if next position is within bounds
+                        if (nextPos.Row < 0 || nextPos.Row >= Board.Size ||
+                            nextPos.Col < 0 || nextPos.Col >= Board.Size)
+                            break; // Hit board edge
+
+                        // Check if next position is passable
+                        if (!Board.IsPassable(slidePos, nextPos))
+                            break; // Hit obstacle or fence
+
+                        // Check if next position is occupied by a piece
+                        if (Board.GetTile(nextPos).AsPiece is not null)
+                            break; // Hit another piece
+
+                        slidePos = nextPos;
+                    }
+                }
+            }
+            else if (piece.MovementType == MovementType.Jump)
             {
                 if (segment.Count != 1)
                     throw new DomainException(

@@ -18,5 +18,12 @@ public enum MovementType
     /// The piece teleports directly to its destination, ignoring all obstacles and pieces along the way.
     /// Only collects coins at the destination tile, not intermediate tiles.
     /// </summary>
-    Jump
+    Jump,
+
+    /// <summary>
+    /// The piece slides in a single orthogonal direction (specified by the bot) until blocked by an obstacle,
+    /// another piece, a fence, or the board edge. The engine computes the full slide distance.
+    /// Collects coins at every position along the slide path.
+    /// </summary>
+    Charge
 }
