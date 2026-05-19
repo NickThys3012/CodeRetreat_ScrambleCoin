@@ -775,6 +775,35 @@ public sealed class Game
 
                 var destination = segment[0];
 
+                // Validate direction constraints based on MovementType
+                var rowDiff = destination.Row - currentPosition.Row;
+                var colDiff = destination.Col - currentPosition.Col;
+
+                // Cannot jump to same position
+                if (rowDiff == 0 && colDiff == 0)
+                    throw new DomainException(
+                        $"Piece {pieceId}: jump destination must be different from current position.");
+
+                // Validate direction matches movement type
+                switch (piece.MovementType)
+                {
+                    case MovementType.Orthogonal:
+                        // Orthogonal: either row is 0 or col is 0 (but not both, already checked above)
+                        if (rowDiff != 0 && colDiff != 0)
+                            throw new DomainException(
+                                $"Piece {pieceId}: jump from {currentPosition} to {destination} is not orthogonal (must move only horizontally or vertically).");
+                        break;
+                    case MovementType.Diagonal:
+                        // Diagonal: row diff equals col diff in absolute value
+                        if (Math.Abs(rowDiff) != Math.Abs(colDiff))
+                            throw new DomainException(
+                                $"Piece {pieceId}: jump from {currentPosition} to {destination} is not diagonal (must move equal rows and columns).");
+                        break;
+                    case MovementType.AnyDirection:
+                        // Any direction: no restriction (already checked not same position above)
+                        break;
+                }
+
                 // Calculate distance based on the direction of jump
                 var distance = CalculateJumpDistance(currentPosition, destination, piece.MovementType);
 
@@ -962,23 +991,18 @@ public sealed class Game
     /// <paramref name="movementType"/>. For Jump pieces, distance determines if the jump is valid
     /// within MaxDistance.
     /// 
-    /// Distance calculation:
-    /// - Orthogonal: number of tiles (not steps) — typically the minimum tiles needed
-    /// - Diagonal: number of diagonal steps (max of row/col diff)
-    /// - AnyDirection: Chebyshev distance (max of row/col diff)
+    /// Distance is always Chebyshev distance (king move distance / max of |Δrow|, |Δcol|),
+    /// which represents the number of tiles to reach the destination:
+    /// - Orthogonal jump to (0,5) = 5 tiles
+    /// - Diagonal jump to (3,3) = 3 tiles
+    /// - AnyDirection jump to (2,3) = 3 tiles (max of 2 and 3)
     /// </summary>
     /// <exception cref="DomainException">
-    /// Thrown if <paramref name="movementType"/> is not Orthogonal, Diagonal, or AnyDirection
-    /// (Jump should be validated before calling this).
+    /// Thrown if <paramref name="movementType"/> is not a valid Jump-compatible type.
     /// </exception>
     private static int CalculateJumpDistance(Position from, Position to, MovementType movementType)
     {
-        return movementType switch
-        {
-            MovementType.Orthogonal => from.OrthogonalDistance(to),
-            MovementType.Diagonal => from.DiagonalDistance(to),
-            MovementType.AnyDirection => from.ChebyshevDistance(to),
-            _ => throw new DomainException($"Cannot calculate jump distance for movement type: {movementType}.")
-        };
+        // All Jump movement types use Chebyshev distance (max of |Δrow|, |Δcol|)
+        return to.ChebyshevDistance(from);
     }
 }
