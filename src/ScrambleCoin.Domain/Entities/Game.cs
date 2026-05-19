@@ -819,12 +819,15 @@ public sealed class Game
                         currentPosition = slidePos;
 
                         // Try to move further in the same direction
-                        var nextPos = new Position(slidePos.Row + rowDir, slidePos.Col + colDir);
+                        // Check bounds BEFORE creating Position (constructor validates bounds)
+                        var nextRow = slidePos.Row + rowDir;
+                        var nextCol = slidePos.Col + colDir;
 
-                        // Check if next position is within bounds
-                        if (nextPos.Row < 0 || nextPos.Row >= Board.Size ||
-                            nextPos.Col < 0 || nextPos.Col >= Board.Size)
+                        if (nextRow < 0 || nextRow >= Board.Size ||
+                            nextCol < 0 || nextCol >= Board.Size)
                             break; // Hit board edge
+
+                        var nextPos = new Position(nextRow, nextCol);
 
                         // Check if next position is passable
                         if (!Board.IsPassable(slidePos, nextPos))

@@ -89,6 +89,7 @@ public sealed class ChargeMovementTests
         var (game, p1, _, chargePiece, _) = GameInMovePhaseWithChargePiece(new Position(0, 0));
         game.Board.AddFence(new Fence(new Position(0, 5), new Position(0, 6)));
         game.MovePiece(p1, chargePiece.Id, BuildChargeSegment(new Position(0, 1)));
+        Assert.NotNull(chargePiece.Position);
         Assert.True(chargePiece.Position.Col <= 5);
     }
 
