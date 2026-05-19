@@ -43,6 +43,13 @@ public sealed class Piece
     /// </summary>
     public int MovesPerTurn { get; }
 
+    /// <summary>
+    /// Per-segment movement constraints for multi-step sequences.
+    /// When MovesPerTurn > 1, each element defines the movement type and max distance for that segment.
+    /// Count must equal MovesPerTurn.
+    /// </summary>
+    public IReadOnlyList<MovementPattern> MovementPatterns { get; }
+
     /// <summary>Returns <c>true</c> when the piece has been placed on the board.</summary>
     public bool IsOnBoard => Position is not null;
 
@@ -53,6 +60,7 @@ public sealed class Piece
     /// <param name="movementType">Allowed movement directions.</param>
     /// <param name="maxDistance">Maximum tiles per move action; must be ≥ 1.</param>
     /// <param name="movesPerTurn">Move actions per turn; must be ≥ 1.</param>
+    /// <param name="movementPatterns">Per-segment movement constraints (optional; if null, uses default single pattern).</param>
     public Piece(
         Guid id,
         string name,
@@ -60,7 +68,8 @@ public sealed class Piece
         EntryPointType entryPointType,
         MovementType movementType,
         int maxDistance,
-        int movesPerTurn)
+        int movesPerTurn,
+        IReadOnlyList<MovementPattern>? movementPatterns = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainException("Piece name must not be null or whitespace.");
@@ -71,6 +80,14 @@ public sealed class Piece
         if (movesPerTurn < 1)
             throw new DomainException($"MovesPerTurn must be at least 1, but was {movesPerTurn}.");
 
+        // Generate default pattern if not provided (backward compatibility)
+        var patterns = movementPatterns ?? Enumerable.Range(0, movesPerTurn)
+            .Select(_ => new MovementPattern(movementType, maxDistance))
+            .ToList();
+
+        if (patterns.Count != movesPerTurn)
+            throw new DomainException($"MovementPatterns count ({patterns.Count}) must equal MovesPerTurn ({movesPerTurn}).");
+
         Id = id;
         Name = name;
         PlayerId = playerId;
@@ -78,6 +95,7 @@ public sealed class Piece
         MovementType = movementType;
         MaxDistance = maxDistance;
         MovesPerTurn = movesPerTurn;
+        MovementPatterns = patterns;
     }
 
     /// <summary>
@@ -89,8 +107,9 @@ public sealed class Piece
         EntryPointType entryPointType,
         MovementType movementType,
         int maxDistance,
-        int movesPerTurn)
-        : this(Guid.NewGuid(), name, playerId, entryPointType, movementType, maxDistance, movesPerTurn)
+        int movesPerTurn,
+        IReadOnlyList<MovementPattern>? movementPatterns = null)
+        : this(Guid.NewGuid(), name, playerId, entryPointType, movementType, maxDistance, movesPerTurn, movementPatterns)
     {
     }
 
