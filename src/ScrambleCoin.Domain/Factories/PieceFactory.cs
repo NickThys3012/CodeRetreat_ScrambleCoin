@@ -1,6 +1,7 @@
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Domain.Factories;
 
@@ -18,11 +19,55 @@ public static class PieceFactory
     private static readonly IReadOnlyDictionary<string, PieceTemplate> Catalogue =
         new Dictionary<string, PieceTemplate>(StringComparer.OrdinalIgnoreCase)
         {
+            // Original 5 single-move pieces
             ["Mickey"]  = new(EntryPointType.Borders, MovementType.Orthogonal,  MaxDistance: 3, MovesPerTurn: 1),
             ["Minnie"]  = new(EntryPointType.Borders, MovementType.Diagonal,    MaxDistance: 3, MovesPerTurn: 1),
             ["Donald"]  = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
             ["Goofy"]   = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
-            ["Scrooge"] = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1)
+            ["Scrooge"] = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            
+            // Multi-step movement pieces (Issue #48)
+            ["Cogsworth"] = new(
+                EntryPointType.Borders,
+                MovementType.AnyDirection,
+                MaxDistance: 2,
+                MovesPerTurn: 2,
+                new[] { new MovementPattern(MovementType.AnyDirection, 1), new MovementPattern(MovementType.Orthogonal, 2) }),
+            
+            ["Lumiere"] = new(
+                EntryPointType.Borders,
+                MovementType.AnyDirection,
+                MaxDistance: 2,
+                MovesPerTurn: 2,
+                new[] { new MovementPattern(MovementType.AnyDirection, 1), new MovementPattern(MovementType.Diagonal, 2) }),
+            
+            ["Remy"] = new(
+                EntryPointType.Borders,
+                MovementType.Diagonal,
+                MaxDistance: 2,
+                MovesPerTurn: 2,
+                new[] { new MovementPattern(MovementType.Diagonal, 2), new MovementPattern(MovementType.Diagonal, 2) }),
+            
+            ["Anna"] = new(
+                EntryPointType.Borders,
+                MovementType.Orthogonal,
+                MaxDistance: 1,
+                MovesPerTurn: 3,
+                new[] { new MovementPattern(MovementType.Orthogonal, 1), new MovementPattern(MovementType.Orthogonal, 1), new MovementPattern(MovementType.Orthogonal, 1) }),
+            
+            ["Olaf"] = new(
+                EntryPointType.Borders,
+                MovementType.AnyDirection,
+                MaxDistance: 1,
+                MovesPerTurn: 2,
+                new[] { new MovementPattern(MovementType.AnyDirection, 1), new MovementPattern(MovementType.AnyDirection, 1) }),
+            
+            ["Kristoff"] = new(
+                EntryPointType.Borders,
+                MovementType.Diagonal,
+                MaxDistance: 1,
+                MovesPerTurn: 3,
+                new[] { new MovementPattern(MovementType.Diagonal, 1), new MovementPattern(MovementType.Diagonal, 1), new MovementPattern(MovementType.Diagonal, 1) })
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -46,7 +91,8 @@ public static class PieceFactory
             template.EntryPointType,
             template.MovementType,
             template.MaxDistance,
-            template.MovesPerTurn);
+            template.MovesPerTurn,
+            template.MovementPatterns);
     }
 
     // ── Template ──────────────────────────────────────────────────────────────
@@ -55,5 +101,7 @@ public static class PieceFactory
         EntryPointType EntryPointType,
         MovementType MovementType,
         int MaxDistance,
-        int MovesPerTurn);
+        int MovesPerTurn,
+        IReadOnlyList<MovementPattern>? MovementPatterns = null);
 }
+
