@@ -726,7 +726,10 @@ public sealed class Game
         var currentPosition = startPosition;
 
         // Check whether the piece has any valid first move (used to allow empty segments).
-        var hasAnyValidMove = Board.HasAnyValidMove(currentPosition, piece.MovementType);
+        // For Jump pieces, pass maxDistance to determine stuck status.
+        var hasAnyValidMove = piece.MovementType == MovementType.Jump
+            ? Board.HasAnyValidMove(currentPosition, piece.MovementType, piece.MaxDistance)
+            : Board.HasAnyValidMove(currentPosition, piece.MovementType);
 
         // Validate segment count.
         if (segments.Count != piece.MovesPerTurn)
@@ -752,67 +755,112 @@ public sealed class Game
             if (segment.Count == 0)
             {
                 // An empty segment is only permitted when the piece has no valid move.
-                if (Board.HasAnyValidMove(currentPosition, piece.MovementType))
+                var hasValidMoveAtCurrentPos = piece.MovementType == MovementType.Jump
+                    ? Board.HasAnyValidMove(currentPosition, piece.MovementType, piece.MaxDistance)
+                    : Board.HasAnyValidMove(currentPosition, piece.MovementType);
+
+                if (hasValidMoveAtCurrentPos)
                     throw new DomainException(
                         $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
                 continue;
             }
 
-            if (segment.Count > piece.MaxDistance)
-                throw new DomainException(
-                    $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
-
-            var segFrom = currentPosition;
-
-            foreach (var stepTo in segment)
+            // For Jump movement, each segment should be a single destination position.
+            // For other movement types, the segment is a sequence of steps.
+            if (piece.MovementType == MovementType.Jump)
             {
-                // Validate step adjacency based on MovementType.
-                switch (piece.MovementType)
-                {
-                    case MovementType.Orthogonal:
-                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
-                        break;
-                    case MovementType.Diagonal:
-                        if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
-                        break;
-                    case MovementType.AnyDirection:
-                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
-                        break;
-                }
-
-                // Passability (obstacles + fences).
-                if (!Board.IsPassable(segFrom, stepTo))
+                if (segment.Count != 1)
                     throw new DomainException(
-                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+                        $"Piece {pieceId}, segment {segIndex}: Jump movement requires exactly 1 destination position, but {segment.Count} were provided.");
 
-                // A piece must not occupy Target.
-                var targetTile = Board.GetTile(stepTo);
-                if (targetTile.AsPiece is not null)
+                var destination = segment[0];
+
+                // Calculate distance based on the direction of jump
+                var distance = CalculateJumpDistance(currentPosition, destination, piece.MovementType);
+
+                if (distance > piece.MaxDistance)
                     throw new DomainException(
-                        $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+                        $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {piece.MaxDistance}.");
 
-                // Collect coin if present.
-                var coin = targetTile.AsCoin;
+                // Destination must not be occupied by a piece.
+                var destinationTile = Board.GetTile(destination);
+                if (destinationTile.AsPiece is not null)
+                    throw new DomainException(
+                        $"Piece {pieceId}: tile {destination} is already occupied by a piece.");
+
+                // Collect coin only at destination (not along the path).
+                var coin = destinationTile.AsCoin;
                 if (coin is not null)
                 {
-                    targetTile.ClearOccupant();
+                    destinationTile.ClearOccupant();
                     AddScore(playerId, coin.Value);
                     _domainEvents.Add(new CoinCollected(
-                        Id, TurnNumber, playerId, pieceId, stepTo,
+                        Id, TurnNumber, playerId, pieceId, destination,
                         coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
                 }
 
-                fullPath.Add(stepTo);
-                segFrom = stepTo;
+                fullPath.Add(destination);
+                currentPosition = destination;
             }
+            else
+            {
+                // Non-Jump movement: original step-by-step validation
+                if (segment.Count > piece.MaxDistance)
+                    throw new DomainException(
+                        $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
 
-            currentPosition = segFrom;
+                var segFrom = currentPosition;
+
+                foreach (var stepTo in segment)
+                {
+                    // Validate step adjacency based on MovementType.
+                    switch (piece.MovementType)
+                    {
+                        case MovementType.Orthogonal:
+                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
+                            break;
+                        case MovementType.Diagonal:
+                            if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+                            break;
+                        case MovementType.AnyDirection:
+                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+                            break;
+                    }
+
+                    // Passability (obstacles + fences).
+                    if (!Board.IsPassable(segFrom, stepTo))
+                        throw new DomainException(
+                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+
+                    // A piece must not occupy Target.
+                    var targetTile = Board.GetTile(stepTo);
+                    if (targetTile.AsPiece is not null)
+                        throw new DomainException(
+                            $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+
+                    // Collect coin if present.
+                    var coin = targetTile.AsCoin;
+                    if (coin is not null)
+                    {
+                        targetTile.ClearOccupant();
+                        AddScore(playerId, coin.Value);
+                        _domainEvents.Add(new CoinCollected(
+                            Id, TurnNumber, playerId, pieceId, stepTo,
+                            coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                    }
+
+                    fullPath.Add(stepTo);
+                    segFrom = stepTo;
+                }
+
+                currentPosition = segFrom;
+            }
         }
 
         // Move the piece on the board.
@@ -907,5 +955,30 @@ public sealed class Game
         if (playerId == PlayerOne)
             return LineupPlayerOne ?? throw new DomainException("PlayerOne's lineup has not been set.");
         return LineupPlayerTwo ?? throw new DomainException("PlayerTwo's lineup has not been set.");
+    }
+
+    /// <summary>
+    /// Calculates the jump distance from <paramref name="from"/> to <paramref name="to"/> based on the
+    /// <paramref name="movementType"/>. For Jump pieces, distance determines if the jump is valid
+    /// within MaxDistance.
+    /// 
+    /// Distance calculation:
+    /// - Orthogonal: number of tiles (not steps) — typically the minimum tiles needed
+    /// - Diagonal: number of diagonal steps (max of row/col diff)
+    /// - AnyDirection: Chebyshev distance (max of row/col diff)
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown if <paramref name="movementType"/> is not Orthogonal, Diagonal, or AnyDirection
+    /// (Jump should be validated before calling this).
+    /// </exception>
+    private static int CalculateJumpDistance(Position from, Position to, MovementType movementType)
+    {
+        return movementType switch
+        {
+            MovementType.Orthogonal => from.OrthogonalDistance(to),
+            MovementType.Diagonal => from.DiagonalDistance(to),
+            MovementType.AnyDirection => from.ChebyshevDistance(to),
+            _ => throw new DomainException($"Cannot calculate jump distance for movement type: {movementType}.")
+        };
     }
 }
