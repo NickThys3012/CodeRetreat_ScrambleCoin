@@ -776,7 +776,28 @@ public sealed class Game
 
                         // Even if the first step is blocked (empty path), the move is still performed.
                         fullPath.AddRange(chargePath);
-                        currentPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
+                        var chargeEndPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
+
+                        // Apply ice patch slide after the charge completes (if any)
+                        // The slide counts as part of the charge but doesn't cause a re-charge
+                        if (Board.HasIcePatch(chargeEndPosition))
+                        {
+                            // Determine the previous position in the charge path
+                            // If the charge path has multiple steps, use the second-to-last; 
+                            // otherwise use the starting position
+                            var slidePreviousPosition = chargePath.Count > 1 
+                                ? chargePath[^2] 
+                                : currentPosition;
+                            var slidePosition = ApplyIcePatchSlide(chargeEndPosition, slidePreviousPosition, playerId, pieceId);
+                            if (slidePosition != chargeEndPosition)
+                            {
+                                // The piece slid to a new position; add it to the full path
+                                fullPath.Add(slidePosition);
+                                chargeEndPosition = slidePosition;
+                            }
+                        }
+
+                        currentPosition = chargeEndPosition;
                         continue;
                     }
                 
@@ -815,7 +836,21 @@ public sealed class Game
                             }
 
                             fullPath.Add(stepTo);
-                            segFrom = stepTo;
+                            var positionAfterStep = stepTo;
+
+                            // Apply ice patch slide if the piece landed on an ice patch
+                            if (Board.HasIcePatch(positionAfterStep))
+                            {
+                                var slidePosition = ApplyIcePatchSlide(positionAfterStep, segFrom, playerId, pieceId);
+                                if (slidePosition != positionAfterStep)
+                                {
+                                    // The piece slid to a new position; add it to the full path
+                                    fullPath.Add(slidePosition);
+                                    positionAfterStep = slidePosition;
+                                }
+                            }
+
+                            segFrom = positionAfterStep;
                         }
 
                         currentPosition = segFrom;
@@ -950,7 +985,21 @@ public sealed class Game
                             }
 
                             fullPath.Add(stepTo);
-                            segFrom = stepTo;
+                            var positionAfterStep = stepTo;
+
+                            // Apply ice patch slide if the piece landed on an ice patch (but only for non-Jump pieces)
+                            if (Board.HasIcePatch(positionAfterStep))
+                            {
+                                var slidePosition = ApplyIcePatchSlide(positionAfterStep, segFrom, playerId, pieceId);
+                                if (slidePosition != positionAfterStep)
+                                {
+                                    // The piece slid to a new position; add it to the full path
+                                    fullPath.Add(slidePosition);
+                                    positionAfterStep = slidePosition;
+                                }
+                            }
+
+                            segFrom = positionAfterStep;
                         }
 
                         currentPosition = segFrom;
@@ -985,6 +1034,13 @@ public sealed class Game
             Id, TurnNumber, playerId, pieceId,
             startPosition, currentPosition,
             fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
+
+        // If the piece is Elsa, place ice patches on all intermediate positions
+        // (excluding start and destination).
+        if (piece.IsElsa && startPosition != currentPosition)
+        {
+            PlaceElsaIcePatches(startPosition, fullPath);
+        }
 
         _movedPieceIds.Add(pieceId);
 
@@ -1174,6 +1230,77 @@ public sealed class Game
         if (playerId == PlayerOne)
             return LineupPlayerOne ?? throw new DomainException("PlayerOne's lineup has not been set.");
         return LineupPlayerTwo ?? throw new DomainException("PlayerTwo's lineup has not been set.");
+    }
+
+    /// <summary>
+    /// Applies an ice patch slide to a piece that has landed on an ice patch.
+    /// 
+    /// When a non-Jump piece lands on an ice patch, it slides one additional tile in the 
+    /// same direction. If the slide is blocked by an obstacle, piece, or board edge, the 
+    /// piece stops at its current position (no slide).
+    /// 
+    /// The slide:
+    /// - Collects any coin on the slide destination tile
+    /// - Does NOT count as part of a multi-move sequence (it's automatic/free)
+    /// - Interacts with Charge (may cause early termination if blocked)
+    /// - Is never applied to Jump pieces
+    /// </summary>
+    /// <param name="currentPosition">Current position of the piece (on the ice patch).</param>
+    /// <param name="previousPosition">Position before landing on the ice patch (used to calculate direction).</param>
+    /// <param name="playerId">Player collecting coins during the slide.</param>
+    /// <param name="pieceId">ID of the sliding piece (for error reporting).</param>
+    /// <returns>The position after the slide (may be the same as currentPosition if blocked).</returns>
+    private Position ApplyIcePatchSlide(Position currentPosition, Position previousPosition, Guid playerId, Guid pieceId)
+    {
+        // Calculate the direction vector from previous to current position
+        var rowDelta = Math.Sign(currentPosition.Row - previousPosition.Row);
+        var colDelta = Math.Sign(currentPosition.Col - previousPosition.Col);
+        
+        // Calculate the target position for the slide
+        var slideRow = currentPosition.Row + rowDelta;
+        var slideCol = currentPosition.Col + colDelta;
+        
+        // Check if the slide would go out of bounds
+        if (slideRow < 0 || slideRow >= Board.Size || slideCol < 0 || slideCol >= Board.Size)
+            return currentPosition; // Out of bounds: blocked
+        
+        var slideTarget = new Position(slideRow, slideCol);
+        
+        // Check if the slide is blocked by a fence
+        if (!Board.IsPassable(currentPosition, slideTarget))
+            return currentPosition; // Blocked by fence or obstacle
+        
+        // Check if the slide target is occupied by a piece
+        var slideTile = Board.GetTile(slideTarget);
+        if (slideTile.AsPiece is not null)
+            return currentPosition; // Blocked by piece
+        
+        // The slide is valid. Collect any coin at the slide destination.
+        var coin = slideTile.AsCoin;
+        if (coin is not null)
+        {
+            slideTile.ClearOccupant();
+            AddScore(playerId, coin.Value);
+            _domainEvents.Add(new CoinCollected(
+                Id, TurnNumber, playerId, pieceId, slideTarget,
+                coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+        }
+        
+        return slideTarget;
+    }
+
+    /// <summary>
+    /// Places ice patches on all intermediate positions that Elsa passed through.
+    /// Excludes the starting position and the final destination.
+    /// </summary>
+    private void PlaceElsaIcePatches(Position startPosition, IReadOnlyList<Position> fullPath)
+    {
+        // Ice patches are placed on all positions except the final destination.
+        // fullPath contains the visited positions in order (not including the starting position).
+        for (var i = 0; i < fullPath.Count - 1; i++)
+        {
+            Board.PlaceIcePatch(fullPath[i]);
+        }
     }
 
     /// <summary>
