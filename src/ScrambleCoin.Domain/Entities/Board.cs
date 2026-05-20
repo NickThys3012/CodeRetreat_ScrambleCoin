@@ -186,15 +186,52 @@ public sealed class Board
 
     /// <summary>
     /// Returns <c>true</c> if the piece at <paramref name="currentPos"/> has at least one valid move
-    /// given its <paramref name="movementType"/>. A move is valid when:
+    /// given its <paramref name="movementType"/> and optional <paramref name="maxDistance"/>.
+    /// A move is valid when:
     /// <list type="bullet">
     ///   <item><description>The target position is within board bounds.</description></item>
-    ///   <item><description>The edge is passable (<see cref="IsPassable"/>).</description></item>
-    ///   <item><description>The target tile is not occupied by another piece.</description></item>
+    ///   <item><description>For non-Jump: the edge is passable and the target tile is not occupied.</description></item>
+    ///   <item><description>For Jump: the target is within maxDistance, not occupied, and within direction constraints.</description></item>
     /// </list>
     /// </summary>
-    public bool HasAnyValidMove(Position currentPos, MovementType movementType)
+    /// <param name="currentPos">The piece's current position.</param>
+    /// <param name="movementType">The piece's movement type.</param>
+    /// <param name="maxDistance">For Jump movement, the maximum distance; ignored for other types.</param>
+    public bool HasAnyValidMove(Position currentPos, MovementType movementType, int maxDistance = 0)
     {
+        // For Jump movement, check if there's any unoccupied tile within maxDistance
+        // in the valid directions.
+        if (movementType == MovementType.Jump)
+        {
+            if (maxDistance <= 0)
+                return false; // Jump without maxDistance is invalid
+
+            for (var row = 0; row < Size; row++)
+            for (var col = 0; col < Size; col++)
+            {
+                var target = new Position(row, col);
+
+                // Skip the current position
+                if (target.Equals(currentPos))
+                    continue;
+
+                // Must not be occupied by a piece
+                if (_tiles[row, col].AsPiece is not null)
+                    continue;
+
+                // Must be within maxDistance
+                var distance = currentPos.ChebyshevDistance(target);
+                if (distance > maxDistance)
+                    continue;
+
+                // Valid jump destination found
+                return true;
+            }
+
+            return false;
+        }
+
+        // Non-Jump movement: original logic (adjacent tiles only)
         var deltas = movementType switch
         {
             MovementType.Orthogonal => new[] { (-1, 0), (1, 0), (0, -1), (0, 1) },
@@ -233,6 +270,21 @@ public sealed class Board
         return false;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> if the <paramref name="piece"/> has at least one valid move
+    /// given its current position, movement type, and movement distance constraints.
+    /// 
+    /// This overload is future-proof: as new movement types (Charge, Ethereal, etc.)
+    /// are added with additional parameters, this method can be updated centrally
+    /// without modifying the call sites in Game.cs.
+    /// </summary>
+    /// <param name="piece">The piece to check for valid moves.</param>
+    public bool HasAnyValidMove(Piece piece)
+    {
+        var currentPos = piece.Position!;
+        return HasAnyValidMove(currentPos, piece.MovementType, piece.MaxDistance);
+    }
+
     // ── Entry-point helpers ───────────────────────────────────────────────────
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is on any board edge (row = 0 or 7, or col = 0 or 7).</summary>
@@ -250,7 +302,7 @@ public sealed class Board
     /// <paramref name="entryPointType"/>.
     /// </summary>
     /// <exception cref="DomainException">Thrown for unknown <see cref="EntryPointType"/> values.</exception>
-    public bool IsValidEntryPoint(Position position, EntryPointType entryPointType) =>
+    public static bool IsValidEntryPoint(Position position, EntryPointType entryPointType) =>
         entryPointType switch
         {
             EntryPointType.Borders => IsEdgeTile(position),

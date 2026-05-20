@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
+using ScrambleCoin.Console.PlayGround;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
@@ -29,6 +30,7 @@ game.Start();
 PrintStatus(game);
 
 // ── Turn loop ─────────────────────────────────────────────────────────────────
+var viewer = new InteractiveGameViewer(game, p1, p2);
 for (var turn = 1; turn <= Game.TotalTurns; turn++)
 {
     Banner($"TURN {turn}");
@@ -44,7 +46,8 @@ for (var turn = 1; turn <= Game.TotalTurns; turn++)
     Step("Both players placed/skipped → MovePhase");
     PrintBoard(game);
 
-    // 3. Move Phase — strict order: P1 first, then P2 (phase auto-advances after all pieces move)
+    // 3. Move Phase — interactive viewer + automated moves
+    viewer.DisplayTurn();
     MoveAllPieces(game, p1, "P1");
     MoveAllPieces(game, p2, "P2");
     Step($"Turn {turn} complete → scores: P1={game.GetScore(p1)}  P2={game.GetScore(p2)}");
@@ -115,7 +118,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(row, col);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && g.Board.IsValidEntryPoint(pos, type))
+            && Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     for (var r = 0; r < Board.Size; r++)
@@ -124,7 +127,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(r, c);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && g.Board.IsValidEntryPoint(pos, type))
+            && Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     return null;

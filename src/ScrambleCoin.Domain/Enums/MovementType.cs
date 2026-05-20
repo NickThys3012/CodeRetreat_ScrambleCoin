@@ -12,5 +12,11 @@ public enum MovementType
     Diagonal,
 
     /// <summary>The piece may move in any direction (orthogonal or diagonal).</summary>
-    AnyDirection
+    AnyDirection,
+
+    /// <summary>
+    /// The piece teleports directly to its destination, ignoring all obstacles and pieces along the way.
+    /// Only collects coins at the destination tile, not intermediate tiles.
+    /// </summary>
+    Jump
 }
