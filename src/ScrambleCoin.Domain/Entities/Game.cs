@@ -780,6 +780,48 @@ public sealed class Game
                         continue;
                     }
                 
+                // Special handling for Ethereal movement.
+                // Ethereal moves are encoded as a sequence of steps (like Orthogonal/Diagonal).
+                case MovementType.Ethereal:
+                    {
+                        if (segment.Count > piece.MaxDistance)
+                            throw new DomainException(
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
+
+                        var segFrom = currentPosition;
+
+                        foreach (var stepTo in segment)
+                        {
+                            // Ethereal is only valid as Any direction (orthogonal or diagonal)
+                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+
+                            // Ethereal respects fences (but not occupants on intermediate tiles)
+                            if (Board.IsFenceBlocked(segFrom, stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked by a fence.");
+
+                            // Collect coin if present at intermediate tiles.
+                            var stepTile = Board.GetTile(stepTo);
+                            var coin = stepTile.AsCoin;
+                            if (coin is not null)
+                            {
+                                stepTile.ClearOccupant();
+                                AddScore(playerId, coin.Value);
+                                _domainEvents.Add(new CoinCollected(
+                                    Id, TurnNumber, playerId, pieceId, stepTo,
+                                    coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                            }
+
+                            fullPath.Add(stepTo);
+                            segFrom = stepTo;
+                        }
+
+                        currentPosition = segFrom;
+                        break;
+                    }
+                
                 // For Jump movement, each segment should be a single destination position.
                 // For other movement types, the segment is a sequence of steps.
                 case MovementType.Jump when segment.Count != 1:
@@ -915,6 +957,15 @@ public sealed class Game
                         break;
                     }
             }
+        }
+
+        // Special validation for Ethereal movement: destination must not have a piece occupant (only if moved).
+        if (piece.MovementType == MovementType.Ethereal && currentPosition != startPosition)
+        {
+            var destinationTile = Board.GetTile(currentPosition);
+            if (destinationTile.AsPiece is not null)
+                throw new DomainException(
+                    $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
         }
 
         // Move the piece on the board.

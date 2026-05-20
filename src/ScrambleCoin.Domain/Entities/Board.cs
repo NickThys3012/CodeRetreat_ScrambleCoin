@@ -135,6 +135,64 @@ public sealed class Board
         return true;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> if there is a Fence blocking movement from <paramref name="from"/> to <paramref name="to"/>.
+    /// This method does NOT check for rocks, lakes, or piece occupants — only fence edges.
+    /// </summary>
+    /// <remarks>
+    /// Used by movement types like Ethereal that ignore occupants but still respect fences.
+    /// </remarks>
+    /// <exception cref="DomainException">
+    /// Thrown if <paramref name="from"/> and <paramref name="to"/> are not adjacent.
+    /// </exception>
+    public bool IsFenceBlocked(Position from, Position to)
+    {
+        // Guard: positions must be adjacent (orthogonally or diagonally)
+        if (!from.IsOrthogonallyAdjacentTo(to) && !from.IsDiagonallyAdjacentTo(to))
+            throw new DomainException($"Positions {from} and {to} are not adjacent.");
+
+        var rowDiff = to.Row - from.Row;
+        var colDiff = to.Col - from.Col;
+
+        var isOrthogonal = Math.Abs(rowDiff) == 1 && colDiff == 0 ||
+                           rowDiff == 0 && Math.Abs(colDiff) == 1;
+
+        var isDiagonal = Math.Abs(rowDiff) == 1 && Math.Abs(colDiff) == 1;
+
+        if (isOrthogonal)
+        {
+            // Blocked by a fence directly on this edge
+            if (_fences.Any(f => f.IsOnEdge(from, to)))
+                return true;
+        }
+        else if (isDiagonal)
+        {
+            // A diagonal move from A=(r, c) to B=(r+dr, c+dc) is blocked when two
+            // fences form a corner at either intermediate tile:
+            //   cornerA = (r+dr, c) — shares a row with B, a col with A
+            //   cornerB = (r, c+dc) — shares a col with B, a row with A
+            //
+            // Corner at A: fence A↔cornerA AND fence A↔cornerB → L-shape at A
+            // Corner at B: fence B↔cornerA AND fence B↔cornerB → L-shape at B
+            var cornerA = new Position(from.Row + rowDiff, from.Col); // vertically adjacent to from
+            var cornerB = new Position(from.Row, from.Col + colDiff); // horizontally adjacent to from
+
+            // Corner at the 'from' side
+            var fenceFromVertical   = _fences.Any(f => f.IsOnEdge(from, cornerA));
+            var fenceFromHorizontal = _fences.Any(f => f.IsOnEdge(from, cornerB));
+            if (fenceFromVertical && fenceFromHorizontal)
+                return true;
+
+            // Corner at the 'to' side (symmetric case — blocks *entry* into to)
+            var fenceToVertical   = _fences.Any(f => f.IsOnEdge(to, cornerA));
+            var fenceToHorizontal = _fences.Any(f => f.IsOnEdge(to, cornerB));
+            if (fenceToVertical && fenceToHorizontal)
+                return true;
+        }
+
+        return false;
+    }
+
     // ── Obstacle coverage ────────────────────────────────────────────────────
 
     /// <summary>
@@ -251,6 +309,30 @@ public sealed class Board
 
             var neighbor = new Position(newRow, newCol);
 
+            // For Ethereal, only check fence blocking; destination must have no piece and no obstacle.
+            if (movementType == MovementType.Ethereal)
+            {
+                try
+                {
+                    if (IsFenceBlocked(currentPos, neighbor))
+                        continue;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                // Destination must not have an obstacle (rock or lake) or a piece
+                if (IsObstacleCovering(neighbor))
+                    continue;
+
+                if (_tiles[newRow, newCol].AsPiece is not null)
+                    continue;
+
+                return true;
+            }
+
+            // For other movement types, use the standard passability check.
             try
             {
                 if (!IsPassable(currentPos, neighbor))
