@@ -748,13 +748,17 @@ public sealed class Game
         for (var segIndex = 0; segIndex < segments.Count; segIndex++)
         {
             var segment = segments[segIndex];
+            
+            // Get the per-segment movement type and max distance
+            var segmentMovementType = piece.GetSegmentMovementType(segIndex);
+            var segmentMaxDistance = piece.GetSegmentMaxDistance(segIndex);
 
             if (segment.Count == 0)
             {
                 // An empty segment is only permitted when the piece has no valid move.
-                var hasValidMoveAtCurrentPos = piece.MovementType == MovementType.Jump
-                    ? Board.HasAnyValidMove(currentPosition, piece.MovementType, piece.MaxDistance)
-                    : Board.HasAnyValidMove(currentPosition, piece.MovementType);
+                var hasValidMoveAtCurrentPos = segmentMovementType == MovementType.Jump
+                    ? Board.HasAnyValidMove(currentPosition, segmentMovementType, segmentMaxDistance)
+                    : Board.HasAnyValidMove(currentPosition, segmentMovementType);
 
                 if (hasValidMoveAtCurrentPos)
                     throw new DomainException(
@@ -762,7 +766,7 @@ public sealed class Game
                 continue;
             }
 
-            switch (piece.MovementType)
+            switch (segmentMovementType)
             {
                 // Special handling for Charge movement.
                 // Charge moves are encoded as a single segment with 1 position (the first step).
@@ -772,7 +776,7 @@ public sealed class Game
                 case MovementType.Charge:
                     {
                         var firstStep = segment[0];
-                        var chargePath = ResolveChargePath(currentPosition, firstStep, pieceId, piece.MovementType, playerId);
+                        var chargePath = ResolveChargePath(currentPosition, firstStep, pieceId, segmentMovementType, playerId);
 
                         // Even if the first step is blocked (empty path), the move is still performed.
                         fullPath.AddRange(chargePath);
@@ -805,9 +809,9 @@ public sealed class Game
                 // Ethereal moves are encoded as a sequence of steps (like Orthogonal/Diagonal).
                 case MovementType.Ethereal:
                     {
-                        if (segment.Count > piece.MaxDistance)
+                        if (segment.Count > segmentMaxDistance)
                             throw new DomainException(
-                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
 
                         var segFrom = currentPosition;
 
@@ -876,7 +880,7 @@ public sealed class Game
                                 $"Piece {pieceId}" + $": jump destination must be different from the current position.");
 
                         // Validate direction matches movement type
-                        switch (piece.MovementType)
+                        switch (segmentMovementType)
                         {
                             case MovementType.Orthogonal:
                                 // Orthogonal: either row is 0 or col is 0 (but not both, already checked above)
@@ -899,11 +903,11 @@ public sealed class Game
                         }
 
                         // Calculate distance based on the direction of the jump
-                        var distance = CalculateJumpDistance(currentPosition, destination, piece.MovementType);
+                        var distance = CalculateJumpDistance(currentPosition, destination, segmentMovementType);
 
-                        if (distance > piece.MaxDistance)
+                        if (distance > segmentMaxDistance)
                             throw new DomainException(
-                                $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {piece.MaxDistance}.");
+                                $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {segmentMaxDistance}.");
 
                         // Destination must not be occupied by a piece or obstacle.
                         if (Board.IsObstacleCovering(destination))
@@ -934,16 +938,16 @@ public sealed class Game
                 default:
                     {
                         // Non-Jump movement: original step-by-step validation
-                        if (segment.Count > piece.MaxDistance)
+                        if (segment.Count > segmentMaxDistance)
                             throw new DomainException(
-                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
 
                         var segFrom = currentPosition;
 
                         foreach (var stepTo in segment)
                         {
-                            // Validate step adjacency based on MovementType.
-                            switch (piece.MovementType)
+                            // Validate step adjacency based on the segment's MovementType.
+                            switch (segmentMovementType)
                             {
                                 case MovementType.Orthogonal:
                                     if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
@@ -1009,7 +1013,9 @@ public sealed class Game
         }
 
         // Special validation for Ethereal movement: destination must not have a piece occupant (only if moved).
-        if (piece.MovementType == MovementType.Ethereal && currentPosition != startPosition)
+        // Note: For multi-step pieces, only check the last segment's movement type
+        var finalSegmentMovementType = piece.GetSegmentMovementType(segments.Count - 1);
+        if (finalSegmentMovementType == MovementType.Ethereal && currentPosition != startPosition)
         {
             var destinationTile = Board.GetTile(currentPosition);
             if (destinationTile.AsPiece is not null)

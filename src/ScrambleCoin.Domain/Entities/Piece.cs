@@ -43,6 +43,20 @@ public sealed class Piece
     /// </summary>
     public int MovesPerTurn { get; }
 
+    /// <summary>
+    /// When a piece has multi-step movement sequences (MovesPerTurn > 1),
+    /// this list specifies the movement type constraint for each segment.
+    /// If null or has fewer entries than MovesPerTurn, segments use the primary <see cref="MovementType"/>.
+    /// </summary>
+    public IReadOnlyList<MovementType>? SegmentMovementTypes { get; private set; }
+
+    /// <summary>
+    /// When a piece has multi-step movement sequences (MovesPerTurn > 1),
+    /// this list specifies the maximum distance for each segment.
+    /// If null or has fewer entries than MovesPerTurn, segments use the primary <see cref="MaxDistance"/>.
+    /// </summary>
+    public IReadOnlyList<int>? SegmentMaxDistances { get; private set; }
+
     /// <summary>Returns <c>true</c> when the piece has been placed on the board.</summary>
     public bool IsOnBoard => Position is not null;
 
@@ -100,6 +114,48 @@ public sealed class Piece
 
     /// <summary>Removes this piece from the board; <see cref="Position"/> becomes <c>null</c>.</summary>
     public void RemoveFromBoard() => Position = null;
+
+    /// <summary>
+    /// Sets the per-segment movement type constraints for multi-step pieces.
+    /// If null, all segments use the primary <see cref="MovementType"/>.
+    /// </summary>
+    public void SetSegmentMovementTypes(params MovementType[] types)
+    {
+        if (types != null && types.Length > 0)
+            SegmentMovementTypes = types.ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Sets the per-segment maximum distance constraints for multi-step pieces.
+    /// If null, all segments use the primary <see cref="MaxDistance"/>.
+    /// </summary>
+    public void SetSegmentMaxDistances(params int[] distances)
+    {
+        if (distances != null && distances.Length > 0)
+            SegmentMaxDistances = distances.ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets the movement type constraint for the specified segment index.
+    /// Returns the per-segment type if set, otherwise the primary <see cref="MovementType"/>.
+    /// </summary>
+    public MovementType GetSegmentMovementType(int segmentIndex)
+    {
+        if (SegmentMovementTypes != null && segmentIndex < SegmentMovementTypes.Count)
+            return SegmentMovementTypes[segmentIndex];
+        return MovementType;
+    }
+
+    /// <summary>
+    /// Gets the maximum distance constraint for the specified segment index.
+    /// Returns the per-segment max distance if set, otherwise the primary <see cref="MaxDistance"/>.
+    /// </summary>
+    public int GetSegmentMaxDistance(int segmentIndex)
+    {
+        if (SegmentMaxDistances != null && segmentIndex < SegmentMaxDistances.Count)
+            return SegmentMaxDistances[segmentIndex];
+        return MaxDistance;
+    }
 
     /// <summary>
     /// Returns <c>true</c> if this piece is Elsa (identified by name).

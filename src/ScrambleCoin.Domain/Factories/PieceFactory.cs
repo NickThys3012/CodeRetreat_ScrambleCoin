@@ -18,12 +18,19 @@ public static class PieceFactory
     private static readonly IReadOnlyDictionary<string, PieceTemplate> Catalogue =
         new Dictionary<string, PieceTemplate>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Mickey"]  = new(EntryPointType.Borders, MovementType.Orthogonal,  MaxDistance: 3, MovesPerTurn: 1),
-            ["Minnie"]  = new(EntryPointType.Borders, MovementType.Diagonal,    MaxDistance: 3, MovesPerTurn: 1),
-            ["Donald"]  = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
-            ["Goofy"]   = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
-            ["Scrooge"] = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
-            ["Elsa"]    = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 4, MovesPerTurn: 1)
+            ["Mickey"]    = new(EntryPointType.Borders, MovementType.Orthogonal,  MaxDistance: 3, MovesPerTurn: 1),
+            ["Minnie"]    = new(EntryPointType.Borders, MovementType.Diagonal,    MaxDistance: 3, MovesPerTurn: 1),
+            ["Donald"]    = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
+            ["Goofy"]     = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
+            ["Scrooge"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            ["Elsa"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 4, MovesPerTurn: 1),
+            // Multi-step movement pieces
+            ["Cogsworth"] = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.Orthogonal }, SegmentMaxDistances: new[] { 1, 2 }),
+            ["Lumiere"]   = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.Diagonal }, SegmentMaxDistances: new[] { 1, 2 }),
+            ["Remy"]      = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.Diagonal, MovementType.Diagonal }, SegmentMaxDistances: new[] { 2, 2 }),
+            ["Anna"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Orthogonal, MovementType.Orthogonal, MovementType.Orthogonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
+            ["Olaf"]      = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.AnyDirection }, SegmentMaxDistances: new[] { 1, 1 }),
+            ["Kristoff"]  = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Diagonal, MovementType.Diagonal, MovementType.Diagonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -41,13 +48,27 @@ public static class PieceFactory
             throw new DomainException(
                 $"Unknown piece name '{pieceName}'. Known pieces: {string.Join(", ", Catalogue.Keys)}.");
 
-        return new Piece(
+        var piece = new Piece(
             pieceName,
             playerId,
             template.EntryPointType,
             template.MovementType,
             template.MaxDistance,
             template.MovesPerTurn);
+
+        // If the template specifies per-segment movement types, set them
+        if (template.SegmentTypes != null && template.SegmentTypes.Length > 0)
+        {
+            piece.SetSegmentMovementTypes(template.SegmentTypes);
+        }
+
+        // If the template specifies per-segment max distances, set them
+        if (template.SegmentMaxDistances != null && template.SegmentMaxDistances.Length > 0)
+        {
+            piece.SetSegmentMaxDistances(template.SegmentMaxDistances);
+        }
+
+        return piece;
     }
 
     // ── Template ──────────────────────────────────────────────────────────────
@@ -56,5 +77,7 @@ public static class PieceFactory
         EntryPointType EntryPointType,
         MovementType MovementType,
         int MaxDistance,
-        int MovesPerTurn);
+        int MovesPerTurn,
+        MovementType[]? SegmentTypes = null,
+        int[]? SegmentMaxDistances = null);
 }
