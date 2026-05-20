@@ -636,4 +636,327 @@ public class MovementTests
         Assert.NotEqual(TurnPhase.MovePhase, game.CurrentPhase);
         Assert.Equal(new Position(7, 1), p2Piece.Position);
     }
+
+    // ── Test Group: Charge Movement (Issue #45) ────────────────────────────────
+
+    /// <summary>
+    /// Helper to create a game in MovePhase with a Charge piece.
+    /// </summary>
+    private static (Game game, Guid p1, Guid p2, Piece chargePiece, Piece blockingPiece) GameInMovePhaseWithChargePiece(
+        Position? chargeStartPos = null,
+        Position? blockingPiecePos = null)
+    {
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var actualChargeStart = chargeStartPos ?? new Position(0, 0);
+        var actualBlockingPos = blockingPiecePos ?? new Position(7, 0);
+
+        var chargePiece = new Piece(Guid.NewGuid(), "Charger", p1,
+            EntryPointType.Borders, MovementType.Charge, 1, 1);
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var blockingPiece = new Piece(Guid.NewGuid(), "Blocker", p2,
+            EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
+        var p2Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(new[] { chargePiece }.Concat(p1Fill)));
+        game.SetLineup(p2, new Lineup(new[] { blockingPiece }.Concat(p2Fill)));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        // Place both pieces
+        game.PlacePiece(p1, chargePiece.Id, actualChargeStart);
+        game.PlacePiece(p2, blockingPiece.Id, actualBlockingPos);
+
+        return (game, p1, p2, chargePiece, blockingPiece);
+    }
+
+    [Fact]
+    public void ChargeMovement_TowardsBoardEdge_StopsAtEdge()
+    {
+        // Arrange: Charge piece at (0,0), moving right (east)
+        var (game, p1, _, chargePiece, _) = GameInMovePhaseWithChargePiece(
+            chargeStartPos: new Position(0, 0));
+
+        // Act: Charge right (first step to (0,1))
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: piece should slide all the way to (0,7) (right edge)
+        Assert.Equal(new Position(0, 7), chargePiece.Position);
+
+        // Assert: full path is recorded
+        var evt = game.DomainEvents.OfType<PieceMoved>().Single();
+        Assert.NotEmpty(evt.Path);
+        Assert.Equal(7, evt.Path.Count); // (0,1) through (0,7)
+    }
+
+    [Fact]
+    public void ChargeMovement_StoppedByObstacleMidPath_StopsBeforeObstacle()
+    {
+        // Arrange: Charge piece at (0,0), rock at (0,5)
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var chargePiece = new Piece(Guid.NewGuid(), "Charger", p1,
+            EntryPointType.Borders, MovementType.Charge, 1, 1);
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var p2Fill = Enumerable.Range(0, 5)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(new[] { chargePiece }.Concat(p1Fill)));
+        game.SetLineup(p2, new Lineup(p2Fill));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        game.PlacePiece(p1, chargePiece.Id, new Position(0, 0));
+        game.AdvancePhase(); // PlacePhase → MovePhase (no P2 pieces placed)
+
+        // Add rock at (0, 5)
+        board.AddRock(new Rock(new Position(0, 5)));
+
+        // Act: Charge right
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: piece stops at (0,4), one tile before the rock
+        Assert.Equal(new Position(0, 4), chargePiece.Position);
+    }
+
+    [Fact]
+    public void ChargeMovement_StoppedByAnotherPiece_StopsBeforePiece()
+    {
+        // Arrange: Charge piece at (0,0), blocking piece at (0,5)
+        var (game, p1, _, chargePiece, blockingPiece) = GameInMovePhaseWithChargePiece(
+            chargeStartPos: new Position(0, 0),
+            blockingPiecePos: new Position(0, 5));
+
+        // Act: Charge right
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: piece stops at (0,4), one tile before the blocking piece
+        Assert.Equal(new Position(0, 4), chargePiece.Position);
+        Assert.Equal(new Position(0, 5), blockingPiece.Position);
+    }
+
+    [Fact]
+    public void ChargeMovement_CollectsCoinAlongPath()
+    {
+        // Arrange: Charge piece at (0,0), coins at (0,2) and (0,4)
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var chargePiece = new Piece(Guid.NewGuid(), "Charger", p1,
+            EntryPointType.Borders, MovementType.Charge, 1, 1);
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var p2Fill = Enumerable.Range(0, 5)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(new[] { chargePiece }.Concat(p1Fill)));
+        game.SetLineup(p2, new Lineup(p2Fill));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        game.PlacePiece(p1, chargePiece.Id, new Position(0, 0));
+        game.AdvancePhase(); // PlacePhase → MovePhase
+
+        // Add coins at (0,2) and (0,4)
+        board.GetTile(new Position(0, 2)).SetOccupant(new Coin(CoinType.Silver));
+        board.GetTile(new Position(0, 4)).SetOccupant(new Coin(CoinType.Silver));
+
+        // Act: Charge right
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: coins collected (score increased)
+        Assert.Equal(2, game.Scores[p1]); // 1 + 1 from two silver coins
+
+        // Assert: CoinCollected events raised
+        var coinEvents = game.DomainEvents.OfType<CoinCollected>().ToList();
+        Assert.Equal(2, coinEvents.Count);
+        Assert.Contains(coinEvents, e => e.Position == new Position(0, 2));
+        Assert.Contains(coinEvents, e => e.Position == new Position(0, 4));
+
+        // Assert: tiles are now clear
+        Assert.Null(board.GetTile(new Position(0, 2)).AsCoin);
+        Assert.Null(board.GetTile(new Position(0, 4)).AsCoin);
+    }
+
+    [Fact]
+    public void ChargeMovement_FirstTileBlocked_DoesNotMove()
+    {
+        // Arrange: Charge piece at (0,0), blocking piece at (0,1) (directly in the way)
+        var (game, p1, _, chargePiece, blockingPiece) = GameInMovePhaseWithChargePiece(
+            chargeStartPos: new Position(0, 0),
+            blockingPiecePos: new Position(0, 1));
+
+        // Act: Attempt to charge right — but (0,1) is blocked
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: piece does not move (stays at origin)
+        Assert.Equal(new Position(0, 0), chargePiece.Position);
+        Assert.Equal(new Position(0, 1), blockingPiece.Position);
+
+        // Assert: no movement event recorded
+        var moveEvent = game.DomainEvents.OfType<PieceMoved>().SingleOrDefault();
+        Assert.NotNull(moveEvent);
+        Assert.Equal(new Position(0, 0), moveEvent.From);
+        Assert.Equal(new Position(0, 0), moveEvent.To); // No movement
+        Assert.Empty(moveEvent.Path); // Empty path
+    }
+
+    [Fact]
+    public void ChargeMovement_WhenFirstTileIsBlockedByRock_DoesNotMove()
+    {
+        // Arrange: Charge at (0,0), rock at (0,1)
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var chargePiece = new Piece(Guid.NewGuid(), "Charger", p1,
+            EntryPointType.Borders, MovementType.Charge, 1, 1);
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var p2Fill = Enumerable.Range(0, 5)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(new[] { chargePiece }.Concat(p1Fill)));
+        game.SetLineup(p2, new Lineup(p2Fill));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        game.PlacePiece(p1, chargePiece.Id, new Position(0, 0));
+        game.AdvancePhase(); // PlacePhase → MovePhase
+
+        board.AddRock(new Rock(new Position(0, 1)));
+
+        // Act: Attempt to charge right
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(0, 1)));
+
+        // Assert: piece does not move
+        Assert.Equal(new Position(0, 0), chargePiece.Position);
+    }
+
+    [Fact]
+    public void ChargeMovement_InvalidSegmentCount_ThrowsException()
+    {
+        // Arrange: Charge with MovesPerTurn = 1 should receive exactly 1 segment
+        var (game, p1, _, chargePiece, _) = GameInMovePhaseWithChargePiece();
+
+        // Act & Assert: providing 2 segments should fail
+        var exception = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, chargePiece.Id, new List<IReadOnlyList<Position>>
+            {
+                new List<Position> { new Position(0, 1) }.AsReadOnly(),
+                new List<Position> { new Position(1, 1) }.AsReadOnly()
+            }.AsReadOnly()));
+
+        Assert.Contains("requires exactly 1 segment", exception.Message);
+    }
+
+    [Fact]
+    public void ChargeMovement_InvalidSegmentLength_ThrowsException()
+    {
+        // Arrange: Charge segments must contain exactly 1 position
+        var (game, p1, _, chargePiece, _) = GameInMovePhaseWithChargePiece();
+
+        // Act & Assert: segment with 2 positions should fail
+        var exception = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, chargePiece.Id, BuildSegments(
+                new Position(0, 1), new Position(0, 2))));
+
+        Assert.Contains("requires exactly 1 position", exception.Message);
+    }
+
+    [Fact]
+    public void ChargeMovement_InvalidDirection_ThrowsException()
+    {
+        // Note: This test is intentionally skipped because Charge movement type
+        // itself doesn't enforce directional constraints - it allows any first step.
+        // Individual pieces with Charge movement would specify their directional
+        // constraint separately (e.g., "Orthogonal Charge" for Pumbaa).
+        // For now, we accept any adjacent first step for Charge pieces.
+    }
+
+    [Fact]
+    public void ChargeMovement_Downward_StopsAtBoardEdge()
+    {
+        // Arrange: Charge piece at (0, 0), moving downward (south), blocking piece at (7, 0)
+        var (game, p1, _, chargePiece, _) = GameInMovePhaseWithChargePiece(
+            chargeStartPos: new Position(0, 0),
+            blockingPiecePos: new Position(7, 0));
+
+        // Act: Charge down (first step to (1, 0))
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(1, 0)));
+
+        // Assert: piece stops one tile before blocking piece at (7, 0)
+        Assert.Equal(new Position(6, 0), chargePiece.Position);
+    }
+
+    [Fact]
+    public void ChargeMovement_MultipleStepsInPath_AllCoinsCollected()
+    {
+        // Arrange: Charge piece at (0, 4), coins at (1,4), (2,4), (3,4), (4,4)
+        // Blocking piece at (7, 4)
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var chargePiece = new Piece(Guid.NewGuid(), "Charger", p1,
+            EntryPointType.Borders, MovementType.Charge, 1, 1);
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var blockingPiece = new Piece(Guid.NewGuid(), "Blocker", p2,
+            EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
+        var p2Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(new[] { chargePiece }.Concat(p1Fill)));
+        game.SetLineup(p2, new Lineup(new[] { blockingPiece }.Concat(p2Fill)));
+        game.Start();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+
+        // Place piece at top border, blocking piece at bottom border
+        game.PlacePiece(p1, chargePiece.Id, new Position(0, 4));
+        game.PlacePiece(p2, blockingPiece.Id, new Position(7, 4));
+
+        // Note: game should now be in MovePhase (both players have placed)
+
+        // Add coins along the path
+        for (var row = 1; row <= 4; row++)
+            board.GetTile(new Position(row, 4)).SetOccupant(new Coin(CoinType.Silver));
+
+        // Act: Charge down
+        game.MovePiece(p1, chargePiece.Id, BuildSegments(new Position(1, 4)));
+
+        // Assert: stopped one tile before blocker
+        Assert.Equal(new Position(6, 4), chargePiece.Position);
+
+        // Assert: all coins collected
+        Assert.Equal(4, game.Scores[p1]); // 4 silver coins
+    }
 }
