@@ -155,9 +155,9 @@ public sealed class Game
 
     /// <summary>
     /// Creates a new game shell in <see cref="GameStatus.WaitingForBots"/> state,
-    /// with two randomly-generated player slot identifiers.
+    /// with two randomly generated player slot identifiers.
     /// Bots joining via <c>POST /api/games/{gameId}/join</c> will receive one of these
-    /// slot IDs as their <c>playerId</c> and use it for all subsequent game actions.
+    /// slot IDs as their <c>playerId</c> and use it for all later game actions.
     /// </summary>
     /// <param name="board">The pre-constructed game board.</param>
     /// <returns>A new <see cref="Game"/> with empty lineups awaiting bot registration.</returns>
@@ -614,7 +614,7 @@ public sealed class Game
         existingPiece.RemoveFromBoard();
         _piecesOnBoard[playerId]--;
 
-        // The tile was occupied by the old piece, so it is now clear. No occupant check needed.
+        // The tile was occupied by the old piece, so it is now clear. No occupant check is needed.
         var tile = Board.GetTile(targetPosition);
 
         // Collect coin if present at the target tile.
@@ -776,7 +776,7 @@ public sealed class Game
                 var rowDiff = destination.Row - currentPosition.Row;
                 var colDiff = destination.Col - currentPosition.Col;
 
-                // Cannot jump to same position
+                // Cannot jump to the same position
                 if (rowDiff == 0 && colDiff == 0)
                     throw new DomainException(
                         $"Piece {pieceId}: jump destination must be different from current position.");
@@ -797,14 +797,14 @@ public sealed class Game
                                 $"Piece {pieceId}: jump from {currentPosition} to {destination} is not diagonal (must move equal rows and columns).");
                         break;
                     case MovementType.AnyDirection:
-                        // Any direction: no restriction (already checked not same position above)
+                        // Any direction: no restriction (already checked different position above)
                         break;
                     case MovementType.Jump:
                         // Jump can go in any direction; no directional constraint
                         break;
                 }
 
-                // Calculate distance based on the direction of jump
+                // Calculate distance based on the direction of the jump
                 var distance = CalculateJumpDistance(currentPosition, destination, piece.MovementType);
 
                 if (distance > piece.MaxDistance)
