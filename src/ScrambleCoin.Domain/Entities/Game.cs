@@ -889,28 +889,8 @@ public sealed class Game
                             throw new DomainException(
                                 $"Piece {pieceId}" + $": jump destination must be different from the current position.");
 
-                        // Validate direction matches movement type
-                        switch (segmentMovementType)
-                        {
-                            case MovementType.Orthogonal:
-                                // Orthogonal: either row is 0 or col is 0 (but not both, already checked above)
-                                if (rowDiff != 0 && colDiff != 0)
-                                    throw new DomainException(
-                                        $"Piece {pieceId}: jump from {currentPosition} to {destination} is not orthogonal (must move only horizontally or vertically).");
-                                break;
-                            case MovementType.Diagonal:
-                                // Diagonal: row diff equals col diff in absolute value
-                                if (Math.Abs(rowDiff) != Math.Abs(colDiff))
-                                    throw new DomainException(
-                                        $"Piece {pieceId}: jump from {currentPosition} to {destination} is not diagonal (must move equal rows and columns).");
-                                break;
-                            case MovementType.AnyDirection:
-                                // Any direction: no restriction (already checked different position above)
-                                break;
-                            case MovementType.Jump:
-                                // Jump can go in any direction; no directional constraint
-                                break;
-                        }
+                        // Validate direction constraint for this jump's movement type
+                        ValidateJumpDirectionConstraint(pieceId, currentPosition, destination, rowDiff, colDiff, segmentMovementType);
 
                         // Calculate distance based on the direction of the jump
                         var distance = CalculateJumpDistance(currentPosition, destination, segmentMovementType);
@@ -2036,6 +2016,39 @@ public sealed class Game
             var randomAlly = adjacentAllies[selectedIndex];
             randomAlly.ApplyCoinBuff(1);
             _domainEvents.Add(new CoinBuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, randomAlly.Id, 1, DateTimeOffset.UtcNow));
+        }
+    }
+
+    /// <summary>
+    /// Validates that a jump destination respects the piece's directional constraint.
+    /// Jump pieces can have directional modifiers (Orthogonal-Jump, Diagonal-Jump, AnyDirection-Jump).
+    /// </summary>
+    private void ValidateJumpDirectionConstraint(
+        Guid pieceId, Position from, Position to, int rowDiff, int colDiff, MovementType movementType)
+    {
+        switch (movementType)
+        {
+            case MovementType.Orthogonal:
+                // Orthogonal-Jump: horizontal or vertical only
+                if (rowDiff != 0 && colDiff != 0)
+                    throw new DomainException(
+                        $"Piece {pieceId}: jump from {from} to {to} is not orthogonal (must move only horizontally or vertically).");
+                break;
+
+            case MovementType.Diagonal:
+                // Diagonal-Jump: equal row and column distance
+                if (Math.Abs(rowDiff) != Math.Abs(colDiff))
+                    throw new DomainException(
+                        $"Piece {pieceId}: jump from {from} to {to} is not diagonal (must move equal rows and columns).");
+                break;
+
+            case MovementType.AnyDirection:
+                // AnyDirection-Jump: no directional restriction
+                break;
+
+            case MovementType.Jump:
+                // Pure Jump: can go in any direction
+                break;
         }
     }
 
