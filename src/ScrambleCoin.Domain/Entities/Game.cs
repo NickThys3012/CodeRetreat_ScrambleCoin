@@ -966,6 +966,10 @@ public sealed class Game
             if (destinationTile.AsPiece is not null)
                 throw new DomainException(
                     $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
+            
+            if (Board.IsObstacleCovering(currentPosition))
+                throw new DomainException(
+                    $"Piece {pieceId}: tile {currentPosition} is covered by an obstacle. Ethereal movement must end on a free tile.");
         }
 
         // Move the piece on the board.

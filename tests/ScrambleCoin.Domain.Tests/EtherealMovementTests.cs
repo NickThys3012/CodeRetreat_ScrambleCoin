@@ -374,4 +374,40 @@ public class EtherealMovementTests
         Assert.Equal(new Position(0, 2), moveEvent.To);
         Assert.Equal(new[] { new Position(0, 1), new Position(0, 2) }, moveEvent.Path);
     }
+
+    [Fact]
+    public void Ethereal_EndOnRock_Throws()
+    {
+        // Arrange: Ethereal piece at (0,0), rock at destination (0,1)
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithEtherealPiece(
+            p1MaxDistance: 1,
+            p1StartPos: new Position(0, 0));
+        
+        var destPos = new Position(0, 1);
+        game.Board.AddRock(new Rock(destPos));
+
+        // Act & Assert: attempting to end on rock throws
+        var ex = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, p1Piece.Id, BuildEtherealSegment(destPos))
+        );
+        Assert.Contains("obstacle", ex.Message);
+    }
+
+    [Fact]
+    public void Ethereal_EndOnLake_Throws()
+    {
+        // Arrange: Ethereal piece at (0,0), lake at destination (0,1)
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithEtherealPiece(
+            p1MaxDistance: 1,
+            p1StartPos: new Position(0, 0));
+        
+        var destPos = new Position(0, 1);
+        game.Board.AddLake(new Lake(destPos));
+
+        // Act & Assert: attempting to end on lake throws
+        var ex = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, p1Piece.Id, BuildEtherealSegment(destPos))
+        );
+        Assert.Contains("obstacle", ex.Message);
+    }
 }
