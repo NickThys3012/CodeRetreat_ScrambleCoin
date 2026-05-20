@@ -155,9 +155,9 @@ public sealed class Game
 
     /// <summary>
     /// Creates a new game shell in <see cref="GameStatus.WaitingForBots"/> state,
-    /// with two randomly-generated player slot identifiers.
+    /// with two randomly generated player slot identifiers.
     /// Bots joining via <c>POST /api/games/{gameId}/join</c> will receive one of these
-    /// slot IDs as their <c>playerId</c> and use it for all subsequent game actions.
+    /// slot IDs as their <c>playerId</c> and use it for all later game actions.
     /// </summary>
     /// <param name="board">The pre-constructed game board.</param>
     /// <returns>A new <see cref="Game"/> with empty lineups awaiting bot registration.</returns>
@@ -614,7 +614,7 @@ public sealed class Game
         existingPiece.RemoveFromBoard();
         _piecesOnBoard[playerId]--;
 
-        // The tile was occupied by the old piece, so it is now clear. No occupant check needed.
+        // The tile was occupied by the old piece, so it is now clear. No occupant check is needed.
         var tile = Board.GetTile(targetPosition);
 
         // Collect coin if present at the target tile.
@@ -726,7 +726,7 @@ public sealed class Game
         var currentPosition = startPosition;
 
         // Check whether the piece has any valid first move (used to allow empty segments).
-        var hasAnyValidMove = Board.HasAnyValidMove(currentPosition, piece.MovementType);
+        var hasAnyValidMove = Board.HasAnyValidMove(piece);
 
         // Validate segment count.
         if (segments.Count != piece.MovesPerTurn)
@@ -752,67 +752,169 @@ public sealed class Game
             if (segment.Count == 0)
             {
                 // An empty segment is only permitted when the piece has no valid move.
-                if (Board.HasAnyValidMove(currentPosition, piece.MovementType))
+                var hasValidMoveAtCurrentPos = piece.MovementType == MovementType.Jump
+                    ? Board.HasAnyValidMove(currentPosition, piece.MovementType, piece.MaxDistance)
+                    : Board.HasAnyValidMove(currentPosition, piece.MovementType);
+
+                if (hasValidMoveAtCurrentPos)
                     throw new DomainException(
                         $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
                 continue;
             }
 
-            if (segment.Count > piece.MaxDistance)
-                throw new DomainException(
-                    $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
-
-            var segFrom = currentPosition;
-
-            foreach (var stepTo in segment)
+            switch (piece.MovementType)
             {
-                // Validate step adjacency based on MovementType.
-                switch (piece.MovementType)
-                {
-                    case MovementType.Orthogonal:
-                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
-                        break;
-                    case MovementType.Diagonal:
-                        if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
-                        break;
-                    case MovementType.AnyDirection:
-                        if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
-                            throw new DomainException(
-                                $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
-                        break;
-                }
-
-                // Passability (obstacles + fences).
-                if (!Board.IsPassable(segFrom, stepTo))
+                // Special handling for Charge movement.
+                // Charge moves are encoded as a single segment with 1 position (the first step).
+                case MovementType.Charge when segment.Count != 1:
                     throw new DomainException(
-                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+                        $"Piece {pieceId}, segment {segIndex}: Charge movement requires exactly 1 position, but {segment.Count} were provided.");
+                case MovementType.Charge:
+                    {
+                        var firstStep = segment[0];
+                        var chargePath = ResolveChargePath(currentPosition, firstStep, pieceId, piece.MovementType, playerId);
 
-                // A piece must not occupy Target.
-                var targetTile = Board.GetTile(stepTo);
-                if (targetTile.AsPiece is not null)
+                        // Even if the first step is blocked (empty path), the move is still performed.
+                        fullPath.AddRange(chargePath);
+                        currentPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
+                        continue;
+                    }
+                
+                // For Jump movement, each segment should be a single destination position.
+                // For other movement types, the segment is a sequence of steps.
+                case MovementType.Jump when segment.Count != 1:
                     throw new DomainException(
-                        $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+                        $"Piece {pieceId}, segment {segIndex}: Jump movement requires exactly 1 destination position, but {segment.Count} were provided.");
+                case MovementType.Jump:
+                    {
+                        var destination = segment[0];
 
-                // Collect coin if present.
-                var coin = targetTile.AsCoin;
-                if (coin is not null)
-                {
-                    targetTile.ClearOccupant();
-                    AddScore(playerId, coin.Value);
-                    _domainEvents.Add(new CoinCollected(
-                        Id, TurnNumber, playerId, pieceId, stepTo,
-                        coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
-                }
+                        // Validate direction constraints based on MovementType
+                        var rowDiff = destination.Row - currentPosition.Row;
+                        var colDiff = destination.Col - currentPosition.Col;
 
-                fullPath.Add(stepTo);
-                segFrom = stepTo;
+                        // Cannot jump to the same position
+                        if (rowDiff == 0 && colDiff == 0)
+                            throw new DomainException(
+                                $"Piece {pieceId}" + $": jump destination must be different from the current position.");
+
+                        // Validate direction matches movement type
+                        switch (piece.MovementType)
+                        {
+                            case MovementType.Orthogonal:
+                                // Orthogonal: either row is 0 or col is 0 (but not both, already checked above)
+                                if (rowDiff != 0 && colDiff != 0)
+                                    throw new DomainException(
+                                        $"Piece {pieceId}: jump from {currentPosition} to {destination} is not orthogonal (must move only horizontally or vertically).");
+                                break;
+                            case MovementType.Diagonal:
+                                // Diagonal: row diff equals col diff in absolute value
+                                if (Math.Abs(rowDiff) != Math.Abs(colDiff))
+                                    throw new DomainException(
+                                        $"Piece {pieceId}: jump from {currentPosition} to {destination} is not diagonal (must move equal rows and columns).");
+                                break;
+                            case MovementType.AnyDirection:
+                                // Any direction: no restriction (already checked different position above)
+                                break;
+                            case MovementType.Jump:
+                                // Jump can go in any direction; no directional constraint
+                                break;
+                        }
+
+                        // Calculate distance based on the direction of the jump
+                        var distance = CalculateJumpDistance(currentPosition, destination, piece.MovementType);
+
+                        if (distance > piece.MaxDistance)
+                            throw new DomainException(
+                                $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {piece.MaxDistance}.");
+
+                        // Destination must not be occupied by a piece or obstacle.
+                        if (Board.IsObstacleCovering(destination))
+                            throw new DomainException(
+                                $"Piece {pieceId}: tile {destination} is occupied by an obstacle.");
+                
+                        var destinationTile = Board.GetTile(destination);
+                        if (destinationTile.AsPiece is not null)
+                            throw new DomainException(
+                                $"Piece {pieceId}: tile {destination} is already occupied by a piece.");
+
+                        // Collect coin only at destination (not along the path).
+                        var coin = destinationTile.AsCoin;
+                        if (coin is not null)
+                        {
+                            destinationTile.ClearOccupant();
+                            AddScore(playerId, coin.Value);
+                            _domainEvents.Add(new CoinCollected(
+                                Id, TurnNumber, playerId, pieceId, destination,
+                                coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                        }
+
+                        fullPath.Add(destination);
+                        currentPosition = destination;
+                        break;
+                    }
+
+                default:
+                    {
+                        // Non-Jump movement: original step-by-step validation
+                        if (segment.Count > piece.MaxDistance)
+                            throw new DomainException(
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
+
+                        var segFrom = currentPosition;
+
+                        foreach (var stepTo in segment)
+                        {
+                            // Validate step adjacency based on MovementType.
+                            switch (piece.MovementType)
+                            {
+                                case MovementType.Orthogonal:
+                                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                                        throw new DomainException(
+                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
+                                    break;
+                                case MovementType.Diagonal:
+                                    if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                        throw new DomainException(
+                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+                                    break;
+                                case MovementType.AnyDirection:
+                                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                        throw new DomainException(
+                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+                                    break;
+                            }
+
+                            // Passability (obstacles + fences).
+                            if (!Board.IsPassable(segFrom, stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+
+                            // A piece must not occupy Target.
+                            var targetTile = Board.GetTile(stepTo);
+                            if (targetTile.AsPiece is not null)
+                                throw new DomainException(
+                                    $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+
+                            // Collect coin if present.
+                            var coin = targetTile.AsCoin;
+                            if (coin is not null)
+                            {
+                                targetTile.ClearOccupant();
+                                AddScore(playerId, coin.Value);
+                                _domainEvents.Add(new CoinCollected(
+                                    Id, TurnNumber, playerId, pieceId, stepTo,
+                                    coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                            }
+
+                            fullPath.Add(stepTo);
+                            segFrom = stepTo;
+                        }
+
+                        currentPosition = segFrom;
+                        break;
+                    }
             }
-
-            currentPosition = segFrom;
         }
 
         // Move the piece on the board.
@@ -889,6 +991,116 @@ public sealed class Game
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Resolves a Charge movement by sliding from the starting position in the direction
+    /// of the first step until hitting an obstacle, piece, or board edge.
+    /// 
+    /// The charge collects all coins along the path.
+    /// If the first step is blocked, returns an empty list (piece doesn't move).
+    /// </summary>
+    /// <param name="startPosition">Current piece position.</param>
+    /// <param name="firstStep">The first tile in the charge direction.</param>
+    /// <param name="pieceId">ID of the moving piece (for error reporting).</param>
+    /// <param name="movementType">The piece's movement type (Orthogonal, Diagonal, AnyDirection, or Charge).</param>
+    /// <param name="playerId">The player collecting coins (for scoring).</param>
+    /// <returns>
+    /// A list of positions representing the full charge path (empty if the first step is blocked).
+    /// </returns>
+    private List<Position> ResolveChargePath(
+        Position startPosition,
+        Position firstStep,
+        Guid pieceId,
+        MovementType movementType,
+        Guid playerId)
+    {
+        // Ensure the first step is adjacent to the start position.
+        if (!startPosition.IsOrthogonallyAdjacentTo(firstStep) && !startPosition.IsDiagonallyAdjacentTo(firstStep))
+            throw new DomainException(
+                $"Piece {pieceId}: first charge step from {startPosition} to {firstStep} is not adjacent.");
+
+        // Validate movement direction constraints.
+        var isOrthogonal = startPosition.IsOrthogonallyAdjacentTo(firstStep);
+        var isDiagonal = startPosition.IsDiagonallyAdjacentTo(firstStep);
+
+        // For the Charge movement type, we allow both orthogonal and diagonal (the first step direction is unconstrained).
+        // For other movement types, enforce the directional constraint.
+        if (movementType != MovementType.Charge)
+        {
+            switch (movementType)
+            {
+                case MovementType.Orthogonal:
+                    if (!isOrthogonal)
+                        throw new DomainException(
+                            $"Piece {pieceId}: charge from {startPosition} to {firstStep} is not orthogonal.");
+                    break;
+                case MovementType.Diagonal:
+                    if (!isDiagonal)
+                        throw new DomainException(
+                            $"Piece {pieceId}: charge from {startPosition} to {firstStep} is not diagonal.");
+                    break;
+                case MovementType.AnyDirection:
+                    // Any direction is allowed
+                    break;
+            }
+        }
+
+        // Check if the first step is blocked (obstacle, fence, or piece).
+        if (!Board.IsPassable(startPosition, firstStep))
+            return []; // First tile blocked: no movement
+
+        var firstStepTile = Board.GetTile(firstStep);
+        if (firstStepTile.AsPiece is not null)
+            return []; // Piece blocking the first step: no movement
+
+        // Determine the direction vector.
+        var rowDelta = Math.Sign(firstStep.Row - startPosition.Row);
+        var colDelta = Math.Sign(firstStep.Col - startPosition.Col);
+
+        // Build the full charge path by sliding until blocked.
+        var chargePath = new List<Position>();
+        var currentPos = firstStep;
+
+        while (true)
+        {
+            chargePath.Add(currentPos);
+
+            // Collect coin if present.
+            var currentTile = Board.GetTile(currentPos);
+            var coin = currentTile.AsCoin;
+            if (coin is not null)
+            {
+                currentTile.ClearOccupant();
+                AddScore(playerId, coin.Value);
+                _domainEvents.Add(new CoinCollected(
+                    Id, TurnNumber, playerId, pieceId, currentPos,
+                    coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+            }
+
+            // Try to move to the next tile in the charge direction.
+            var nextRow = currentPos.Row + rowDelta;
+            var nextCol = currentPos.Col + colDelta;
+
+            // Check if the next position is out of bounds (board edge).
+            if (nextRow < 0 || nextRow >= Board.Size || nextCol < 0 || nextCol >= Board.Size)
+                break; // Hit the board edge: stop
+
+            var nextPos = new Position(nextRow, nextCol);
+
+            // Check if the next position is passable.
+            if (!Board.IsPassable(currentPos, nextPos))
+                break; // Obstacle or fence: stop
+
+            // Check if the next position is occupied by a piece.
+            var nextTile = Board.GetTile(nextPos);
+            if (nextTile.AsPiece is not null)
+                break; // Piece blocking: stop
+
+            currentPos = nextPos;
+        }
+
+        return chargePath;
+    }
+
     private void MarkPlacePhaseActed(Guid playerId)
     {
         _placePhaseDone.Add(playerId);
@@ -907,5 +1119,25 @@ public sealed class Game
         if (playerId == PlayerOne)
             return LineupPlayerOne ?? throw new DomainException("PlayerOne's lineup has not been set.");
         return LineupPlayerTwo ?? throw new DomainException("PlayerTwo's lineup has not been set.");
+    }
+
+    /// <summary>
+    /// Calculates the jump distance from <paramref name="from"/> to <paramref name="to"/> based on the
+    /// <paramref name="movementType"/>. For Jump pieces, distance determines if the jump is valid
+    /// within MaxDistance.
+    /// 
+    /// Distance is always Chebyshev distance (king move distance / max of |Δrow|, |Δcol|),
+    /// which represents the number of tiles to reach the destination:
+    /// - Orthogonal jump to (0,5) = 5 tiles
+    /// - Diagonal jump to (3,3) = 3 tiles
+    /// - AnyDirection jump to (2,3) = 3 tiles (max of 2 and 3)
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown if <paramref name="movementType"/> is not a valid Jump-compatible type.
+    /// </exception>
+    private static int CalculateJumpDistance(Position from, Position to, MovementType movementType)
+    {
+        // All Jump movement types use Chebyshev distance (max of |Δrow|, |Δcol|)
+        return to.ChebyshevDistance(from);
     }
 }

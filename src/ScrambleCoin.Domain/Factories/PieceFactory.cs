@@ -21,7 +21,7 @@ public static class PieceFactory
             ["Mickey"]  = new(EntryPointType.Borders, MovementType.Orthogonal,  MaxDistance: 3, MovesPerTurn: 1),
             ["Minnie"]  = new(EntryPointType.Borders, MovementType.Diagonal,    MaxDistance: 3, MovesPerTurn: 1),
             ["Donald"]  = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
-            ["Goofy"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
+            ["Goofy"]   = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
             ["Scrooge"] = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1)
         };
 
