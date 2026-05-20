@@ -21,5 +21,12 @@ public enum MovementType
     Jump,
 
     /// <summary>The piece slides in a chosen direction until hitting an obstacle, piece, or board edge. The player does not choose how far it goes.</summary>
-    Charge
+    Charge,
+
+    /// <summary>
+    /// The piece passes through pieces and obstacles on intermediate tiles but must end on a free tile.
+    /// Collects coins on all tiles in the path (intermediate and destination).
+    /// Fences still block Ethereal movement.
+    /// </summary>
+    Ethereal
 }
