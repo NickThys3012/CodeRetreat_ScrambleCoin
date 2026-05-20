@@ -270,6 +270,21 @@ public sealed class Board
         return false;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> if the <paramref name="piece"/> has at least one valid move
+    /// given its current position, movement type, and movement distance constraints.
+    /// 
+    /// This overload is future-proof: as new movement types (Charge, Ethereal, etc.)
+    /// are added with additional parameters, this method can be updated centrally
+    /// without modifying the call sites in Game.cs.
+    /// </summary>
+    /// <param name="piece">The piece to check for valid moves.</param>
+    public bool HasAnyValidMove(Piece piece)
+    {
+        var currentPos = piece.Position!;
+        return HasAnyValidMove(currentPos, piece.MovementType, piece.MaxDistance);
+    }
+
     // ── Entry-point helpers ───────────────────────────────────────────────────
 
     /// <summary>Returns <c>true</c> if <paramref name="position"/> is on any board edge (row = 0 or 7, or col = 0 or 7).</summary>
@@ -287,7 +302,7 @@ public sealed class Board
     /// <paramref name="entryPointType"/>.
     /// </summary>
     /// <exception cref="DomainException">Thrown for unknown <see cref="EntryPointType"/> values.</exception>
-    public bool IsValidEntryPoint(Position position, EntryPointType entryPointType) =>
+    public static bool IsValidEntryPoint(Position position, EntryPointType entryPointType) =>
         entryPointType switch
         {
             EntryPointType.Borders => IsEdgeTile(position),

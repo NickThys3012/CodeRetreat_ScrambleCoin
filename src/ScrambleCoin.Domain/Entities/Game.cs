@@ -726,10 +726,7 @@ public sealed class Game
         var currentPosition = startPosition;
 
         // Check whether the piece has any valid first move (used to allow empty segments).
-        // For Jump pieces, pass maxDistance to determine stuck status.
-        var hasAnyValidMove = piece.MovementType == MovementType.Jump
-            ? Board.HasAnyValidMove(currentPosition, piece.MovementType, piece.MaxDistance)
-            : Board.HasAnyValidMove(currentPosition, piece.MovementType);
+        var hasAnyValidMove = Board.HasAnyValidMove(piece);
 
         // Validate segment count.
         if (segments.Count != piece.MovesPerTurn)
