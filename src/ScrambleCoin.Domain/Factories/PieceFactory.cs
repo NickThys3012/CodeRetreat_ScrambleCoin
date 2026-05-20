@@ -31,6 +31,16 @@ public static class PieceFactory
             ["Anna"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Orthogonal, MovementType.Orthogonal, MovementType.Orthogonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
             ["Olaf"]      = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.AnyDirection }, SegmentMaxDistances: new[] { 1, 1 }),
             ["Kristoff"]  = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Diagonal, MovementType.Diagonal, MovementType.Diagonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
+            
+            // On-stop ability pieces (Issue #49)
+            ["Ralph"]     = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 3, MovesPerTurn: 1),
+            ["Pumbaa"]    = new(EntryPointType.Borders, MovementType.Charge, MaxDistance: 8, MovesPerTurn: 1),
+            ["WALL•E"]    = new(EntryPointType.Borders, MovementType.Charge, MaxDistance: 8, MovesPerTurn: 1),
+            ["Sulley"]    = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            ["Rafiki"]    = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1),
+            ["Scar"]      = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1),
+            ["Daisy"]     = new(EntryPointType.Anywhere, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
+            ["Stitch"]    = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 3, MovesPerTurn: 1),
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
