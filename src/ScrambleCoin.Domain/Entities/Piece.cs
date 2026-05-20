@@ -100,4 +100,10 @@ public sealed class Piece
 
     /// <summary>Removes this piece from the board; <see cref="Position"/> becomes <c>null</c>.</summary>
     public void RemoveFromBoard() => Position = null;
+
+    /// <summary>
+    /// Returns <c>true</c> if this piece is Elsa (identified by name).
+    /// Elsa pieces leave ice patches on tiles they pass through.
+    /// </summary>
+    public bool IsElsa => Name.Equals("Elsa", StringComparison.OrdinalIgnoreCase);
 }

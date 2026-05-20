@@ -26,6 +26,7 @@ public sealed class Board
     private readonly List<Rock> _rocks = [];
     private readonly List<Lake> _lakes = [];
     private readonly List<Fence> _fences = [];
+    private readonly HashSet<Position> _icePatches = [];
 
     public Board()
     {
@@ -60,6 +61,29 @@ public sealed class Board
 
     /// <summary>Adds a <see cref="Fence"/> obstacle to the board.</summary>
     public void AddFence(Fence fence) => _fences.Add(fence);
+
+    // ── Ice patch management ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if the given <paramref name="position"/> has an ice patch.
+    /// </summary>
+    public bool HasIcePatch(Position position) => _icePatches.Contains(position);
+
+    /// <summary>
+    /// Adds an ice patch to the given <paramref name="position"/>.
+    /// If an ice patch already exists at this position, it has no effect (idempotent).
+    /// </summary>
+    public void PlaceIcePatch(Position position) => _icePatches.Add(position);
+
+    /// <summary>
+    /// Returns all positions currently covered by ice patches.
+    /// </summary>
+    public IReadOnlySet<Position> GetIcePatches() => (IReadOnlySet<Position>)_icePatches;
+
+    /// <summary>
+    /// Removes all ice patches from the board. Used for testing and potential future game rule changes.
+    /// </summary>
+    public void ClearIcePatches() => _icePatches.Clear();
 
     // ── Passability ───────────────────────────────────────────────────────────
 

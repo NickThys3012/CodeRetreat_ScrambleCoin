@@ -986,6 +986,13 @@ public sealed class Game
             startPosition, currentPosition,
             fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
 
+        // If the piece is Elsa, place ice patches on all intermediate positions
+        // (excluding start and destination).
+        if (piece.IsElsa && startPosition != currentPosition)
+        {
+            PlaceElsaIcePatches(startPosition, fullPath);
+        }
+
         _movedPieceIds.Add(pieceId);
 
         // Advance the active player when all their on-board pieces have moved.
@@ -1174,6 +1181,20 @@ public sealed class Game
         if (playerId == PlayerOne)
             return LineupPlayerOne ?? throw new DomainException("PlayerOne's lineup has not been set.");
         return LineupPlayerTwo ?? throw new DomainException("PlayerTwo's lineup has not been set.");
+    }
+
+    /// <summary>
+    /// Places ice patches on all intermediate positions that Elsa passed through.
+    /// Excludes the starting position and the final destination.
+    /// </summary>
+    private void PlaceElsaIcePatches(Position startPosition, IReadOnlyList<Position> fullPath)
+    {
+        // Ice patches are placed on all positions except the final destination.
+        // fullPath contains the visited positions in order (not including the starting position).
+        for (var i = 0; i < fullPath.Count - 1; i++)
+        {
+            Board.PlaceIcePatch(fullPath[i]);
+        }
     }
 
     /// <summary>
