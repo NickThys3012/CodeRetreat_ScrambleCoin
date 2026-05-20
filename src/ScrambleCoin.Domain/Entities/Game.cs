@@ -909,15 +909,74 @@ public sealed class Game
                             throw new DomainException(
                                 $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {segmentMaxDistance}.");
 
-                        // Destination must not be occupied by a piece or obstacle.
+                        // Destination must not be occupied by an obstacle.
                         if (Board.IsObstacleCovering(destination))
                             throw new DomainException(
                                 $"Piece {pieceId}: tile {destination} is occupied by an obstacle.");
                 
                         var destinationTile = Board.GetTile(destination);
-                        if (destinationTile.AsPiece is not null)
+                        var targetPiece = destinationTile.AsPiece;
+
+                        // Special handling for Scar: can land on opponent pieces to remove them
+                        if (piece.Name.Equals("Scar", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (targetPiece is not null && targetPiece.PlayerId != playerId)
+                            {
+                                // Scar landing on opponent: remove opponent
+                                destinationTile.ClearOccupant();
+                                targetPiece.RemoveFromBoard();
+                                _domainEvents.Add(new PieceRemoved(
+                                    Id, TurnNumber, targetPiece.Id, pieceId,
+                                    destination, DateTimeOffset.UtcNow));
+                            }
+                            else if (targetPiece is not null)
+                            {
+                                // Scar landing on ally: reject
+                                throw new DomainException(
+                                    $"Piece {pieceId}: cannot land on ally piece at {destination}.");
+                            }
+                        }
+                        // Special handling for Daisy: can land on any piece to swap
+                        else if (piece.Name.Equals("Daisy", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (targetPiece is not null)
+                            {
+                                // Daisy landing on any piece: swap positions
+                                var daisyTile = Board.GetTile(currentPosition);
+                                daisyTile.ClearOccupant();
+                                destinationTile.ClearOccupant();
+
+                                daisyTile.SetOccupant(targetPiece);
+                                targetPiece.PlaceAt(currentPosition);
+
+                                // destinationTile will be set to Daisy after this case
+                                fullPath.Add(currentPosition); // Track the swap
+
+                                // If opponent, steal 1 coin
+                                if (targetPiece.PlayerId != playerId)
+                                {
+                                    var opponentId = targetPiece.PlayerId;
+                                    if (_scores.TryGetValue(opponentId, out var currentScore) && currentScore > 0)
+                                    {
+                                        _scores[opponentId] -= 1;
+                                        _scores[playerId] += 1;
+
+                                        _domainEvents.Add(new CoinStolen(
+                                            Id, TurnNumber, opponentId, playerId,
+                                            pieceId, 1, DateTimeOffset.UtcNow));
+                                    }
+                                }
+
+                                // Daisy ends at destination
+                                destination = destination;
+                            }
+                        }
+                        // Normal Jump validation: destination must not have a piece
+                        else if (targetPiece is not null)
+                        {
                             throw new DomainException(
                                 $"Piece {pieceId}: tile {destination} is already occupied by a piece.");
+                        }
 
                         // Collect coin only at destination (not along the path).
                         var coin = destinationTile.AsCoin;
@@ -967,7 +1026,31 @@ public sealed class Game
                             }
 
                             // Passability (obstacles + fences).
-                            if (!Board.IsPassable(segFrom, stepTo))
+                            // Special handling for Stitch: can pass through and destroy fences
+                            var isStitch = piece.Name.Equals("Stitch", StringComparison.OrdinalIgnoreCase);
+                            if (isStitch && segmentMovementType == MovementType.Orthogonal)
+                            {
+                                // For Stitch: check only for rocks and lakes, not fences
+                                var hasRock = Board.HasRock(stepTo);
+                                var hasLake = Board.IsObstacleCovering(stepTo); // This checks both rocks and lakes
+
+                                if (hasRock || (hasLake && !Board.HasFence(stepTo)))
+                                    throw new DomainException(
+                                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked by a rock or lake.");
+
+                                // If blocked by fence, destroy it and continue
+                                if (Board.IsFenceBlocked(segFrom, stepTo))
+                                {
+                                    Board.DestroyFence(segFrom);
+                                    Board.DestroyFence(stepTo);
+
+                                    _domainEvents.Add(new FenceDestroyed(
+                                        Id, TurnNumber, segFrom, DateTimeOffset.UtcNow));
+                                    _domainEvents.Add(new FenceDestroyed(
+                                        Id, TurnNumber, stepTo, DateTimeOffset.UtcNow));
+                                }
+                            }
+                            else if (!Board.IsPassable(segFrom, stepTo))
                                 throw new DomainException(
                                     $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
 
