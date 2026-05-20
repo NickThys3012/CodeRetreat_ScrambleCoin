@@ -436,4 +436,116 @@ public sealed class Board
         }
         return result;
     }
+
+    // ── On-stop ability helpers ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if there is a Rock at the given <paramref name="position"/>.
+    /// </summary>
+    public bool HasRock(Position position) =>
+        _rocks.Any(r => r.Position == position);
+
+    /// <summary>
+    /// Returns <c>true</c> if there is a Fence connected to the given <paramref name="position"/>.
+    /// A fence is "connected to" a position if it's on any edge of that tile.
+    /// </summary>
+    public bool HasFence(Position position)
+    {
+        // A fence is connected to a position if it's on any of the 4 edges of that tile
+        var row = position.Row;
+        var col = position.Col;
+
+        var adjacentPositions = new List<Position>();
+        if (row > 0) adjacentPositions.Add(new Position(row - 1, col)); // North edge
+        if (row < Size - 1) adjacentPositions.Add(new Position(row + 1, col)); // South edge
+        if (col > 0) adjacentPositions.Add(new Position(row, col - 1)); // West edge
+        if (col < Size - 1) adjacentPositions.Add(new Position(row, col + 1)); // East edge
+
+        return adjacentPositions.Any(adj => _fences.Any(f => f.IsOnEdge(position, adj)));
+    }
+
+    /// <summary>
+    /// Removes all Rocks at the given <paramref name="position"/>.
+    /// Returns <c>true</c> if at least one Rock was removed; <c>false</c> if no Rock existed.
+    /// </summary>
+    public bool DestroyRock(Position position)
+    {
+        var before = _rocks.Count;
+        _rocks.RemoveAll(r => r.Position == position);
+        return _rocks.Count < before;
+    }
+
+    /// <summary>
+    /// Removes all Fences connected to the given <paramref name="position"/>.
+    /// Returns the number of fences removed.
+    /// </summary>
+    public int DestroyFence(Position position)
+    {
+        var before = _fences.Count;
+
+        var adjacentPositions = new List<Position>();
+        var row = position.Row;
+        var col = position.Col;
+
+        if (row > 0) adjacentPositions.Add(new Position(row - 1, col)); // North edge
+        if (row < Size - 1) adjacentPositions.Add(new Position(row + 1, col)); // South edge
+        if (col > 0) adjacentPositions.Add(new Position(row, col - 1)); // West edge
+        if (col < Size - 1) adjacentPositions.Add(new Position(row, col + 1)); // East edge
+
+        // Remove all fences on edges between position and its adjacent tiles
+        _fences.RemoveAll(f =>
+            adjacentPositions.Any(adj => f.IsOnEdge(position, adj)));
+
+        return before - _fences.Count;
+    }
+
+    /// <summary>
+    /// Returns the 4 orthogonally adjacent positions (North, South, East, West)
+    /// that are within board bounds.
+    /// </summary>
+    public static IReadOnlyList<Position> GetOrthogonallyAdjacentPositions(Position position)
+    {
+        var result = new List<Position>();
+        var row = position.Row;
+        var col = position.Col;
+
+        // North
+        if (row > 0) result.Add(new Position(row - 1, col));
+        // South
+        if (row < Size - 1) result.Add(new Position(row + 1, col));
+        // West
+        if (col > 0) result.Add(new Position(row, col - 1));
+        // East
+        if (col < Size - 1) result.Add(new Position(row, col + 1));
+
+        return result.AsReadOnly();
+    }
+
+    /// <summary>
+    /// Returns the 8 adjacent positions (orthogonal + diagonal) that are within board bounds.
+    /// </summary>
+    public static IReadOnlyList<Position> GetAllAdjacentPositions(Position position)
+    {
+        var result = new List<Position>();
+        var row = position.Row;
+        var col = position.Col;
+
+        for (var dr = -1; dr <= 1; dr++)
+        {
+            for (var dc = -1; dc <= 1; dc++)
+            {
+                // Skip the center position itself
+                if (dr == 0 && dc == 0) continue;
+
+                var newRow = row + dr;
+                var newCol = col + dc;
+
+                // Check bounds
+                if (newRow >= 0 && newRow < Size && newCol >= 0 && newCol < Size)
+                    result.Add(new Position(newRow, newCol));
+            }
+        }
+
+        return result.AsReadOnly();
+    }
 }
