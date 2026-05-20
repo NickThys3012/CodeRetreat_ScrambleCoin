@@ -163,11 +163,26 @@ public class PieceFactoryTests
     [InlineData("")]
     [InlineData("pluto")]
     [InlineData("UNKNOWN_PIECE")]
-    [InlineData("Daisy")]
     public void Create_UnrecognisedPieceName_ThrowsDomainException(string pieceName)
     {
         Assert.Throws<DomainException>(() =>
             PieceFactory.Create(pieceName, AnyPlayerId));
+    }
+
+    [Theory]
+    [InlineData("Daisy")]
+    [InlineData("Ralph")]
+    [InlineData("Pumbaa")]
+    [InlineData("WALL•E")]
+    [InlineData("Sulley")]
+    [InlineData("Rafiki")]
+    [InlineData("Scar")]
+    [InlineData("Stitch")]
+    public void Create_OnStopAbilityPiece_ReturnsValidPiece(string pieceName)
+    {
+        // Verify Issue #49 on-stop ability pieces are recognised
+        var piece = PieceFactory.Create(pieceName, AnyPlayerId);
+        Assert.NotNull(piece);
     }
 
     // ── Case-insensitivity ────────────────────────────────────────────────────
