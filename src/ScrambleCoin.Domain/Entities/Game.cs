@@ -982,10 +982,10 @@ public sealed class Game
                         currentPosition = destination;
                         break;
                     }
-
-                default:
+                
+                // For Orthogonal movement: step-by-step validation horizontally/vertically only.
+                case MovementType.Orthogonal:
                     {
-                        // Non-Jump movement: original step-by-step validation
                         if (segment.Count > segmentMaxDistance)
                             throw new DomainException(
                                 $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
@@ -994,30 +994,14 @@ public sealed class Game
 
                         foreach (var stepTo in segment)
                         {
-                            // Validate step adjacency based on the segment's MovementType.
-                            switch (segmentMovementType)
-                            {
-                                case MovementType.Orthogonal:
-                                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
-                                        throw new DomainException(
-                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
-                                    break;
-                                case MovementType.Diagonal:
-                                    if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
-                                        throw new DomainException(
-                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
-                                    break;
-                                case MovementType.AnyDirection:
-                                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
-                                        throw new DomainException(
-                                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
-                                    break;
-                            }
+                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
 
                             // Passability (obstacles + fences).
-                            // Special handling for Stitch: can pass through and destroy fences
+                            // Special handling for Stitch (Orthogonal-only): can pass through and destroy fences
                             var isStitch = piece.Name.Equals("Stitch", StringComparison.OrdinalIgnoreCase);
-                            if (isStitch && segmentMovementType == MovementType.Orthogonal)
+                            if (isStitch)
                             {
                                 // For Stitch: check only for rocks and lakes, not fences
                                 var hasRock = Board.HasRock(stepTo);
@@ -1027,33 +1011,33 @@ public sealed class Game
                                     throw new DomainException(
                                         $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked by a rock or lake.");
 
-                                // If blocked by fence, destroy it and continue
-                                if (Board.IsFenceBlocked(segFrom, stepTo))
+                                // If blocked by a fence, destroy it and continue
+                                if (Board.HasFence(stepTo))
                                 {
-                                    Board.DestroyFence(segFrom);
                                     Board.DestroyFence(stepTo);
-
-                                    _domainEvents.Add(new FenceDestroyed(
-                                        Id, TurnNumber, segFrom, DateTimeOffset.UtcNow));
                                     _domainEvents.Add(new FenceDestroyed(
                                         Id, TurnNumber, stepTo, DateTimeOffset.UtcNow));
                                 }
                             }
-                            else if (!Board.IsPassable(segFrom, stepTo))
-                                throw new DomainException(
-                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+                            else
+                            {
+                                // Normal passability check: cannot pass through obstacles or fences
+                                if (Board.IsObstacleCovering(stepTo) || Board.IsFenceBlocked(segFrom, stepTo))
+                                    throw new DomainException(
+                                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked.");
+                            }
 
-                            // A piece must not occupy Target.
-                            var targetTile = Board.GetTile(stepTo);
-                            if (targetTile.AsPiece is not null)
+                            // Check if tile is occupied by an opponent or ally piece (cannot land on pieces)
+                            var stepTile = Board.GetTile(stepTo);
+                            if (stepTile.AsPiece is not null)
                                 throw new DomainException(
-                                    $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is occupied by a piece.");
 
-                            // Collect coin if present.
-                            var coin = targetTile.AsCoin;
+                            // Collect coin if present
+                            var coin = stepTile.AsCoin;
                             if (coin is not null)
                             {
-                                targetTile.ClearOccupant();
+                                stepTile.ClearOccupant();
                                 AddScore(playerId, coin.Value);
                                 _domainEvents.Add(new CoinCollected(
                                     Id, TurnNumber, playerId, pieceId, stepTo,
@@ -1063,7 +1047,7 @@ public sealed class Game
                             fullPath.Add(stepTo);
                             var positionAfterStep = stepTo;
 
-                            // Apply ice patch slide if the piece landed on an ice patch (but only for non-Jump pieces)
+                            // Apply ice patch slide if the piece landed on an ice patch
                             if (Board.HasIcePatch(positionAfterStep))
                             {
                                 var slidePosition = ApplyIcePatchSlide(positionAfterStep, segFrom, playerId, pieceId);
@@ -1081,6 +1065,128 @@ public sealed class Game
                         currentPosition = segFrom;
                         break;
                     }
+
+                // For Diagonal movement: step-by-step validation diagonally only.
+                case MovementType.Diagonal:
+                    {
+                        if (segment.Count > segmentMaxDistance)
+                            throw new DomainException(
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
+
+                        var segFrom = currentPosition;
+
+                        foreach (var stepTo in segment)
+                        {
+                            if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+
+                            // Passability: cannot pass through obstacles or fences
+                            if (Board.IsObstacleCovering(stepTo) || Board.IsFenceBlocked(segFrom, stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked.");
+
+                            // Check if tile is occupied by a piece (cannot land on pieces)
+                            var stepTile = Board.GetTile(stepTo);
+                            if (stepTile.AsPiece is not null)
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is occupied by a piece.");
+
+                            // Collect coin if present
+                            var coin = stepTile.AsCoin;
+                            if (coin is not null)
+                            {
+                                stepTile.ClearOccupant();
+                                AddScore(playerId, coin.Value);
+                                _domainEvents.Add(new CoinCollected(
+                                    Id, TurnNumber, playerId, pieceId, stepTo,
+                                    coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                            }
+
+                            fullPath.Add(stepTo);
+                            var positionAfterStep = stepTo;
+
+                            // Apply ice patch slide if the piece landed on an ice patch
+                            if (Board.HasIcePatch(positionAfterStep))
+                            {
+                                var slidePosition = ApplyIcePatchSlide(positionAfterStep, segFrom, playerId, pieceId);
+                                if (slidePosition != positionAfterStep)
+                                {
+                                    // The piece slid to a new position; add it to the full path
+                                    fullPath.Add(slidePosition);
+                                    positionAfterStep = slidePosition;
+                                }
+                            }
+
+                            segFrom = positionAfterStep;
+                        }
+
+                        currentPosition = segFrom;
+                        break;
+                    }
+
+                // For AnyDirection movement: step-by-step validation orthogonally or diagonally.
+                case MovementType.AnyDirection:
+                    {
+                        if (segment.Count > segmentMaxDistance)
+                            throw new DomainException(
+                                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
+
+                        var segFrom = currentPosition;
+
+                        foreach (var stepTo in segment)
+                        {
+                            if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+
+                            // Passability: cannot pass through obstacles or fences
+                            if (Board.IsObstacleCovering(stepTo) || Board.IsFenceBlocked(segFrom, stepTo))
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked.");
+
+                            // Check if tile is occupied by a piece (cannot land on pieces)
+                            var stepTile = Board.GetTile(stepTo);
+                            if (stepTile.AsPiece is not null)
+                                throw new DomainException(
+                                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is occupied by a piece.");
+
+                            // Collect coin if present
+                            var coin = stepTile.AsCoin;
+                            if (coin is not null)
+                            {
+                                stepTile.ClearOccupant();
+                                AddScore(playerId, coin.Value);
+                                _domainEvents.Add(new CoinCollected(
+                                    Id, TurnNumber, playerId, pieceId, stepTo,
+                                    coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+                            }
+
+                            fullPath.Add(stepTo);
+                            var positionAfterStep = stepTo;
+
+                            // Apply ice patch slide if the piece landed on an ice patch
+                            if (Board.HasIcePatch(positionAfterStep))
+                            {
+                                var slidePosition = ApplyIcePatchSlide(positionAfterStep, segFrom, playerId, pieceId);
+                                if (slidePosition != positionAfterStep)
+                                {
+                                    // The piece slid to a new position; add it to the full path
+                                    fullPath.Add(slidePosition);
+                                    positionAfterStep = slidePosition;
+                                }
+                            }
+
+                            segFrom = positionAfterStep;
+                        }
+
+                        currentPosition = segFrom;
+                        break;
+                    }
+
+                default:
+                    throw new DomainException(
+                        $"Unknown movement type: {segmentMovementType}. This should never happen.");
             }
         }
 
