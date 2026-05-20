@@ -227,6 +227,9 @@ public sealed class Game
         CurrentPhase = TurnPhase.CoinSpawn;
 
         _domainEvents.Add(new GameStarted(Id, PlayerOne, PlayerTwo, DateTimeOffset.UtcNow));
+
+        // Apply turn-start abilities for turn 1 (Issue #50)
+        OnTurnStart();
     }
 
     /// <summary>
@@ -389,6 +392,10 @@ public sealed class Game
                 break;
 
             case TurnPhase.MovePhase:
+                // Apply move-phase-end abilities (Issue #50)
+                OnMovePhaseEnd();
+                CheckForkyAutoRemoval();
+
                 if (TurnNumber >= TotalTurns)
                 {
                     // Raise the event before ending the game so listeners see the final transition.
@@ -401,6 +408,9 @@ public sealed class Game
                     TurnNumber++;
                     CurrentPhase = TurnPhase.CoinSpawn;
                     _domainEvents.Add(new TurnPhaseAdvanced(Id, oldTurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+
+                    // Apply turn-start abilities (Issue #50)
+                    OnTurnStart();
                 }
                 break;
         }
@@ -1134,6 +1144,9 @@ public sealed class Game
         // Execute on-stop abilities (Issue #49)
         ExecuteOnStopAbility(piece, playerId);
 
+        // Execute passive abilities triggered by move (Issue #50)
+        OnPieceMoved(playerId, piece, startPosition, currentPosition);
+
         _movedPieceIds.Add(pieceId);
 
         // Advance the active player when all their on-board pieces have moved.
@@ -1778,5 +1791,273 @@ public sealed class Game
             return null;
 
         return new Position(newRow, newCol);
+    }
+
+    // ── Passive ability implementations (Issue #50) ────────────────────────────────
+
+    /// <summary>
+    /// Triggers at the start of each new turn (when transitioning to CoinSpawn phase for a new turn).
+    /// Applies abilities like Moana (increase MaxDistance), Jafar (increase MovesPerTurn),
+    /// and Cinderella (auto-remove at turn 5).
+    /// </summary>
+    private void OnTurnStart()
+    {
+        // Moana & Jafar: Increase stats each turn starting from turn 2.
+        if (TurnNumber >= 2)
+        {
+            foreach (var playerId in new[] { PlayerOne, PlayerTwo })
+            {
+                var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+                foreach (var piece in lineup.Pieces)
+                {
+                    if (piece.IsOnBoard && piece.Name.Equals("Moana", StringComparison.OrdinalIgnoreCase))
+                    {
+                        piece.IncreaseMaxDistance();
+                    }
+                    if (piece.IsOnBoard && piece.Name.Equals("Jafar", StringComparison.OrdinalIgnoreCase))
+                    {
+                        piece.IncreaseMovesPerTurn();
+                    }
+                }
+            }
+        }
+
+        // Cinderella: Auto-remove at turn 5 start.
+        if (TurnNumber == 5)
+        {
+            foreach (var playerId in new[] { PlayerOne, PlayerTwo })
+            {
+                var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+                var cinderellas = lineup.Pieces.Where(p => p.IsOnBoard && p.Name.Equals("Cinderella", StringComparison.OrdinalIgnoreCase)).ToList();
+                foreach (var cinderella in cinderellas)
+                {
+                    RemovePieceFromBoard(playerId);
+                    cinderella.RemoveFromBoard();
+                    Board.GetTile(cinderella.Position!).ClearOccupant();
+
+                    _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, cinderella.Id, "Cinderella auto-removed at turn 5", DateTimeOffset.UtcNow));
+                }
+            }
+        }
+
+        // Reset temporary move adjustments for the new turn (Fairy Godmother / Ursula buffs).
+        foreach (var playerId in new[] { PlayerOne, PlayerTwo })
+        {
+            var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+            foreach (var piece in lineup.Pieces)
+            {
+                piece.ResetTemporaryMoveAdjustment();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Triggers at the end of the MovePhase (before transitioning to next turn).
+    /// Applies Scrooge ability: +1 coin to owning player per Scrooge on board.
+    /// </summary>
+    private void OnMovePhaseEnd()
+    {
+        // Scrooge: +1 bonus coin per Scrooge on board at end of turn.
+        foreach (var playerId in new[] { PlayerOne, PlayerTwo })
+        {
+            var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+            var scroogeCount = lineup.Pieces.Count(p => p.IsOnBoard && p.Name.Equals("Scrooge", StringComparison.OrdinalIgnoreCase));
+
+            if (scroogeCount > 0)
+            {
+                AddScore(playerId, scroogeCount);
+                var scrooge = lineup.Pieces.First(p => p.IsOnBoard && p.Name.Equals("Scrooge", StringComparison.OrdinalIgnoreCase));
+                _domainEvents.Add(new ScroogeGainedCoin(Id, TurnNumber, scrooge.Id, scroogeCount, DateTimeOffset.UtcNow));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Triggers after a piece moves (called from MovePiece).
+    /// Applies abilities: Flynn (silver coin on previous tile), Merlin (convert silver to gold),
+    /// Rapunzel (collect coins from adjacent tiles), Fairy Godmother (buff allies),
+    /// Ursula (debuff opponents), Mike Wazowski (coin buff), Forky (track first move).
+    /// </summary>
+    private void OnPieceMoved(Guid playerId, Piece piece, Position fromPosition, Position toPosition)
+    {
+        // Flynn: Place silver coin on previous tile if empty.
+        if (piece.Name.Equals("Flynn", StringComparison.OrdinalIgnoreCase))
+        {
+            var previousTile = Board.GetTile(fromPosition);
+            if (previousTile.IsEmpty && !Board.IsObstacleCovering(fromPosition))
+            {
+                previousTile.SetOccupant(new Coin(CoinType.Silver));
+            }
+        }
+
+        // Merlin: Convert nearest silver coin (≤2 tiles) to gold.
+        if (piece.Name.Equals("Merlin", StringComparison.OrdinalIgnoreCase))
+        {
+            var nearestSilver = FindNearestSilverCoin(toPosition, maxDistance: 2);
+            if (nearestSilver != null)
+            {
+                var tile = Board.GetTile(nearestSilver);
+                if (tile.AsCoin?.CoinType == CoinType.Silver)
+                {
+                    tile.SetOccupant(new Coin(CoinType.Gold));
+                    _domainEvents.Add(new CoinConverted(Id, TurnNumber, nearestSilver, "Silver", "Gold", DateTimeOffset.UtcNow));
+                }
+            }
+        }
+
+        // Rapunzel: Collect coins from up to 3 adjacent orthogonal tiles.
+        if (piece.Name.Equals("Rapunzel", StringComparison.OrdinalIgnoreCase))
+        {
+            var adjacentPositions = Board.GetOrthogonallyAdjacentPositions(toPosition);
+            var adjacentCoins = adjacentPositions
+                .Where(pos => Board.GetTile(pos).AsCoin != null)
+                .Take(3)
+                .ToList();
+
+            foreach (var coinPos in adjacentCoins)
+            {
+                var coin = Board.GetTile(coinPos).AsCoin;
+                if (coin != null)
+                {
+                    AddScore(playerId, coin.CoinType == CoinType.Gold ? 3 : 1);
+                    Board.GetTile(coinPos).ClearOccupant();
+                }
+            }
+        }
+
+        // Fairy Godmother: Give +1 move to adjacent ally pieces (this turn only).
+        if (piece.Name.Equals("Fairy Godmother", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyMoveBuffToAllies(playerId, toPosition);
+        }
+
+        // Ursula: Give −1 move to adjacent opponent pieces (this turn only, min 0).
+        if (piece.Name.Equals("Ursula", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyMoveDebuffToOpponents(playerId, toPosition);
+        }
+
+        // Mike Wazowski: Give random adjacent ally +1 coin on next collection.
+        if (piece.Name.Equals("Mike Wazowski", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyCoinBuffToRandomAlly(playerId, toPosition);
+        }
+
+        // Forky: Track first move for auto-removal at end of first turn.
+        if (piece.Name.Equals("Forky", StringComparison.OrdinalIgnoreCase))
+        {
+            piece.MarkAsMovedOnFirstTurn();
+        }
+    }
+
+    /// <summary>
+    /// Finds the nearest silver coin within maxDistance of the given position.
+    /// Uses Chebyshev distance (max of absolute row and col differences).
+    /// </summary>
+    private Position? FindNearestSilverCoin(Position from, int maxDistance)
+    {
+        var coins = Board.GetAllCoins();
+        var silverCoins = coins
+            .Where(t => t.AsCoin?.CoinType == CoinType.Silver)
+            .Where(t => from.ChebyshevDistance(t.Position) <= maxDistance)
+            .OrderBy(t => from.ChebyshevDistance(t.Position))
+            .FirstOrDefault();
+
+        return silverCoins?.Position;
+    }
+
+    /// <summary>
+    /// Applies +1 move adjustment to all adjacent ally pieces (temporary, this turn only).
+    /// </summary>
+    private void ApplyMoveBuffToAllies(Guid playerId, Position from)
+    {
+        var adjacentPositions = Board.GetAllAdjacentPositions(from);
+        var affectedPieceIds = new List<Guid>();
+
+        foreach (var adjPos in adjacentPositions)
+        {
+            var tile = Board.GetTile(adjPos);
+            var adjPiece = tile.AsPiece;
+            if (adjPiece != null && adjPiece.PlayerId == playerId && !adjPiece.Name.Equals("Fairy Godmother", StringComparison.OrdinalIgnoreCase))
+            {
+                adjPiece.ApplyTemporaryMoveAdjustment(1);
+                affectedPieceIds.Add(adjPiece.Id);
+            }
+        }
+
+        if (affectedPieceIds.Count > 0)
+        {
+            _domainEvents.Add(new MoveBuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, affectedPieceIds.AsReadOnly(), 1, DateTimeOffset.UtcNow));
+        }
+    }
+
+    /// <summary>
+    /// Applies −1 move adjustment to all adjacent opponent pieces (temporary, this turn only, min 0).
+    /// </summary>
+    private void ApplyMoveDebuffToOpponents(Guid playerId, Position from)
+    {
+        var opponentId = playerId == PlayerOne ? PlayerTwo : PlayerOne;
+        var adjacentPositions = Board.GetAllAdjacentPositions(from);
+        var affectedPieceIds = new List<Guid>();
+
+        foreach (var adjPos in adjacentPositions)
+        {
+            var tile = Board.GetTile(adjPos);
+            var adjPiece = tile.AsPiece;
+            if (adjPiece != null && adjPiece.PlayerId == opponentId && !adjPiece.Name.Equals("Ursula", StringComparison.OrdinalIgnoreCase))
+            {
+                adjPiece.ApplyTemporaryMoveAdjustment(-1);
+                affectedPieceIds.Add(adjPiece.Id);
+            }
+        }
+
+        if (affectedPieceIds.Count > 0)
+        {
+            _domainEvents.Add(new MoveDebuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, affectedPieceIds.AsReadOnly(), 1, DateTimeOffset.UtcNow));
+        }
+    }
+
+    /// <summary>
+    /// Applies +1 coin buff to a random adjacent ally piece for their next coin collection.
+    /// </summary>
+    private void ApplyCoinBuffToRandomAlly(Guid playerId, Position from)
+    {
+        var adjacentPositions = Board.GetAllAdjacentPositions(from);
+        var adjacentAllies = adjacentPositions
+            .Select(p => Board.GetTile(p).AsPiece)
+            .Where(p => p != null && p.PlayerId == playerId && !p.Name.Equals("Mike Wazowski", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (adjacentAllies.Count > 0)
+        {
+            // Use deterministic selection based on piece ID hash for testing consistency
+            var selectedIndex = Math.Abs(HashCode.Combine(Id, TurnNumber, from).GetHashCode()) % adjacentAllies.Count;
+            var randomAlly = adjacentAllies[selectedIndex];
+            randomAlly.ApplyCoinBuff(1);
+            _domainEvents.Add(new CoinBuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, randomAlly.Id, 1, DateTimeOffset.UtcNow));
+        }
+    }
+
+    /// <summary>
+    /// Checks if Forky should be auto-removed at the end of the current turn move.
+    /// Forky is removed after his first move turn (when he moves in a turn for the first time).
+    /// This is called after MovePhase ends.
+    /// </summary>
+    private void CheckForkyAutoRemoval()
+    {
+        foreach (var playerId in new[] { PlayerOne, PlayerTwo })
+        {
+            var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
+            var forky = lineup.Pieces.FirstOrDefault(p => p.IsOnBoard && p.Name.Equals("Forky", StringComparison.OrdinalIgnoreCase));
+            
+            if (forky != null && forky.HasMovedOnFirstTurn)
+            {
+                RemovePieceFromBoard(playerId);
+                forky.RemoveFromBoard();
+                Board.GetTile(forky.Position!).ClearOccupant();
+
+                _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, forky.Id, "Forky auto-removed after first move", DateTimeOffset.UtcNow));
+            }
+        }
     }
 }
