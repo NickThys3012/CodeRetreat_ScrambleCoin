@@ -72,11 +72,11 @@ public class PieceFactoryTests
     }
 
     [Fact]
-    public void Create_Goofy_ReturnsJumpPiece()
+    public void Create_Goofy_ReturnsAnyDirectionPiece()
     {
         var piece = PieceFactory.Create("Goofy", AnyPlayerId);
 
-        Assert.Equal(MovementType.Jump, piece.MovementType);
+        Assert.Equal(MovementType.AnyDirection, piece.MovementType);
     }
 
     [Fact]
