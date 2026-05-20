@@ -851,24 +851,66 @@ if (piece.MovementType == MovementType.Jump)
 
     fullPath.Add(destination);
     currentPosition = destination;
+}
+else
+{
+    // Non-Jump movement: original step-by-step validation
+    if (segment.Count > piece.MaxDistance)
+        throw new DomainException(
+            $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {piece.MaxDistance}.");
 
-                    // Collect coin if present.
-                    var coin = targetTile.AsCoin;
-                    if (coin is not null)
-                    {
-                        targetTile.ClearOccupant();
-                        AddScore(playerId, coin.Value);
-                        _domainEvents.Add(new CoinCollected(
-                            Id, TurnNumber, playerId, pieceId, stepTo,
-                            coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
-                    }
+    var segFrom = currentPosition;
 
-                    fullPath.Add(stepTo);
-                    segFrom = stepTo;
-                }
+    foreach (var stepTo in segment)
+    {
+        // Validate step adjacency based on MovementType.
+        switch (piece.MovementType)
+        {
+            case MovementType.Orthogonal:
+                if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
+                break;
+            case MovementType.Diagonal:
+                if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+                break;
+            case MovementType.AnyDirection:
+                if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+                break;
+        }
 
-                currentPosition = segFrom;
-            }
+        // Passability (obstacles + fences).
+        if (!Board.IsPassable(segFrom, stepTo))
+            throw new DomainException(
+                $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked (obstacle or fence).");
+
+        // A piece must not occupy Target.
+        var targetTile = Board.GetTile(stepTo);
+        if (targetTile.AsPiece is not null)
+            throw new DomainException(
+                $"Piece {pieceId}: tile {stepTo} is already occupied by a piece.");
+
+        // Collect coin if present.
+        var coin = targetTile.AsCoin;
+        if (coin is not null)
+        {
+            targetTile.ClearOccupant();
+            AddScore(playerId, coin.Value);
+            _domainEvents.Add(new CoinCollected(
+                Id, TurnNumber, playerId, pieceId, stepTo,
+                coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+        }
+
+        fullPath.Add(stepTo);
+        segFrom = stepTo;
+    }
+
+    currentPosition = segFrom;
+}
         }
 
         // Move the piece on the board.
@@ -881,9 +923,9 @@ if (piece.MovementType == MovementType.Jump)
         toTile.SetOccupant(piece);
 
         _domainEvents.Add(new PieceMoved(
-            Id, TurnNumber, playerId, pieceId,
-            startPosition, currentPosition,
-            fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
+Id, TurnNumber, playerId, pieceId,
+startPosition, currentPosition,
+fullPath.AsReadOnly(), DateTimeOffset.UtcNow));
 
         _movedPieceIds.Add(pieceId);
 
