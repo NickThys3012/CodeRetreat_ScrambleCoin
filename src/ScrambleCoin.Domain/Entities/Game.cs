@@ -978,7 +978,6 @@ public sealed class Game
                                 }
 
                                 // Daisy ends at destination
-                                destination = destination;
                             }
                         }
                         // Normal Jump validation: destination must not have a piece

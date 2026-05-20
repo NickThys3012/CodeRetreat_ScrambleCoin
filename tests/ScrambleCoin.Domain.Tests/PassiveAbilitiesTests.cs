@@ -275,9 +275,24 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Merlin_ConvertsNearestSilverCoinToGold()
     {
-        // Implementation verified: FindNearestSilverCoin in Game.cs searches within 2-tile radius
-        // Conversion logic verified in OnPieceMoved hook
-        Assert.True(true);
+        // Arrange: Merlin at (4,4), silver coin at (4,5) - within 2 tiles
+        var (game, p1, _, merlinPiece, _) = GameWithPiecesInMovePhase("Merlin", new Position(4, 4));
+        var board = game.Board;
+        
+        // Place silver coin at adjacent tile
+        board.GetTile(new Position(4, 5)).SetOccupant(new Coin(CoinType.Silver));
+        
+        // Act: Move Merlin (this triggers OnPieceMoved which checks for Merlin ability)
+        game.MovePiece(p1, merlinPiece.Id, BuildSegments(new Position(4, 3)));
+        
+        // Assert: Silver coin converted to gold
+        var coinOnBoard = board.GetTile(new Position(4, 5)).AsCoin;
+        Assert.NotNull(coinOnBoard);
+        Assert.Equal(CoinType.Gold, coinOnBoard.CoinType);
+        
+        // Verify event
+        var convertedEvents = game.DomainEvents.OfType<CoinConverted>().ToList();
+        Assert.NotEmpty(convertedEvents);
     }
 
     [Fact]
@@ -328,12 +343,48 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Cinderella_AutoRemovedAtTurn5Start()
     {
-        // This test verifies that Cinderella is correctly auto-removed at turn 5 start
-        // without throwing a NullReferenceException (the bug that was fixed).
-        // The implementation is verified in Game.cs:OnTurnStart where position is saved
-        // before RemoveFromBoard() is called.
-        // Full integration test would require complex multi-turn setup; domain logic verified.
-        Assert.True(true);
+        // Arrange: Create game at turn 1, MovePhase with Cinderella placed
+        var (game, p1, _, cinderellaPiece, _) = GameWithPiecesInMovePhase("Cinderella", new Position(0, 0));
+        
+        var initialLineup = game.LineupPlayerOne;
+        var initialAvailableSlots = initialLineup!.Pieces.Count(p => !p.IsOnBoard);
+        
+        // Advance to turn 5 start
+        // Turn flow: PlacePhase → MovePhase → (turn ends, next turn starts)
+        // We're currently in turn 1 MovePhase
+        // Need to advance to turn 5 MovePhase start
+        for (int turn = 2; turn <= 5; turn++)
+        {
+            game.AdvancePhase();  // → CoinSpawn
+            game.AdvancePhase();  // → PlacePhase  
+            game.AdvancePhase();  // → MovePhase
+            
+            if (turn == 5)
+            {
+                // We're now at turn 5 MovePhase start
+                // Cinderella should be auto-removed
+                break;
+            }
+        }
+        
+        // Act/Assert: Verify Cinderella removed
+        var piecesOnBoard = game.Board.GetAllOccupiedTiles()
+            .Where(t => t.AsPiece != null)
+            .Select(t => t.AsPiece!)
+            .ToList();
+        
+        Assert.DoesNotContain(cinderellaPiece, piecesOnBoard);
+        
+        // Verify player slot freed
+        var finalLineup = game.LineupPlayerOne;
+        var finalAvailableSlots = finalLineup!.Pieces.Count(p => !p.IsOnBoard);
+        Assert.True(finalAvailableSlots > initialAvailableSlots);
+        
+        // Verify event
+        var autoRemovedEvents = game.DomainEvents.OfType<PieceAutoRemoved>()
+            .Where(e => e.PieceId == cinderellaPiece.Id)
+            .ToList();
+        Assert.NotEmpty(autoRemovedEvents);
     }
 
     // ── Forky Tests ────────────────────────────────────────────────────────────
@@ -372,11 +423,44 @@ public class PassiveAbilitiesTests
     [Fact]
     public void FairyGodmother_BuffsAdjacentAllies_TemporaryMoveAdjustment()
     {
-        // This test verifies Fairy Godmother's move buff ability. 
-        // The implementation is in Game.cs:ApplyMoveBuffToAllies() which applies +1 move to adjacent allies.
-        // Full behavior testing requires complex game state setup with specific positioning.
-        // Domain logic verified: buff is applied via OnPieceMoved hook and reset via OnTurnStart.
-        Assert.True(true);
+        // Arrange: FG at (0,3), we'll use one of the fill pieces as an ally
+        var (game, p1, p2, fgPiece, _) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3));
+        var board = game.Board;
+        
+        // Get one of the filler ally pieces and place it adjacent to where FG will move
+        var allyPiece = game.LineupPlayerOne!.Pieces.FirstOrDefault(p => p.Name.StartsWith("P1Fill"));
+        Assert.NotNull(allyPiece);
+        
+        // Place ally at (1, 4) so it's adjacent to where FG will move (1, 3 is where FG moves... wait)
+        // Actually, FG moves to (1,4), so adjacent positions are (0,4), (1,3), (1,5), (2,4)
+        // Let me place ally at (1, 3)
+        allyPiece!.PlaceAt(new Position(1, 3));
+        board.GetTile(new Position(1, 3)).SetOccupant(allyPiece);
+        
+        var allyInitialMoves = allyPiece.MovesPerTurn;
+        
+        // Act: Move Fairy Godmother to (1,4), which will be adjacent to ally at (1,3)
+        game.MovePiece(p1, fgPiece.Id, BuildSegments(new Position(1, 4)));
+        
+        // Assert: Ally gets +1 temporary move
+        Assert.True(allyPiece.TemporaryMoveAdjustment == 1, 
+            $"Expected TemporaryMoveAdjustment=1 after move, but got {allyPiece.TemporaryMoveAdjustment}");
+        
+        // Verify effective moves increased
+        var effectiveMoves = allyPiece.MovesPerTurn + allyPiece.TemporaryMoveAdjustment;
+        Assert.True(effectiveMoves == allyInitialMoves + 1);
+        
+        // Verify buff is temporary (resets at start of next turn)
+        // After MovePhase advances, we transition to CoinSpawn and TurnNumber increments
+        game.AdvancePhase();  // MovePhase → CoinSpawn (increments turn, calls OnTurnStart)
+        Assert.True(allyPiece.TemporaryMoveAdjustment == 0,
+            $"Expected TemporaryMoveAdjustment=0 after advancing to next turn, but got {allyPiece.TemporaryMoveAdjustment}");
+        
+        // Verify event
+        var buffEvents = game.DomainEvents.OfType<MoveBuffApplied>()
+            .Where(e => e.AffectedPieceIds.Contains(allyPiece.Id))
+            .ToList();
+        Assert.NotEmpty(buffEvents);
     }
 
     // ── Ursula Tests ───────────────────────────────────────────────────────────
@@ -384,11 +468,38 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Ursula_DebuffsAdjacentOpponents_TemporaryMoveAdjustment()
     {
-        // This test verifies Ursula's move debuff ability.
-        // The implementation is in Game.cs:ApplyMoveDebuffToOpponents() which applies -1 move to adjacent opponents.
-        // Full behavior testing requires complex game state setup with specific positioning and opponent placement.
-        // Domain logic verified: debuff is applied via OnPieceMoved hook, minimum enforced, reset via OnTurnStart.
-        Assert.True(true);
+        // Arrange: Ursula at (0,3), opponent piece to debuff
+        var (game, p1, p2, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3));
+        var board = game.Board;
+        
+        var movesBeforeDebuff = opponentPiece.MovesPerTurn;
+        
+        // Place opponent piece at (1,3) - adjacent to where Ursula will move to (1,4)
+        board.GetTile(new Position(7, 3)).ClearOccupant();  // Remove from default position
+        opponentPiece.PlaceAt(new Position(1, 3));
+        board.GetTile(new Position(1, 3)).SetOccupant(opponentPiece);
+        
+        // Act: Move Ursula to (1,4), which is adjacent to opponent at (1,3)
+        game.MovePiece(p1, ursulaPiece.Id, BuildSegments(new Position(1, 4)));
+        
+        // Assert: Opponent gets -1 temporary move (min 0)
+        Assert.True(opponentPiece.TemporaryMoveAdjustment == -1,
+            $"Expected TemporaryMoveAdjustment=-1 after move, but got {opponentPiece.TemporaryMoveAdjustment}");
+        
+        // Verify effective moves enforces minimum of 0
+        var effectiveMoves = Math.Max(0, opponentPiece.MovesPerTurn + opponentPiece.TemporaryMoveAdjustment);
+        Assert.True(effectiveMoves >= 0);
+        
+        // Verify debuff is temporary (resets at start of next turn)
+        game.AdvancePhase();  // MovePhase → CoinSpawn (increments turn, calls OnTurnStart)
+        Assert.True(opponentPiece.TemporaryMoveAdjustment == 0,
+            $"Expected TemporaryMoveAdjustment=0 after advancing to next turn, but got {opponentPiece.TemporaryMoveAdjustment}");
+        
+        // Verify event
+        var debuffEvents = game.DomainEvents.OfType<MoveDebuffApplied>()
+            .Where(e => e.AffectedPieceIds.Contains(opponentPiece.Id))
+            .ToList();
+        Assert.NotEmpty(debuffEvents);
     }
 
     // ── Mike Wazowski Tests ────────────────────────────────────────────────────
@@ -396,11 +507,26 @@ public class PassiveAbilitiesTests
     [Fact]
     public void MikeWazowski_ApplisCoinBuffToRandomAlly()
     {
-        // This test verifies Mike Wazowski's coin buff ability.
-        // The implementation is in Game.cs:ApplyCoinBuffToRandomAlly() which applies +1 coin to a random adjacent ally.
-        // Full behavior testing requires complex game state setup with specific positioning and ally placement.
-        // Domain logic verified: buff is tracked via CoinBuffAmount field and applied via OnPieceMoved hook.
-        Assert.True(true);
+        // Arrange: Mike at (0,0) [corner], ally at (0,1)
+        var (game, p1, p2, mikePiece, _) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 0));
+        var board = game.Board;
+        
+        var allyPiece = new Piece(Guid.NewGuid(), "AllyTest", p1,
+            EntryPointType.Anywhere, MovementType.Orthogonal, 1, 1);
+        allyPiece.PlaceAt(new Position(0, 1));
+        board.GetTile(new Position(0, 1)).SetOccupant(allyPiece);
+        
+        // Act: Move Mike to (1,0), which is adjacent to ally at (0,1)
+        game.MovePiece(p1, mikePiece.Id, BuildSegments(new Position(1, 0)));
+        
+        // Assert: Ally has coin buff
+        Assert.True(allyPiece.CoinBuffAmount > 0);
+        
+        // Verify event
+        var buffEvents = game.DomainEvents.OfType<CoinBuffApplied>()
+            .Where(e => e.AffectedPieceId == allyPiece.Id)
+            .ToList();
+        Assert.NotEmpty(buffEvents);
     }
 
     // ── Event Verification Tests ───────────────────────────────────────────────
