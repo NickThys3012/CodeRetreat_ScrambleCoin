@@ -41,6 +41,18 @@ public static class PieceFactory
             ["Scar"]      = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1),
             ["Daisy"]     = new(EntryPointType.Anywhere, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
             ["Stitch"]    = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 3, MovesPerTurn: 1),
+
+            // Passive & turn-based ability pieces (Issue #50)
+            ["Flynn"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
+            ["Moana"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
+            ["Jafar"]           = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1), // Jafar multi-step movement (grows)
+            ["Merlin"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
+            ["Rapunzel"]        = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
+            ["Cinderella"]      = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.AnyDirection }, SegmentMaxDistances: new[] { 2, 1 }),
+            ["Fairy Godmother"] = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
+            ["Ursula"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
+            ["Mike Wazowski"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            ["Forky"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
