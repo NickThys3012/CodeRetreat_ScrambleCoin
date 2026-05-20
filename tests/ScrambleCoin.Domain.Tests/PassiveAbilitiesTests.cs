@@ -328,10 +328,74 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Cinderella_AutoRemovedAtTurn5Start()
     {
-        // Note: This test requires complex multi-turn setup. The implementation is verified
-        // to exist in Game.cs and is tested through integration and manual testing.
-        // Domain logic: Cinderella is removed at turn 5 start via OnTurnStart hook.
-        Assert.True(true);
+        // Arrange: Create game with Cinderella and advance to turn 5 start
+        var p1 = Guid.NewGuid();
+        var p2 = Guid.NewGuid();
+        var board = new Board();
+
+        var cinderella = PieceFactory.Create("Cinderella", p1);
+        var p2Piece = new Piece(Guid.NewGuid(), "P2Piece", p2,
+            EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
+
+        // Fill remaining pieces
+        var p1Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+        var p2Fill = Enumerable.Range(0, 4)
+            .Select(i => new Piece(Guid.NewGuid(), $"P2Fill{i}", p2, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+
+        var p1Pieces = new List<Piece> { cinderella };
+        p1Pieces.AddRange(p1Fill);
+
+        var p2Pieces = new List<Piece> { p2Piece };
+        p2Pieces.AddRange(p2Fill);
+
+        var game = new Game(p1, p2, board);
+        game.SetLineup(p1, new Lineup(p1Pieces));
+        game.SetLineup(p2, new Lineup(p2Pieces));
+        game.Start();
+
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(p1, cinderella.Id, new Position(0, 3));
+        game.PlacePiece(p2, p2Piece.Id, new Position(7, 3));
+
+        // Record initial available pieces count
+        var initialAvailableCount = game.LineupPlayerOne!.AvailablePieces.Count;
+
+        // Advance through turns 1-4 to get to turn 5 start
+        for (int turn = 1; turn < 5; turn++)
+        {
+            // Move pieces to advance through MovePhase
+            game.MovePiece(p1, cinderella.Id, BuildSegments(new Position(0, 4)));
+            game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
+            
+            // Advance through CoinSpawn and PlacePhase
+            if (turn < 4)
+            {
+                game.AdvancePhase(); // MovePhase → CoinSpawn
+                game.AdvancePhase(); // CoinSpawn → PlacePhase
+                game.PlacePiece(p1, cinderella.Id, new Position(0, 3));
+                game.PlacePiece(p2, p2Piece.Id, new Position(7, 3));
+            }
+        }
+
+        // Act: Turn 5 starts
+        // This is done by moving to CoinSpawn (which triggers OnTurnStart where Cinderella is removed)
+        game.AdvancePhase(); // MovePhase → CoinSpawn
+
+        // Assert: Cinderella removed from board
+        var cinderellasOnBoard = game.Board.GetAllPieces().Where(p => p.Name.Equals("Cinderella", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.DoesNotContain(cinderella, cinderellasOnBoard);
+        Assert.False(cinderella.IsOnBoard);
+
+        // Verify player slot freed (more available pieces)
+        var finalAvailableCount = game.LineupPlayerOne!.AvailablePieces.Count;
+        Assert.True(finalAvailableCount > initialAvailableCount);
+
+        // Verify event raised
+        Assert.NotEmpty(game.DomainEvents.OfType<PieceAutoRemoved>()
+            .Where(e => e.PieceId == cinderella.Id));
     }
 
     // ── Forky Tests ────────────────────────────────────────────────────────────
@@ -339,9 +403,28 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Forky_AutoRemovedAfterFirstMove()
     {
-        // Forky auto-removal logic verified in Game.cs OnTurnStart and CheckForkyAutoRemoval
-        // Piece tracking via HasMovedOnFirstTurn field
-        Assert.True(true);
+        // Arrange
+        var (game, p1, p2, forkyPiece, p2Piece) = GameWithPiecesInMovePhase("Forky", new Position(0, 3), new Position(7, 3));
+        
+        // Record initial slot availability
+        var initialSlots = game.LineupPlayerOne!.AvailablePieces.Count;
+
+        // Act: Move Forky (first move)
+        game.MovePiece(p1, forkyPiece.Id, BuildSegments(new Position(0, 4)));
+        game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
+
+        // Assert: Forky removed from board
+        var forkysOnBoard = game.Board.GetAllPieces().Where(p => p.Name.Equals("Forky", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.DoesNotContain(forkyPiece, forkysOnBoard);
+        Assert.False(forkyPiece.IsOnBoard);
+
+        // Verify player slot freed
+        var finalSlots = game.LineupPlayerOne!.AvailablePieces.Count;
+        Assert.True(finalSlots > initialSlots);
+
+        // Verify event raised
+        Assert.NotEmpty(game.DomainEvents.OfType<PieceAutoRemoved>()
+            .Where(e => e.PieceId == forkyPiece.Id));
     }
 
     // ── Fairy Godmother Tests ──────────────────────────────────────────────────
@@ -349,9 +432,44 @@ public class PassiveAbilitiesTests
     [Fact]
     public void FairyGodmother_BuffsAdjacentAllies_TemporaryMoveAdjustment()
     {
-        // Implementation verified: ApplyMoveBuffToAllies() in Game.cs
-        // Buff applied via OnPieceMoved hook after Fairy Godmother moves
-        Assert.True(true);
+        // Arrange
+        var (game, p1, p2, fgPiece, p2Piece) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3), new Position(7, 3));
+        
+        // Create an ally piece and place it adjacent to Fairy Godmother
+        var allyPiece = new Piece(Guid.NewGuid(), "AllyPiece", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
+        allyPiece.PlaceAt(new Position(1, 3));  // Adjacent to FG at (0, 3)
+        game.Board.GetTile(new Position(1, 3)).SetOccupant(allyPiece);
+        
+        // Add ally to p1's lineup for game tracking
+        var lineup = game.LineupPlayerOne!;
+        var fillPieces = lineup.Pieces.Where(p => p.Name.StartsWith("P1Fill")).ToList();
+        if (fillPieces.Any())
+        {
+            // Remove one fill piece from board if on it
+            var firstFill = fillPieces.First();
+            if (firstFill.IsOnBoard)
+            {
+                var pos = firstFill.Position!;
+                game.Board.GetTile(pos).ClearOccupant();
+                firstFill.RemoveFromBoard();
+            }
+        }
+
+        // Act: Move Fairy Godmother (which triggers buff to adjacent allies)
+        game.MovePiece(p1, fgPiece.Id, BuildSegments(new Position(0, 4)));
+        game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
+
+        // Assert: Ally gets +1 move adjustment this turn
+        Assert.Equal(1, allyPiece.TemporaryMoveAdjustment);
+
+        // Verify buff doesn't persist to next turn
+        game.AdvancePhase(); // MovePhase → CoinSpawn (triggers OnTurnStart which resets)
+        Assert.Equal(0, allyPiece.TemporaryMoveAdjustment);
+
+        // Verify event raised
+        var moveBuffEvent = game.DomainEvents.OfType<MoveBuffApplied>()
+            .FirstOrDefault(e => e.AffectedPieceIds.Contains(allyPiece.Id));
+        Assert.NotNull(moveBuffEvent);
     }
 
     // ── Ursula Tests ───────────────────────────────────────────────────────────
@@ -359,9 +477,38 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Ursula_DebuffsAdjacentOpponents_TemporaryMoveAdjustment()
     {
-        // Implementation verified: ApplyMoveDebuffToOpponents() in Game.cs
-        // Debuff applied via OnPieceMoved hook after Ursula moves
-        Assert.True(true);
+        // Arrange
+        var (game, p1, p2, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3), new Position(7, 3));
+        
+        // Move opponent piece adjacent to Ursula
+        var adjPos = new Position(1, 3);  // Adjacent to Ursula at (0, 3)
+        if (opponentPiece.IsOnBoard)
+        {
+            var oldPos = opponentPiece.Position!;
+            game.Board.GetTile(oldPos).ClearOccupant();
+        }
+        opponentPiece.PlaceAt(adjPos);
+        game.Board.GetTile(adjPos).SetOccupant(opponentPiece);
+        
+        var initialMoves = opponentPiece.MovesPerTurn;
+
+        // Act: Move Ursula (which triggers debuff to adjacent opponents)
+        game.MovePiece(p1, ursulaPiece.Id, BuildSegments(new Position(0, 4)));
+        game.MovePiece(p2, opponentPiece.Id, BuildSegments(new Position(1, 4)));
+
+        // Assert: Opponent loses 1 move (min 0)
+        Assert.Equal(-1, opponentPiece.TemporaryMoveAdjustment);
+        var effectiveMoves = opponentPiece.GetEffectiveMovesPerTurn();
+        Assert.True(effectiveMoves >= 0);  // Min 0 enforced
+
+        // Verify debuff doesn't persist to next turn
+        game.AdvancePhase(); // MovePhase → CoinSpawn (triggers OnTurnStart which resets)
+        Assert.Equal(0, opponentPiece.TemporaryMoveAdjustment);
+
+        // Verify event raised
+        var moveDebuffEvent = game.DomainEvents.OfType<MoveDebuffApplied>()
+            .FirstOrDefault(e => e.AffectedPieceIds.Contains(opponentPiece.Id));
+        Assert.NotNull(moveDebuffEvent);
     }
 
     // ── Mike Wazowski Tests ────────────────────────────────────────────────────
@@ -369,9 +516,27 @@ public class PassiveAbilitiesTests
     [Fact]
     public void MikeWazowski_ApplisCoinBuffToRandomAlly()
     {
-        // Implementation verified: ApplyCoinBuffToRandomAlly() in Game.cs
-        // Buff tracked via CoinBuffAmount field on Piece
-        Assert.True(true);
+        // Arrange
+        var (game, p1, p2, mikePiece, p2Piece) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 3), new Position(7, 3));
+        
+        // Create an ally piece and place it adjacent to Mike
+        var allyPiece = new Piece(Guid.NewGuid(), "AllyPiece", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
+        allyPiece.PlaceAt(new Position(1, 3));  // Adjacent to Mike at (0, 3)
+        game.Board.GetTile(new Position(1, 3)).SetOccupant(allyPiece);
+
+        // Act: Move Mike (which triggers coin buff to random adjacent ally)
+        game.MovePiece(p1, mikePiece.Id, BuildSegments(new Position(0, 4)));
+        game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
+
+        // Assert: Ally has coin buff applied
+        // The buff should be 1 coin worth
+        Assert.True(allyPiece.CoinBuffAmount > 0);
+
+        // Verify event raised
+        var coinBuffEvents = game.DomainEvents.OfType<CoinBuffApplied>()
+            .Where(e => e.AffectedPieceId == allyPiece.Id)
+            .ToList();
+        Assert.NotEmpty(coinBuffEvents);
     }
 
     // ── Event Verification Tests ───────────────────────────────────────────────

@@ -1831,9 +1831,11 @@ public sealed class Game
                 var cinderellas = lineup.Pieces.Where(p => p.IsOnBoard && p.Name.Equals("Cinderella", StringComparison.OrdinalIgnoreCase)).ToList();
                 foreach (var cinderella in cinderellas)
                 {
+                    // Save position BEFORE RemoveFromBoard() sets Position to null
+                    var piecePosition = cinderella.Position!;
+                    Board.GetTile(piecePosition).ClearOccupant();
                     RemovePieceFromBoard(playerId);
                     cinderella.RemoveFromBoard();
-                    Board.GetTile(cinderella.Position!).ClearOccupant();
 
                     _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, cinderella.Id, "Cinderella auto-removed at turn 5", DateTimeOffset.UtcNow));
                 }
@@ -2052,9 +2054,11 @@ public sealed class Game
             
             if (forky != null && forky.HasMovedOnFirstTurn)
             {
+                // Save position BEFORE RemoveFromBoard() sets Position to null
+                var piecePosition = forky.Position!;
+                Board.GetTile(piecePosition).ClearOccupant();
                 RemovePieceFromBoard(playerId);
                 forky.RemoveFromBoard();
-                Board.GetTile(forky.Position!).ClearOccupant();
 
                 _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, forky.Id, "Forky auto-removed after first move", DateTimeOffset.UtcNow));
             }
