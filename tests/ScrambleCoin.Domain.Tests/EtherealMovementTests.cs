@@ -162,6 +162,30 @@ public class EtherealMovementTests
     }
 
     [Fact]
+    public void Ethereal_InvalidDestination_DoesNotCollectIntermediateCoins()
+    {
+        // Arrange: coin on the first step, but destination is occupied by an opponent.
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithEtherealPiece(
+            p1MaxDistance: 2,
+            p1StartPos: new Position(0, 0),
+            p2StartPos: new Position(0, 2));
+
+        var coinPos = new Position(0, 1);
+        game.Board.GetTile(coinPos).SetOccupant(new Coin(CoinType.Gold));
+
+        // Act & Assert: validation fails before any movement side effects are applied.
+        var ex = Assert.Throws<DomainException>(() =>
+            game.MovePiece(p1, p1Piece.Id, BuildEtherealSegment(coinPos, new Position(0, 2)))
+        );
+        Assert.Contains("Ethereal movement must end on a free tile", ex.Message);
+
+        Assert.Equal(new Position(0, 0), p1Piece.Position);
+        Assert.Equal(0, game.Scores[p1]);
+        Assert.NotNull(game.Board.GetTile(coinPos).AsCoin);
+        Assert.Empty(game.DomainEvents.OfType<CoinCollected>());
+    }
+
+    [Fact]
     public void Ethereal_FenceStillBlocks_Throws()
     {
         // Arrange: Ethereal piece at (0,0), fence between (0,0) and (0,1)

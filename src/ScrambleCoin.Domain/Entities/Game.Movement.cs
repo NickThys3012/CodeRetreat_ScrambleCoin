@@ -76,48 +76,19 @@ public partial class Game
             throw new DomainException($"Piece {pieceId} is not on the board.");
 
         var startPosition = piece.Position!;
+        ValidateAllSegments(segments, piece, startPosition, playerId, pieceId);
+
         var currentPosition = startPosition;
-
-        // Check whether the piece has any valid first move (used to allow empty segments).
-        var hasAnyValidMove = Board.HasAnyValidMove(piece);
-
-        // Validate segment count.
-        if (segments.Count != piece.MovesPerTurn)
-        {
-            // Only exception: the piece is completely blocked and MovesPerTurn == 1,
-            // and the caller passes exactly 1 empty segment.
-            var allowedStuckException =
-                !hasAnyValidMove &&
-                piece.MovesPerTurn == 1 &&
-                segments is [{ Count: 0 }];
-
-            if (!allowedStuckException)
-                throw new DomainException(
-                    $"Piece {pieceId} requires exactly {piece.MovesPerTurn} segment(s), but {segments.Count} were provided.");
-        }
-
         var fullPath = new List<Position>();
 
         for (var segIndex = 0; segIndex < segments.Count; segIndex++)
         {
             var segment = segments[segIndex];
-            
-            // Get the per-segment movement type and max distance
+            if (segment.Count == 0)
+                continue;
+
             var segmentMovementType = piece.GetSegmentMovementType(segIndex);
             var segmentMaxDistance = piece.GetSegmentMaxDistance(segIndex);
-
-            if (segment.Count == 0)
-            {
-                // An empty segment is only permitted when the piece has no valid move.
-                var hasValidMoveAtCurrentPos = segmentMovementType == MovementType.Jump
-                    ? Board.HasAnyValidMove(currentPosition, segmentMovementType, segmentMaxDistance)
-                    : Board.HasAnyValidMove(currentPosition, segmentMovementType);
-
-                if (hasValidMoveAtCurrentPos)
-                    throw new DomainException(
-                        $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
-                continue;
-            }
 
             currentPosition = segmentMovementType switch
             {
@@ -130,21 +101,6 @@ public partial class Game
                 _ => throw new DomainException(
                     $"Unknown movement type: {segmentMovementType}. This should never happen.")
             };
-        }
-
-        // Special validation for Ethereal movement: destination must not have a piece occupant (only if moved).
-        // Note: For multistep pieces, only check the last segment's movement type
-        var finalSegmentMovementType = piece.GetSegmentMovementType(segments.Count - 1);
-        if (finalSegmentMovementType == MovementType.Ethereal && currentPosition != startPosition)
-        {
-            var destinationTile = Board.GetTile(currentPosition);
-            if (destinationTile.AsPiece is not null)
-                throw new DomainException(
-                    $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
-            
-            if (Board.IsObstacleCovering(currentPosition))
-                throw new DomainException(
-                    $"Piece {pieceId}: tile {currentPosition} is covered by an obstacle. Ethereal movement must end on a free tile.");
         }
 
         // Move the piece on the board.
@@ -178,6 +134,385 @@ public partial class Game
 
         // Advance the active player when all their on-board pieces have moved.
         TryAutoAdvanceMovePhase();
+    }
+
+    private void ValidateAllSegments(
+        IReadOnlyList<IReadOnlyList<Position>> segments,
+        Piece piece,
+        Position startPosition,
+        Guid playerId,
+        Guid pieceId)
+    {
+        // Check whether the piece has any valid first move (used to allow empty segments).
+        var hasAnyValidMove = Board.HasAnyValidMove(piece);
+
+        // Validate segment count.
+        if (segments.Count != piece.MovesPerTurn)
+        {
+            // Only exception: the piece is completely blocked and MovesPerTurn == 1,
+            // and the caller passes exactly 1 empty segment.
+            var allowedStuckException =
+                !hasAnyValidMove &&
+                piece.MovesPerTurn == 1 &&
+                segments is [{ Count: 0 }];
+
+            if (!allowedStuckException)
+                throw new DomainException(
+                    $"Piece {pieceId} requires exactly {piece.MovesPerTurn} segment(s), but {segments.Count} were provided.");
+        }
+
+        var currentPosition = startPosition;
+
+        for (var segIndex = 0; segIndex < segments.Count; segIndex++)
+        {
+            var segment = segments[segIndex];
+            var segmentMovementType = piece.GetSegmentMovementType(segIndex);
+            var segmentMaxDistance = piece.GetSegmentMaxDistance(segIndex);
+
+            if (segment.Count == 0)
+            {
+                var hasValidMoveAtCurrentPos = segmentMovementType == MovementType.Jump
+                    ? Board.HasAnyValidMove(currentPosition, segmentMovementType, segmentMaxDistance)
+                    : Board.HasAnyValidMove(currentPosition, segmentMovementType);
+
+                if (hasValidMoveAtCurrentPos)
+                    throw new DomainException(
+                        $"Piece {pieceId}, segment {segIndex}: an empty segment is not allowed when a valid move exists.");
+
+                continue;
+            }
+
+            currentPosition = segmentMovementType switch
+            {
+                MovementType.Charge => ValidateChargeSegment(segIndex, segment, currentPosition, pieceId),
+                MovementType.Ethereal => ValidateSteppedSegment(segIndex, segment, currentPosition, pieceId, segmentMaxDistance, segmentMovementType, piece),
+                MovementType.Jump => ValidateJumpSegment(segIndex, segment, currentPosition, pieceId, playerId, piece, segmentMaxDistance),
+                MovementType.Orthogonal => ValidateSteppedSegment(segIndex, segment, currentPosition, pieceId, segmentMaxDistance, segmentMovementType, piece),
+                MovementType.Diagonal => ValidateSteppedSegment(segIndex, segment, currentPosition, pieceId, segmentMaxDistance, segmentMovementType, piece),
+                MovementType.AnyDirection => ValidateSteppedSegment(segIndex, segment, currentPosition, pieceId, segmentMaxDistance, segmentMovementType, piece),
+                _ => throw new DomainException(
+                    $"Unknown movement type: {segmentMovementType}. This should never happen.")
+            };
+        }
+
+        var finalSegmentMovementType = piece.GetSegmentMovementType(segments.Count - 1);
+        if (finalSegmentMovementType == MovementType.Ethereal && currentPosition != startPosition)
+        {
+            var destinationTile = Board.GetTile(currentPosition);
+            if (destinationTile.AsPiece is not null)
+                throw new DomainException(
+                    $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
+
+            if (Board.IsObstacleCovering(currentPosition))
+                throw new DomainException(
+                    $"Piece {pieceId}: tile {currentPosition} is covered by an obstacle. Ethereal movement must end on a free tile.");
+        }
+    }
+
+    private Position ValidateChargeSegment(
+        int segIndex,
+        IReadOnlyList<Position> segment,
+        Position currentPosition,
+        Guid pieceId)
+    {
+        if (segment.Count != 1)
+            throw new DomainException(
+                $"Piece {pieceId}, segment {segIndex}: Charge movement requires exactly 1 position, but {segment.Count} were provided.");
+
+        var chargePath = ResolveValidatedChargePath(currentPosition, segment[0], pieceId, MovementType.Charge);
+        var chargeEndPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
+
+        if (Board.HasIcePatch(chargeEndPosition))
+        {
+            var slidePreviousPosition = chargePath.Count > 1
+                ? chargePath[^2]
+                : currentPosition;
+            chargeEndPosition = ResolveIcePatchSlideDestination(chargeEndPosition, slidePreviousPosition);
+        }
+
+        return chargeEndPosition;
+    }
+
+    private Position ValidateSteppedSegment(
+        int segIndex,
+        IReadOnlyList<Position> segment,
+        Position currentPosition,
+        Guid pieceId,
+        int segmentMaxDistance,
+        MovementType segmentMovementType,
+        Piece piece)
+    {
+        if (segment.Count > segmentMaxDistance)
+            throw new DomainException(
+                $"Piece {pieceId}, segment {segIndex}: segment has {segment.Count} step(s), but MaxDistance is {segmentMaxDistance}.");
+
+        var segFrom = currentPosition;
+        var isStitch = piece.Name.Equals("Stitch", StringComparison.OrdinalIgnoreCase);
+        var destroyedFencePositions = isStitch ? new HashSet<Position>() : null;
+
+        foreach (var stepTo in segment)
+        {
+            switch (segmentMovementType)
+            {
+                case MovementType.Orthogonal:
+                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo))
+                        throw new DomainException(
+                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not orthogonal.");
+                    break;
+                case MovementType.Diagonal:
+                    if (!segFrom.IsDiagonallyAdjacentTo(stepTo))
+                        throw new DomainException(
+                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not diagonal.");
+                    break;
+                case MovementType.AnyDirection:
+                case MovementType.Ethereal:
+                    if (!segFrom.IsOrthogonallyAdjacentTo(stepTo) && !segFrom.IsDiagonallyAdjacentTo(stepTo))
+                        throw new DomainException(
+                            $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
+                    break;
+            }
+
+            if (segmentMovementType == MovementType.Ethereal)
+            {
+                if (IsFenceBlockedForValidation(segFrom, stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked by a fence.");
+            }
+            else if (isStitch)
+            {
+                var hasFence = HasFenceForValidation(stepTo, destroyedFencePositions);
+                var hasRock = Board.HasRock(stepTo);
+                var hasLake = Board.HasLake(stepTo);
+
+                if (hasRock || (hasLake && !hasFence))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked by a rock or lake.");
+
+                if (hasFence)
+                    destroyedFencePositions!.Add(stepTo);
+            }
+            else
+            {
+                if (Board.IsObstacleCovering(stepTo) || IsFenceBlockedForValidation(segFrom, stepTo))
+                    throw new DomainException(
+                        $"Piece {pieceId}: step from {segFrom} to {stepTo} is blocked.");
+            }
+
+            if (segmentMovementType != MovementType.Ethereal && Board.GetTile(stepTo).AsPiece is not null)
+                throw new DomainException(
+                    $"Piece {pieceId}: step from {segFrom} to {stepTo} is occupied by a piece.");
+
+            var positionAfterStep = stepTo;
+            if (Board.HasIcePatch(positionAfterStep))
+            {
+                positionAfterStep = ResolveIcePatchSlideDestination(positionAfterStep, segFrom, destroyedFencePositions);
+            }
+
+            segFrom = positionAfterStep;
+        }
+
+        return segFrom;
+    }
+
+    private Position ValidateJumpSegment(
+        int segIndex,
+        IReadOnlyList<Position> segment,
+        Position currentPosition,
+        Guid pieceId,
+        Guid playerId,
+        Piece piece,
+        int segmentMaxDistance)
+    {
+        if (segment.Count != 1)
+            throw new DomainException(
+                $"Piece {pieceId}, segment {segIndex}: Jump movement requires exactly 1 destination position, but {segment.Count} were provided.");
+
+        var destination = segment[0];
+        var rowDiff = destination.Row - currentPosition.Row;
+        var colDiff = destination.Col - currentPosition.Col;
+
+        if (rowDiff == 0 && colDiff == 0)
+            throw new DomainException(
+                $"Piece {pieceId}: jump destination must be different from the current position.");
+
+        ValidateJumpDirectionConstraint(pieceId, currentPosition, destination, rowDiff, colDiff, MovementType.Jump);
+
+        var distance = CalculateJumpDistance(currentPosition, destination, MovementType.Jump);
+        if (distance > segmentMaxDistance)
+            throw new DomainException(
+                $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {segmentMaxDistance}.");
+
+        if (Board.IsObstacleCovering(destination))
+            throw new DomainException(
+                $"Piece {pieceId}: tile {destination} is occupied by an obstacle.");
+
+        var targetPiece = Board.GetTile(destination).AsPiece;
+        if (piece.Name.Equals("Scar", StringComparison.OrdinalIgnoreCase))
+        {
+            if (targetPiece is not null && targetPiece.PlayerId == playerId)
+                throw new DomainException(
+                    $"Piece {pieceId}: cannot land on ally piece at {destination}.");
+        }
+        else if (!piece.Name.Equals("Daisy", StringComparison.OrdinalIgnoreCase) && targetPiece is not null)
+        {
+            throw new DomainException(
+                $"Piece {pieceId}: tile {destination} is already occupied by a piece.");
+        }
+
+        return destination;
+    }
+
+    private List<Position> ResolveValidatedChargePath(
+        Position startPosition,
+        Position firstStep,
+        Guid pieceId,
+        MovementType movementType)
+    {
+        if (!startPosition.IsOrthogonallyAdjacentTo(firstStep) && !startPosition.IsDiagonallyAdjacentTo(firstStep))
+            throw new DomainException(
+                $"Piece {pieceId}: first charge step from {startPosition} to {firstStep} is not adjacent.");
+
+        var isOrthogonal = startPosition.IsOrthogonallyAdjacentTo(firstStep);
+        var isDiagonal = startPosition.IsDiagonallyAdjacentTo(firstStep);
+
+        if (movementType != MovementType.Charge)
+        {
+            switch (movementType)
+            {
+                case MovementType.Orthogonal:
+                    if (!isOrthogonal)
+                        throw new DomainException(
+                            $"Piece {pieceId}: charge from {startPosition} to {firstStep} is not orthogonal.");
+                    break;
+                case MovementType.Diagonal:
+                    if (!isDiagonal)
+                        throw new DomainException(
+                            $"Piece {pieceId}: charge from {startPosition} to {firstStep} is not diagonal.");
+                    break;
+                case MovementType.AnyDirection:
+                    break;
+            }
+        }
+
+        if (!Board.IsPassable(startPosition, firstStep))
+            return [];
+
+        if (Board.GetTile(firstStep).AsPiece is not null)
+            return [];
+
+        var rowDelta = Math.Sign(firstStep.Row - startPosition.Row);
+        var colDelta = Math.Sign(firstStep.Col - startPosition.Col);
+        var chargePath = new List<Position>();
+        var currentPos = firstStep;
+
+        while (true)
+        {
+            chargePath.Add(currentPos);
+
+            var nextRow = currentPos.Row + rowDelta;
+            var nextCol = currentPos.Col + colDelta;
+            if (nextRow < 0 || nextRow >= Board.Size || nextCol < 0 || nextCol >= Board.Size)
+                break;
+
+            var nextPos = new Position(nextRow, nextCol);
+            if (!Board.IsPassable(currentPos, nextPos))
+                break;
+
+            if (Board.GetTile(nextPos).AsPiece is not null)
+                break;
+
+            currentPos = nextPos;
+        }
+
+        return chargePath;
+    }
+
+    private Position ResolveIcePatchSlideDestination(
+        Position currentPosition,
+        Position previousPosition,
+        ISet<Position>? destroyedFencePositions = null)
+    {
+        var rowDelta = Math.Sign(currentPosition.Row - previousPosition.Row);
+        var colDelta = Math.Sign(currentPosition.Col - previousPosition.Col);
+
+        var slideRow = currentPosition.Row + rowDelta;
+        var slideCol = currentPosition.Col + colDelta;
+        if (slideRow < 0 || slideRow >= Board.Size || slideCol < 0 || slideCol >= Board.Size)
+            return currentPosition;
+
+        var slideTarget = new Position(slideRow, slideCol);
+        if (Board.IsObstacleCovering(slideTarget) || IsFenceBlockedForValidation(currentPosition, slideTarget, destroyedFencePositions))
+            return currentPosition;
+
+        if (Board.GetTile(slideTarget).AsPiece is not null)
+            return currentPosition;
+
+        return slideTarget;
+    }
+
+    private bool HasFenceForValidation(Position position, ISet<Position>? destroyedFencePositions = null)
+    {
+        if (destroyedFencePositions is null || destroyedFencePositions.Count == 0)
+            return Board.HasFence(position);
+
+        if (destroyedFencePositions.Contains(position))
+            return false;
+
+        var fences = Board.GetAllObstacles().Fences;
+        var adjacentPositions = new List<Position>();
+        var row = position.Row;
+        var col = position.Col;
+
+        if (row > 0) adjacentPositions.Add(new Position(row - 1, col));
+        if (row < Board.Size - 1) adjacentPositions.Add(new Position(row + 1, col));
+        if (col > 0) adjacentPositions.Add(new Position(row, col - 1));
+        if (col < Board.Size - 1) adjacentPositions.Add(new Position(row, col + 1));
+
+        return adjacentPositions.Any(adj =>
+            !destroyedFencePositions.Contains(adj) &&
+            fences.Any(f => f.IsOnEdge(position, adj)));
+    }
+
+    private bool IsFenceBlockedForValidation(Position from, Position to, ISet<Position>? destroyedFencePositions = null)
+    {
+        if (destroyedFencePositions is null || destroyedFencePositions.Count == 0)
+            return Board.IsFenceBlocked(from, to);
+
+        if (!from.IsOrthogonallyAdjacentTo(to) && !from.IsDiagonallyAdjacentTo(to))
+            throw new DomainException($"Positions {from} and {to} are not adjacent.");
+
+        var fences = Board.GetAllObstacles().Fences;
+
+        bool HasActiveFenceOnEdge(Position edgeStart, Position edgeEnd) =>
+            !destroyedFencePositions.Contains(edgeStart) &&
+            !destroyedFencePositions.Contains(edgeEnd) &&
+            fences.Any(f => f.IsOnEdge(edgeStart, edgeEnd));
+
+        var rowDiff = to.Row - from.Row;
+        var colDiff = to.Col - from.Col;
+
+        var isOrthogonal = Math.Abs(rowDiff) == 1 && colDiff == 0 ||
+                           rowDiff == 0 && Math.Abs(colDiff) == 1;
+
+        var isDiagonal = Math.Abs(rowDiff) == 1 && Math.Abs(colDiff) == 1;
+
+        if (isOrthogonal)
+            return HasActiveFenceOnEdge(from, to);
+
+        if (!isDiagonal)
+            return false;
+
+        var cornerA = new Position(from.Row + rowDiff, from.Col);
+        var cornerB = new Position(from.Row, from.Col + colDiff);
+
+        var fenceFromVertical = HasActiveFenceOnEdge(from, cornerA);
+        var fenceFromHorizontal = HasActiveFenceOnEdge(from, cornerB);
+        if (fenceFromVertical && fenceFromHorizontal)
+            return true;
+
+        var fenceToVertical = HasActiveFenceOnEdge(to, cornerA);
+        var fenceToHorizontal = HasActiveFenceOnEdge(to, cornerB);
+        return fenceToVertical && fenceToHorizontal;
     }
 
     private Position HandleChargeMovement(
