@@ -41,8 +41,8 @@ public class MultiStepMovementTests
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         // Choose appropriate starting position based on entry point type
-        Position p1StartPos = p1Piece.EntryPointType == EntryPointType.Corners ? new Position(0, 0) : new Position(0, 3);
-        Position p2StartPos = new Position(7, 3);
+        var p1StartPos = p1Piece.EntryPointType == EntryPointType.Corners ? new Position(0, 0) : new Position(0, 3);
+        var p2StartPos = new Position(7, 3);
 
         // Place both pieces to auto-advance to MovePhase
         game.PlacePiece(p1, p1Piece.Id, p1StartPos);

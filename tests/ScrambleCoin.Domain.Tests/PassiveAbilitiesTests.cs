@@ -353,7 +353,7 @@ public class PassiveAbilitiesTests
         // Turn flow: PlacePhase → MovePhase → (turn ends, next turn starts)
         // We're currently in turn 1 MovePhase
         // Need to advance to turn 5 MovePhase start
-        for (int turn = 2; turn <= 5; turn++)
+        for (var turn = 2; turn <= 5; turn++)
         {
             game.AdvancePhase();  // → CoinSpawn
             game.AdvancePhase();  // → PlacePhase  
