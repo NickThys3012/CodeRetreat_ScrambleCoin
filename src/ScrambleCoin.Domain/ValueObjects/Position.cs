@@ -42,41 +42,11 @@ public sealed class Position : IEquatable<Position>
     }
 
     /// <summary>
-    /// Returns the orthogonal distance to <paramref name="other"/> (Manhattan distance on axes only).
-    /// This is the number of tiles for an orthogonal move.
-    /// Returns 0 if already at the same position.
+    /// Returns the Chebyshev distance (max of absolute differences) between this position and <paramref name="other"/>.
+    /// Used for Jump movement range validation.
     /// </summary>
-    public int OrthogonalDistance(Position other)
-    {
-        var rowDiff = Math.Abs(Row - other.Row);
-        var colDiff = Math.Abs(Col - other.Col);
-        return rowDiff + colDiff;
-    }
-
-    /// <summary>
-    /// Returns the diagonal distance to <paramref name="other"/>.
-    /// For pure diagonal movement, this is the number of tiles (steps).
-    /// Returns 0 if already at the same position.
-    /// </summary>
-    public int DiagonalDistance(Position other)
-    {
-        var rowDiff = Math.Abs(Row - other.Row);
-        var colDiff = Math.Abs(Col - other.Col);
-        return Math.Max(rowDiff, colDiff);
-    }
-
-    /// <summary>
-    /// Returns the Chebyshev distance (chessboard distance) to <paramref name="other"/>.
-    /// This is the minimum number of king moves to reach the target.
-    /// Used for "Any direction" movement validation.
-    /// Returns 0 if already at the same position.
-    /// </summary>
-    public int ChebyshevDistance(Position other)
-    {
-        var rowDiff = Math.Abs(Row - other.Row);
-        var colDiff = Math.Abs(Col - other.Col);
-        return Math.Max(rowDiff, colDiff);
-    }
+    public int ChebyshevDistance(Position other) =>
+        Math.Max(Math.Abs(Row - other.Row), Math.Abs(Col - other.Col));
 
     public bool Equals(Position? other)
     {
