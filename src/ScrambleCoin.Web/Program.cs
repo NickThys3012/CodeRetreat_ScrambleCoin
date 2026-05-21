@@ -56,10 +56,13 @@ try
         ScrambleCoin.Infrastructure.BotUnlocksRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IVillainTreeRepository,
         ScrambleCoin.Infrastructure.VillainTreeRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
+        ScrambleCoin.Infrastructure.Persistence.BotRegistrationRepository>();
 
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
         ScrambleCoin.Application.Services.CoinSpawnService>();
+    builder.Services.AddSingleton<System.Random>();
     
     var app = builder.Build();
 
