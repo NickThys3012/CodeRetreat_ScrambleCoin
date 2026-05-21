@@ -1,0 +1,19 @@
+@using MudBlazor
+
+<MudAppBar Elevation="1" Class="mb-4">
+    <MudText Class="ml-3" style="font-size: 1.25rem; font-weight: bold;">
+        🎮 ScrambleCoin
+    </MudText>
+    <MudSpacer />
+    <MudNavMenu Class="mud-width-full">
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+            Home
+        </MudNavLink>
+        <MudNavLink Href="/solo-mode" Icon="@Icons.Material.Filled.Gamepad">
+            Solo Mode
+        </MudNavLink>
+        <MudNavLink Href="/leaderboard" Icon="@Icons.Material.Filled.EmojiEvents">
+            Leaderboard
+        </MudNavLink>
+    </MudNavMenu>
+</MudAppBar>
