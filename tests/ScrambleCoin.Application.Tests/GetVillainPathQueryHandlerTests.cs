@@ -31,7 +31,6 @@ public class GetVillainPathQueryHandlerTests
                 Id = Guid.NewGuid(),
                 VillainId = "stitch",
                 VillainName = "Stitch",
-                RequiredParentVillainId = null,
                 UnlockedPieceId = null,
                 DisplayOrder = 1,
                 CreatedAtUtc = DateTime.UtcNow
@@ -41,7 +40,6 @@ public class GetVillainPathQueryHandlerTests
                 Id = Guid.NewGuid(),
                 VillainId = "jafar",
                 VillainName = "Jafar",
-                RequiredParentVillainId = null,
                 UnlockedPieceId = "Goofy",
                 DisplayOrder = 2,
                 CreatedAtUtc = DateTime.UtcNow
@@ -53,7 +51,7 @@ public class GetVillainPathQueryHandlerTests
                 Id = Guid.NewGuid(),
                 VillainId = "elsa",
                 VillainName = "Elsa",
-                RequiredParentVillainId = "stitch",
+                ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
                 UnlockedPieceId = "Merlin",
                 DisplayOrder = 3,
                 CreatedAtUtc = DateTime.UtcNow
@@ -63,7 +61,7 @@ public class GetVillainPathQueryHandlerTests
                 Id = Guid.NewGuid(),
                 VillainId = "ursula",
                 VillainName = "Ursula",
-                RequiredParentVillainId = "stitch",
+                ParentLinks = [new VillainNodeParent { ChildVillainId = "ursula", ParentVillainId = "stitch" }],
                 UnlockedPieceId = "Donald",
                 DisplayOrder = 4,
                 CreatedAtUtc = DateTime.UtcNow
@@ -75,7 +73,7 @@ public class GetVillainPathQueryHandlerTests
                 Id = Guid.NewGuid(),
                 VillainId = "maleficent",
                 VillainName = "Maleficent",
-                RequiredParentVillainId = "elsa",
+                ParentLinks = [new VillainNodeParent { ChildVillainId = "maleficent", ParentVillainId = "elsa" }],
                 UnlockedPieceId = "Scrooge",
                 DisplayOrder = 5,
                 CreatedAtUtc = DateTime.UtcNow

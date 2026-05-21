@@ -41,7 +41,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -83,7 +82,7 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "elsa",
             VillainName = "Elsa",
-            RequiredParentVillainId = "stitch",
+            ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
             UnlockedPieceId = "Merlin",
             DisplayOrder = 3,
             CreatedAtUtc = DateTime.UtcNow
@@ -117,7 +116,7 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "elsa",
             VillainName = "Elsa",
-            RequiredParentVillainId = "stitch",
+            ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
             UnlockedPieceId = "Merlin",
             DisplayOrder = 3,
             CreatedAtUtc = DateTime.UtcNow
@@ -189,7 +188,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -230,7 +228,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -279,7 +276,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -319,7 +315,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -367,7 +362,6 @@ public class CreateSoloGameCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow

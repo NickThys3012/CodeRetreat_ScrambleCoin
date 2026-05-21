@@ -5,7 +5,7 @@ namespace ScrambleCoin.Application.VillainTree;
 public sealed record UpdateVillainNodeCommand(
     string VillainId,
     string VillainName,
-    string? RequiredParentVillainId,
+    IEnumerable<string> RequiredParentVillainIds,
     string? UnlockedPieceId,
     int DisplayOrder
 ) : IRequest<Unit>;

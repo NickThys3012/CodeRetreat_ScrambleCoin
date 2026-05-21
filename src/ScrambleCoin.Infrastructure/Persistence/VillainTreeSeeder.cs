@@ -3,118 +3,57 @@ using ScrambleCoin.Domain.Entities;
 namespace ScrambleCoin.Infrastructure.Persistence;
 
 /// <summary>
-/// Seeds the default villain tree on database initialization.
+/// Seeds the default villain DAG on database initialization.
 /// This is idempotent and safe to run multiple times.
 /// </summary>
 public static class VillainTreeSeeder
 {
-    /// <summary>
-    /// Seeds the default villain tree if no nodes exist yet.
-    /// Call this after DbContext migrations in Program.cs or during app initialization.
-    /// </summary>
     public static void SeedDefaultTree(ScrambleCoinDbContext context)
     {
-        if (context.VillainTreeNodes.Any())
-        {
-            return; // Already seeded
-        }
+        if (context.VillainTreeNodes.Any()) return;
 
         var nodes = new List<VillainTreeNode>
         {
-            // Root villains
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "stitch",
-                VillainName = "Stitch",
-                RequiredParentVillainId = null,
-                UnlockedPieceId = null,
-                DisplayOrder = 1,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "jafar",
-                VillainName = "Jafar",
-                RequiredParentVillainId = null,
-                UnlockedPieceId = "Goofy",
-                DisplayOrder = 2,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-
-            // Children of Stitch
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "elsa",
-                VillainName = "Elsa",
-                RequiredParentVillainId = "stitch",
-                UnlockedPieceId = "Merlin",
-                DisplayOrder = 3,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "ursula",
-                VillainName = "Ursula",
-                RequiredParentVillainId = "stitch",
-                UnlockedPieceId = "Donald",
-                DisplayOrder = 4,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-
-            // Children of Elsa
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "maleficent",
-                VillainName = "Maleficent",
-                RequiredParentVillainId = "elsa",
-                UnlockedPieceId = "Scrooge",
-                DisplayOrder = 5,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-
-            // Children of Ursula
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "gaston",
-                VillainName = "Gaston",
-                RequiredParentVillainId = "ursula",
-                UnlockedPieceId = "Ralph",
-                DisplayOrder = 6,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-
-            // Children of Jafar
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "scar",
-                VillainName = "Scar",
-                RequiredParentVillainId = "jafar",
-                UnlockedPieceId = "Daisy",
-                DisplayOrder = 7,
-                CreatedAtUtc = DateTime.UtcNow
-            },
-
-            // Additional villain nodes
-            new()
-            {
-                Id = Guid.NewGuid(),
-                VillainId = "cruella",
-                VillainName = "Cruella",
-                RequiredParentVillainId = "maleficent",
-                UnlockedPieceId = "Pumbaa",
-                DisplayOrder = 8,
-                CreatedAtUtc = DateTime.UtcNow
-            }
+            Node("stitch",     "Stitch",     null,          order: 1),
+            Node("jafar",      "Jafar",      "Goofy",       order: 2),
+            Node("elsa",       "Elsa",       "Merlin",      order: 3),
+            Node("ursula",     "Ursula",     "Donald",      order: 4),
+            Node("maleficent", "Maleficent", "Scrooge",     order: 5),
+            Node("gaston",     "Gaston",     "Ralph",       order: 6),
+            Node("scar",       "Scar",       "Daisy",       order: 7),
+            Node("cruella",    "Cruella",    "Pumbaa",      order: 8),
         };
 
         context.VillainTreeNodes.AddRange(nodes);
         context.SaveChanges();
+
+        // Parent edges (DAG)
+        var parents = new List<VillainNodeParent>
+        {
+            Edge(child: "elsa",       parent: "stitch"),
+            Edge(child: "ursula",     parent: "stitch"),
+            Edge(child: "maleficent", parent: "elsa"),
+            Edge(child: "gaston",     parent: "ursula"),
+            Edge(child: "scar",       parent: "jafar"),
+            Edge(child: "cruella",    parent: "maleficent"),
+        };
+
+        context.VillainNodeParents.AddRange(parents);
+        context.SaveChanges();
     }
+
+    private static VillainTreeNode Node(string id, string name, string? piece, int order) => new()
+    {
+        VillainId      = id,
+        VillainName    = name,
+        UnlockedPieceId = piece,
+        DisplayOrder   = order,
+        CreatedAtUtc   = DateTime.UtcNow
+    };
+
+    private static VillainNodeParent Edge(string child, string parent) => new()
+    {
+        ChildVillainId  = child,
+        ParentVillainId = parent
+    };
 }

@@ -28,6 +28,9 @@ public class ScrambleCoinDbContext : DbContext
     /// <summary>The BotUnlocks table — records of villain defeats and piece unlocks.</summary>
     public DbSet<BotUnlock> BotUnlocks => Set<BotUnlock>();
 
+    /// <summary>The VillainNodeParents join table — DAG edges (parent→child).</summary>
+    public DbSet<VillainNodeParent> VillainNodeParents => Set<VillainNodeParent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -71,13 +74,26 @@ public class ScrambleCoinDbContext : DbContext
 
             entity.Property(v => v.VillainId).IsRequired().HasMaxLength(100);
             entity.Property(v => v.VillainName).IsRequired().HasMaxLength(200);
-            entity.Property(v => v.RequiredParentVillainId).HasMaxLength(100);
             entity.Property(v => v.UnlockedPieceId).HasMaxLength(100);
             entity.Property(v => v.DisplayOrder).IsRequired();
             entity.Property(v => v.CreatedAtUtc).IsRequired();
 
-            // Unique constraint on VillainId
             entity.HasIndex(v => v.VillainId).IsUnique();
+
+            // One VillainTreeNode has many parent-link rows, joined on VillainId (not Guid PK)
+            entity.HasMany(v => v.ParentLinks)
+                  .WithOne()
+                  .HasForeignKey(p => p.ChildVillainId)
+                  .HasPrincipalKey(v => v.VillainId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VillainNodeParent>(entity =>
+        {
+            entity.ToTable("VillainNodeParents");
+            entity.HasKey(p => new { p.ChildVillainId, p.ParentVillainId });
+            entity.Property(p => p.ChildVillainId).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.ParentVillainId).IsRequired().HasMaxLength(100);
         });
 
         modelBuilder.Entity<BotUnlock>(entity =>

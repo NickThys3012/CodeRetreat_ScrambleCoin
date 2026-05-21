@@ -25,8 +25,10 @@ public sealed class GetVillainTreeQueryHandler : IRequestHandler<GetVillainTreeQ
 
     private VillainNodeDto MapToDto(Domain.Entities.VillainTreeNode node, List<Domain.Entities.VillainTreeNode> allNodes)
     {
+        var parentIds = node.ParentLinks.Select(p => p.ParentVillainId).ToList();
+
         var children = allNodes
-            .Where(n => n.RequiredParentVillainId == node.VillainId)
+            .Where(n => n.ParentLinks.Any(p => p.ParentVillainId == node.VillainId))
             .Select(n => MapToDto(n, allNodes))
             .ToList();
 
@@ -34,7 +36,7 @@ public sealed class GetVillainTreeQueryHandler : IRequestHandler<GetVillainTreeQ
             node.Id,
             node.VillainId,
             node.VillainName,
-            node.RequiredParentVillainId,
+            parentIds,
             node.UnlockedPieceId,
             node.DisplayOrder,
             children

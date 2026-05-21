@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Infrastructure.Persistence;
@@ -18,32 +19,35 @@ public sealed class VillainTreeRepository : IVillainTreeRepository
 
     public async Task<IEnumerable<VillainTreeNode>> GetAllNodesAsync(CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.VillainTreeNodes.OrderBy(v => v.DisplayOrder).ToList());
+        return await _context.VillainTreeNodes
+            .Include(v => v.ParentLinks)
+            .OrderBy(v => v.DisplayOrder)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<VillainTreeNode?> GetNodeByVillainIdAsync(string villainId, CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.VillainTreeNodes.FirstOrDefault(v => v.VillainId == villainId));
+        return await _context.VillainTreeNodes
+            .Include(v => v.ParentLinks)
+            .FirstOrDefaultAsync(v => v.VillainId == villainId, cancellationToken);
     }
 
     public async Task<IEnumerable<VillainTreeNode>> GetChildrenOfAsync(string parentVillainId, CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.VillainTreeNodes
-                .Where(v => v.RequiredParentVillainId == parentVillainId)
-                .OrderBy(v => v.DisplayOrder)
-                .ToList());
+        return await _context.VillainTreeNodes
+            .Include(v => v.ParentLinks)
+            .Where(v => v.ParentLinks.Any(p => p.ParentVillainId == parentVillainId))
+            .OrderBy(v => v.DisplayOrder)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<VillainTreeNode>> GetRootNodesAsync(CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.VillainTreeNodes
-                .Where(v => v.RequiredParentVillainId == null)
-                .OrderBy(v => v.DisplayOrder)
-                .ToList());
+        return await _context.VillainTreeNodes
+            .Include(v => v.ParentLinks)
+            .Where(v => !v.ParentLinks.Any())
+            .OrderBy(v => v.DisplayOrder)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddNodeAsync(VillainTreeNode node, CancellationToken cancellationToken = default)
@@ -54,6 +58,12 @@ public sealed class VillainTreeRepository : IVillainTreeRepository
 
     public async Task UpdateNodeAsync(VillainTreeNode node, CancellationToken cancellationToken = default)
     {
+        // Replace parent links: remove old, add new (tracked via navigation)
+        var existing = await _context.VillainNodeParents
+            .Where(p => p.ChildVillainId == node.VillainId)
+            .ToListAsync(cancellationToken);
+        _context.VillainNodeParents.RemoveRange(existing);
+
         _context.VillainTreeNodes.Update(node);
         await _context.SaveChangesAsync(cancellationToken);
     }
@@ -63,7 +73,7 @@ public sealed class VillainTreeRepository : IVillainTreeRepository
         var node = await GetNodeByVillainIdAsync(villainId, cancellationToken);
         if (node != null)
         {
-            _context.VillainTreeNodes.Remove(node);
+            _context.VillainTreeNodes.Remove(node); // cascade deletes ParentLinks
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

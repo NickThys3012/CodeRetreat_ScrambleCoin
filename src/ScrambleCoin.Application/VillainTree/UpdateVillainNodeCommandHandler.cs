@@ -1,5 +1,6 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Domain.Entities;
 
 namespace ScrambleCoin.Application.VillainTree;
 
@@ -19,9 +20,11 @@ public sealed class UpdateVillainNodeCommandHandler : IRequestHandler<UpdateVill
             throw new InvalidOperationException($"Villain node '{request.VillainId}' not found");
 
         node.VillainName = request.VillainName;
-        node.RequiredParentVillainId = request.RequiredParentVillainId;
         node.UnlockedPieceId = request.UnlockedPieceId;
         node.DisplayOrder = request.DisplayOrder;
+        node.ParentLinks = request.RequiredParentVillainIds
+            .Select(p => new VillainNodeParent { ChildVillainId = request.VillainId, ParentVillainId = p })
+            .ToList();
 
         await _repository.UpdateNodeAsync(node, cancellationToken);
         return Unit.Value;

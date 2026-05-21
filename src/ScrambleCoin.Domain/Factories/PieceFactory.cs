@@ -64,6 +64,10 @@ public static class PieceFactory
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>All known piece names in the catalogue (sorted alphabetically).</summary>
+    public static IReadOnlyList<string> AllPieceNames =>
+        Catalogue.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
+
     /// <summary>
     /// Creates a <see cref="Piece"/> for <paramref name="playerId"/> using the named piece's stats.
     /// </summary>

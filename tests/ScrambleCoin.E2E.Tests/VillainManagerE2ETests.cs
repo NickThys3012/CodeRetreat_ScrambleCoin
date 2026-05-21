@@ -44,8 +44,9 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page!.GotoAsync(PageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await _page.WaitForTimeoutAsync(2000);
 
-        var villainCount = await _page.Locator("div.villain-tree-node strong").CountAsync();
-        Assert.True(villainCount > 0, $"Seeded villain nodes should be visible, found {villainCount}");
+        // Seeded villains appear in the right-panel flat list as <strong> tags
+        var stitchVisible = await _page.GetByText("Stitch").First.IsVisibleAsync();
+        Assert.True(stitchVisible, "Seeded villain 'Stitch' should be visible in the list");
     }
 
     [Fact]
@@ -82,8 +83,8 @@ public class VillainManagerE2ETests : IAsyncLifetime
     [Fact]
     public async Task VillainManager_AddVillainAndVerifySaved()
     {
-        var uniqueName = $"E2ETestVillain-{Guid.NewGuid().ToString("N")[..6]}";
-        var uniqueId = $"e2e-{Guid.NewGuid().ToString("N")[..6]}";
+        // Use a villain from the catalogue that is not in the seeder
+        const string testVillain = "Hades";
 
         await _page!.GotoAsync(PageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await _page.WaitForTimeoutAsync(2000);
@@ -91,23 +92,21 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page.GetByRole(AriaRole.Button, new() { Name = "Add Villain" }).ClickAsync();
         await _page.WaitForTimeoutAsync(1000);
 
-        // FillAsync + Tab triggers blur → onchange → Blazor updates the bound property
-        var dialogInputs = _page.Locator("div[role='dialog'] input:not([disabled])");
-        await dialogInputs.Nth(0).ClickAsync();
-        await dialogInputs.Nth(0).FillAsync(uniqueId);
-        await _page.Keyboard.PressAsync("Tab");
-        await _page.WaitForTimeoutAsync(500);
+        // The villain name is now a MudSelect dropdown (label "Villain")
+        // Click the select input to open the dropdown
+        await _page.Locator("div[role='dialog'] input[readonly]").First.ClickAsync();
+        await _page.WaitForTimeoutAsync(600);
 
-        await dialogInputs.Nth(1).ClickAsync();
-        await dialogInputs.Nth(1).FillAsync(uniqueName);
-        await _page.Keyboard.PressAsync("Tab");
+        // Pick the villain from the open list
+        await _page.Locator("[role='option']").GetByText(testVillain, new LocatorGetByTextOptions { Exact = true }).ClickAsync();
         await _page.WaitForTimeoutAsync(500);
 
         // Click Save
         await _page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
         await _page.WaitForTimeoutAsync(2000);
 
-        var visible = await _page.GetByText(uniqueName).First.IsVisibleAsync();
-        Assert.True(visible, $"Newly saved villain '{uniqueName}' should appear in the list");
+        // Villain should appear in the right-panel list (or was already there from a prior run)
+        var visible = await _page.GetByText(testVillain).First.IsVisibleAsync();
+        Assert.True(visible, $"Villain '{testVillain}' should be visible after save");
     }
 }

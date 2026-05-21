@@ -13,7 +13,7 @@ public sealed record VillainNodeDto(
     Guid Id,
     string VillainId,
     string VillainName,
-    string? RequiredParentVillainId,
+    IEnumerable<string> RequiredParentVillainIds,
     string? UnlockedPieceId,
     int DisplayOrder,
     IEnumerable<VillainNodeDto> Children

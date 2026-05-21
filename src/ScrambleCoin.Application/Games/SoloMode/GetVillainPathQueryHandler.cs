@@ -38,7 +38,7 @@ public sealed class GetVillainPathQueryHandler : IRequestHandler<GetVillainPathQ
             {
                 status = VillainStatusEnum.Defeated;
             }
-            else if (node.RequiredParentVillainId == null || defeatedVillainIds.Contains(node.RequiredParentVillainId))
+            else if (!node.ParentLinks.Any() || node.ParentLinks.All(p => defeatedVillainIds.Contains(p.ParentVillainId)))
             {
                 status = VillainStatusEnum.Available;
             }

@@ -27,7 +27,6 @@ public class VillainTreeRepositoryTests
                 Id = Guid.NewGuid(),
                 VillainId = "stitch",
                 VillainName = "Stitch",
-                RequiredParentVillainId = null,
                 UnlockedPieceId = null,
                 DisplayOrder = 1,
                 CreatedAtUtc = DateTime.UtcNow
@@ -37,7 +36,7 @@ public class VillainTreeRepositoryTests
                 Id = Guid.NewGuid(),
                 VillainId = "elsa",
                 VillainName = "Elsa",
-                RequiredParentVillainId = "stitch",
+                ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
                 UnlockedPieceId = "Merlin",
                 DisplayOrder = 2,
                 CreatedAtUtc = DateTime.UtcNow
@@ -47,7 +46,6 @@ public class VillainTreeRepositoryTests
                 Id = Guid.NewGuid(),
                 VillainId = "jafar",
                 VillainName = "Jafar",
-                RequiredParentVillainId = null,
                 UnlockedPieceId = "Goofy",
                 DisplayOrder = 3,
                 CreatedAtUtc = DateTime.UtcNow
@@ -105,7 +103,7 @@ public class VillainTreeRepositoryTests
             Assert.NotNull(result);
             Assert.Equal("stitch", result.VillainId);
             Assert.Equal("Stitch", result.VillainName);
-            Assert.Null(result.RequiredParentVillainId);
+            Assert.Empty(result.ParentLinks);
         }
     }
 
@@ -157,7 +155,7 @@ public class VillainTreeRepositoryTests
             var resultList = result.ToList();
             Assert.Single(resultList);
             Assert.Equal("elsa", resultList[0].VillainId);
-            Assert.Equal("stitch", resultList[0].RequiredParentVillainId);
+            Assert.Contains(resultList[0].ParentLinks, p => p.ParentVillainId == "stitch");
         }
     }
 
@@ -208,7 +206,7 @@ public class VillainTreeRepositoryTests
             Assert.NotNull(result);
             var resultList = result.ToList();
             Assert.Equal(2, resultList.Count);
-            Assert.All(resultList, r => Assert.Null(r.RequiredParentVillainId));
+            Assert.All(resultList, r => Assert.Empty(r.ParentLinks));
             Assert.Contains(resultList, r => r.VillainId == "stitch");
             Assert.Contains(resultList, r => r.VillainId == "jafar");
         }
@@ -224,7 +222,6 @@ public class VillainTreeRepositoryTests
             Id = Guid.NewGuid(),
             VillainId = "cruella",
             VillainName = "Cruella",
-            RequiredParentVillainId = null,
             UnlockedPieceId = "Pumbaa",
             DisplayOrder = 4,
             CreatedAtUtc = DateTime.UtcNow

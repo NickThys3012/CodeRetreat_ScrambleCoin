@@ -36,7 +36,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -71,7 +70,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "jafar",
             VillainName = "Jafar",
-            RequiredParentVillainId = null,
             UnlockedPieceId = "Goofy",
             DisplayOrder = 2,
             CreatedAtUtc = DateTime.UtcNow
@@ -125,7 +123,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -136,7 +133,7 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "elsa",
             VillainName = "Elsa",
-            RequiredParentVillainId = "stitch",
+            ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
             UnlockedPieceId = "Merlin",
             DisplayOrder = 3,
             CreatedAtUtc = DateTime.UtcNow
@@ -176,7 +173,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -214,7 +210,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow
@@ -250,7 +245,6 @@ public class RecordVillainDefeatedCommandHandlerTests
             Id = Guid.NewGuid(),
             VillainId = "stitch",
             VillainName = "Stitch",
-            RequiredParentVillainId = null,
             UnlockedPieceId = null,
             DisplayOrder = 1,
             CreatedAtUtc = DateTime.UtcNow

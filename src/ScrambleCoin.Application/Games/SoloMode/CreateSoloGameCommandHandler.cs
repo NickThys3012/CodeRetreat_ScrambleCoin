@@ -39,17 +39,20 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
             throw new DomainException($"Villain '{request.VillainId}' not found.");
         }
 
-        // Check if the villain is available (not locked)
+        // Check if the villain is available — all parent villains must be defeated
         var defeatedVillains = await _botUnlocksRepository.GetDefeatedVillainsAsync(request.BotId, cancellationToken);
         var defeatedVillainIds = defeatedVillains.Select(d => d.VillainId).ToHashSet();
 
-        var isLocked = villain.RequiredParentVillainId != null && 
-                       !defeatedVillainIds.Contains(villain.RequiredParentVillainId);
+        var isLocked = villain.ParentLinks.Any() &&
+                       !villain.ParentLinks.All(p => defeatedVillainIds.Contains(p.ParentVillainId));
 
         if (isLocked)
         {
+            var missing = villain.ParentLinks
+                .Where(p => !defeatedVillainIds.Contains(p.ParentVillainId))
+                .Select(p => p.ParentVillainId);
             throw new DomainException(
-                $"Villain '{request.VillainId}' is locked. Defeat parent villain '{villain.RequiredParentVillainId}' first.");
+                $"Villain '{request.VillainId}' is locked. Defeat these first: {string.Join(", ", missing)}.");
         }
 
         // Generate a deterministic villain "player" ID based on the villain name

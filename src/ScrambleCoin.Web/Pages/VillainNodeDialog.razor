@@ -1,22 +1,48 @@
 @using MudBlazor
 @using ScrambleCoin.Application.VillainTree
+@using ScrambleCoin.Domain.Factories
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">@(IsEdit ? "✏️ Edit Villain Node" : "➕ Add Villain Node")</MudText>
     </TitleContent>
     <DialogContent>
-        <MudTextField @bind-Value="VillainId" Label="Villain ID" Variant="Variant.Outlined" Class="my-2"
-                      Disabled="IsEdit" Required="true" />
-        <MudTextField @bind-Value="VillainName" Label="Display Name" Variant="Variant.Outlined" Class="my-2"
-                      Required="true" />
-        <MudTextField @bind-Value="UnlockedPieceId" Label="Unlocked Piece ID (optional)" Variant="Variant.Outlined" Class="my-2" />
-        <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="ParentVillainId"
+        @if (IsEdit)
+        {
+            <MudTextField @bind-Value="VillainName" Label="Display Name" Variant="Variant.Outlined" Class="my-2"
+                          Required="true" />
+            <MudTextField @bind-Value="VillainId" Label="Villain ID" Variant="Variant.Outlined" Class="my-2"
+                          Disabled="true" />
+        }
+        else
+        {
+            <MudSelect T="string?" Label="Villain" Value="SelectedVillainName" ValueChanged="OnVillainSelected"
+                       Variant="Variant.Outlined" Class="my-2" Required="true">
+                <MudSelectItem Value="@((string?)null)">-- Select a villain --</MudSelectItem>
+                @foreach (var name in VillainCatalogue.AllVillainNames)
+                {
+                    <MudSelectItem Value="@((string?)name)">@name</MudSelectItem>
+                }
+            </MudSelect>
+            @if (!string.IsNullOrEmpty(VillainId))
+            {
+                <MudText Typo="Typo.caption" Class="ml-1" Style="color: #888;">ID: @VillainId</MudText>
+            }
+        }
+        <MudSelect T="string" Label="Unlocked Piece (optional)" @bind-Value="UnlockedPieceId"
                    Variant="Variant.Outlined" Class="my-2" Clearable="true">
-            <MudSelectItem Value="@((string?)null)">-- Root Node (no parent) --</MudSelectItem>
+            <MudSelectItem Value="@("")">-- No piece --</MudSelectItem>
+            @foreach (var piece in PieceFactory.AllPieceNames)
+            {
+                <MudSelectItem Value="@piece">@piece</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" Label="Required Parents (0, 1 or more)" MultiSelection="true"
+                   @bind-SelectedValues="SelectedParentIds"
+                   Variant="Variant.Outlined" Class="my-2">
             @foreach (var node in AllNodes.Where(n => n.VillainId != VillainId))
             {
-                <MudSelectItem Value="@node.VillainId">@node.VillainName</MudSelectItem>
+                <MudSelectItem T="string" Value="@node.VillainId">@node.VillainName</MudSelectItem>
             }
         </MudSelect>
     </DialogContent>
@@ -31,10 +57,27 @@
 
     [Parameter] public string? VillainId { get; set; }
     [Parameter] public string? VillainName { get; set; }
-    [Parameter] public string? ParentVillainId { get; set; }
+    [Parameter] public IEnumerable<string> ParentVillainIds { get; set; } = [];
     [Parameter] public string? UnlockedPieceId { get; set; }
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = new();
+
+    private string? SelectedVillainName { get; set; }
+    private IReadOnlyCollection<string> SelectedParentIds { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        if (IsEdit)
+            SelectedVillainName = VillainName;
+        SelectedParentIds = ParentVillainIds.ToList();
+    }
+
+    private void OnVillainSelected(string? name)
+    {
+        SelectedVillainName = name;
+        VillainName = name;
+        VillainId = name is null ? null : VillainCatalogue.ToId(name);
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
@@ -43,8 +86,12 @@
         if (string.IsNullOrWhiteSpace(VillainId) || string.IsNullOrWhiteSpace(VillainName))
             return;
 
-        MudDialog.Close(DialogResult.Ok(new Result(VillainId!, VillainName!, ParentVillainId, UnlockedPieceId)));
+        MudDialog.Close(DialogResult.Ok(new Result(
+            VillainId!,
+            VillainName!,
+            SelectedParentIds.ToList(),
+            string.IsNullOrWhiteSpace(UnlockedPieceId) ? null : UnlockedPieceId)));
     }
 
-    public record Result(string VillainId, string VillainName, string? ParentVillainId, string? UnlockedPieceId);
+    public record Result(string VillainId, string VillainName, IEnumerable<string> ParentVillainIds, string? UnlockedPieceId);
 }

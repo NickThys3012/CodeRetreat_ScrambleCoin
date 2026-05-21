@@ -2,33 +2,52 @@
 @using MudBlazor
 @using MediatR
 @using ScrambleCoin.Application.Games.SoloMode
+@using ScrambleCoin.Application.VillainTree
+@using VillainNodeDto = ScrambleCoin.Application.VillainTree.VillainNodeDto
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Large">
     <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
-        🎮 Solo Mode - Challenge the Villains
+        🎮 Solo Mode — Challenge the Villains
     </div>
-    
-    <MudCard Class="my-4">
-        <MudCardHeader>
-            <CardHeaderContent>
-                <div style="font-size: 1.25rem; font-weight: bold;">Select a Villain</div>
-            </CardHeaderContent>
-        </MudCardHeader>
-        <MudCardContent>
-            <MudSelect T="string?" Label="Choose your opponent" @bind-Value="SelectedVillainId" Variant="Variant.Outlined" Class="mb-4">
-                <MudSelectItem Value="@((string?)null)">-- Select Villain --</MudSelectItem>
-                <MudSelectItem Value="@("elsa")">❄️ Elsa - The Ice Queen</MudSelectItem>
-                <MudSelectItem Value="@("ursula")">🐙 Ursula - The Sea Witch</MudSelectItem>
-                <MudSelectItem Value="@("gaston")">🔫 Gaston - The Hunter</MudSelectItem>
-            </MudSelect>
-            
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="CreateGame" Disabled="string.IsNullOrEmpty(SelectedVillainId) || IsCreatingGame" FullWidth="true">
+
+    @if (IsLoadingTree)
+    {
+        <MudProgressCircular Indeterminate="true" Class="my-4" />
+    }
+    else
+    {
+        <MudText Typo="Typo.body1" Class="mb-3" Style="color:#aaa;">
+            Choose your opponent by clicking a villain on the path below.
+            At every fork you can go left or right — pick your challenge!
+        </MudText>
+
+        <VillainPathView AllNodes="AllNodes"
+                         @bind-SelectedVillainId="SelectedVillainId"
+                         Interactive="true" />
+
+        <div style="margin-top: 1.5rem;">
+            @if (!string.IsNullOrEmpty(SelectedVillainId))
+            {
+                var selected = AllNodes.FirstOrDefault(n => n.VillainId == SelectedVillainId);
+                <MudAlert Severity="Severity.Info" Class="mb-3">
+                    You chose: <strong>@(selected?.VillainName ?? SelectedVillainId)</strong>
+                    @if (!string.IsNullOrEmpty(selected?.UnlockedPieceId))
+                    {
+                        <span> — defeat them to unlock <strong>@selected.UnlockedPieceId</strong>!</span>
+                    }
+                </MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                       OnClick="CreateGame"
+                       Disabled="string.IsNullOrEmpty(SelectedVillainId) || IsCreatingGame"
+                       FullWidth="true">
                 @if (IsCreatingGame)
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    <span>Creating Game...</span>
+                    <span>Creating Game…</span>
                 }
                 else if (string.IsNullOrEmpty(SelectedVillainId))
                 {
@@ -36,11 +55,12 @@
                 }
                 else
                 {
-                    <span>⚔️ Challenge @GetVillainName(SelectedVillainId)</span>
+                    var name = AllNodes.FirstOrDefault(n => n.VillainId == SelectedVillainId)?.VillainName ?? SelectedVillainId;
+                    <span>⚔️ Challenge @name</span>
                 }
             </MudButton>
-        </MudCardContent>
-    </MudCard>
+        </div>
+    }
 
     @if (!string.IsNullOrEmpty(Message))
     {
@@ -49,37 +69,48 @@
 </MudContainer>
 
 @code {
+    private List<VillainNodeDto> AllNodes = new();
+    private List<VillainNodeDto> RootNodes = new();
+    private bool IsLoadingTree = true;
+
     private string? SelectedVillainId;
-    private bool IsCreatingGame = false;
+    private bool IsCreatingGame;
     private string? Message;
     private Severity MessageSeverity = Severity.Info;
 
-    private string GetVillainName(string? villainId) => villainId switch
+    protected override async Task OnInitializedAsync()
     {
-        "elsa" => "Elsa",
-        "ursula" => "Ursula",
-        "gaston" => "Gaston",
-        _ => "Villain"
-    };
+        try
+        {
+            var result = await Mediator.Send(new GetVillainTreeQuery());
+            AllNodes  = result.AllNodes.ToList();
+            RootNodes = result.RootNodes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Message = $"Failed to load villain tree: {ex.Message}";
+            MessageSeverity = Severity.Error;
+        }
+        finally
+        {
+            IsLoadingTree = false;
+        }
+    }
 
     private async Task CreateGame()
     {
-        if (string.IsNullOrEmpty(SelectedVillainId))
-        {
-            Message = "Please select a villain";
-            MessageSeverity = Severity.Warning;
-            return;
-        }
+        if (string.IsNullOrEmpty(SelectedVillainId)) return;
 
         try
         {
             IsCreatingGame = true;
             Message = null;
-            
+
             var command = new CreateSoloGameCommand(BotId: Guid.Empty, VillainId: SelectedVillainId);
-            var result = await Mediator.Send(command);
-            
-            Message = $"✅ Game created! You're now facing {GetVillainName(SelectedVillainId)}!";
+            await Mediator.Send(command);
+
+            var name = AllNodes.FirstOrDefault(n => n.VillainId == SelectedVillainId)?.VillainName ?? SelectedVillainId;
+            Message = $"✅ Game created! You're now facing {name}!";
             MessageSeverity = Severity.Success;
             SelectedVillainId = null;
         }

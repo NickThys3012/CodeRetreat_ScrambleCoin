@@ -19,9 +19,11 @@ public sealed class AddVillainNodeCommandHandler : IRequestHandler<AddVillainNod
         {
             VillainId = request.VillainId,
             VillainName = request.VillainName,
-            RequiredParentVillainId = request.RequiredParentVillainId,
             UnlockedPieceId = request.UnlockedPieceId,
-            DisplayOrder = request.DisplayOrder
+            DisplayOrder = request.DisplayOrder,
+            ParentLinks = request.RequiredParentVillainIds
+                .Select(p => new VillainNodeParent { ChildVillainId = request.VillainId, ParentVillainId = p })
+                .ToList()
         };
 
         await _repository.AddNodeAsync(node, cancellationToken);
