@@ -1,14 +1,18 @@
 @page "/admin/villains"
 @using MudBlazor
 @using MediatR
+@using ScrambleCoin.Application.VillainTree
 
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.Large">
-    <div Class="d-flex justify-space-between align-center mb-4">
-        <div style="font-size: 1.5rem; font-weight: bold;">🎭 Villain Tree Manager</div>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="OnAddClicked">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">🎭 Villain Tree Manager</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">
             Add Villain
         </MudButton>
     </div>
@@ -19,7 +23,7 @@
     }
     else if (AllNodes.Count == 0)
     {
-        <MudAlert Severity="Severity.Info">No villain nodes found. Create one to get started!</MudAlert>
+        <MudAlert Severity="Severity.Info">No villain nodes found. Click "Add Villain" to create one!</MudAlert>
     }
     else
     {
@@ -28,22 +32,22 @@
                 <MudCard>
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <div style="font-size: 1.1rem; font-weight: bold;">🌳 Villain Tree</div>
+                            <MudText Typo="Typo.h6">🌳 Villain Tree</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <div style="max-height: 500px; overflow-y: auto;">
-                            <RenderTree Nodes="RootNodes" />
+                            @RenderNodes(RootNodes)
                         </div>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
 
             <MudItem xs="12" md="5">
-                <MudCard Class="h-100">
+                <MudCard>
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <div style="font-size: 1.1rem; font-weight: bold;">📋 All Nodes (@AllNodes.Count)</div>
+                            <MudText Typo="Typo.h6">📋 All Nodes (@AllNodes.Count)</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
@@ -51,20 +55,25 @@
                             @foreach (var node in AllNodes.OrderBy(n => n.DisplayOrder))
                             {
                                 <MudPaper Class="pa-3 mb-2" Elevation="1">
-                                    <div Class="d-flex justify-space-between align-center">
-                                        <div style="flex: 1;">
-                                            <strong>@node.VillainName</strong>
-                                            <MudText Typo="Typo.caption" Color="Color.Surface">@node.VillainId</MudText>
+                                    <div class="d-flex justify-space-between align-center">
+                                        <div>
+                                            <MudText Typo="Typo.body1"><strong>@node.VillainName</strong></MudText>
+                                            <MudText Typo="Typo.caption">@node.VillainId</MudText>
                                             @if (node.RequiredParentVillainId != null)
                                             {
-                                                <MudText Typo="Typo.caption" Color="Color.Surface">
+                                                <MudText Typo="Typo.caption">
                                                     ← @(AllNodes.FirstOrDefault(n => n.VillainId == node.RequiredParentVillainId)?.VillainName ?? "Unknown")
                                                 </MudText>
                                             }
                                         </div>
                                         <div>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => OnEditClicked(node))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@((e) => OnDeleteClicked(node.VillainId))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => OpenEditDialog(node))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => DeleteNode(node.VillainId))" />
                                         </div>
                                     </div>
                                 </MudPaper>
@@ -77,39 +86,12 @@
     }
 </MudContainer>
 
-<MudDialog @bind-IsVisible="ShowEditDialog" Options="new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small }">
-    <DialogContent>
-        <MudText Typo="Typo.h6">@(EditingNode == null ? "➕ Add Villain Node" : "✏️ Edit Villain Node")</MudText>
-        <MudTextField @bind-Value="EditForm.VillainId" Label="Villain ID" Variant="Variant.Outlined" Class="my-3" Disabled="EditingNode != null" />
-        <MudTextField @bind-Value="EditForm.VillainName" Label="Display Name" Variant="Variant.Outlined" Class="my-3" />
-        <MudTextField @bind-Value="EditForm.UnlockedPieceId" Label="Unlocked Piece ID (optional)" Variant="Variant.Outlined" Class="my-3" />
-        
-        <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="EditForm.ParentVillainId" Variant="Variant.Outlined" Class="my-3">
-            <MudSelectItem Value="@((string?)null)">-- Root Node --</MudSelectItem>
-            @foreach (var node in AllNodes.Where(n => n.VillainId != EditForm.VillainId))
-            {
-                <MudSelectItem Value="@node.VillainId">@node.VillainName</MudSelectItem>
-            }
-        </MudSelect>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => ShowEditDialog = false)">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnSaveClicked">Save</MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
     private List<VillainNodeDto> AllNodes = new();
     private List<VillainNodeDto> RootNodes = new();
     private bool IsLoading = true;
-    private bool ShowEditDialog = false;
-    private VillainNodeDto? EditingNode;
-    private EditFormModel EditForm = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadTree();
-    }
+    protected override async Task OnInitializedAsync() => await LoadTree();
 
     private async Task LoadTree()
     {
@@ -130,83 +112,61 @@
         }
     }
 
-    private async Task OnAddClicked()
+    private async Task OpenAddDialog()
     {
-        OpenEditDialog(null);
-    }
-
-    private async Task OnEditClicked(VillainNodeDto node)
-    {
-        OpenEditDialog(node);
-    }
-
-    private async Task OnDeleteClicked(string villainId)
-    {
-        await DeleteNode(villainId);
-    }
-
-    private async Task OnSaveClicked()
-    {
-        await SaveNode();
-    }
-
-    private void OpenEditDialog(VillainNodeDto? node)
-    {
-        EditingNode = node;
-        EditForm = node == null
-            ? new EditFormModel { ParentVillainId = null }
-            : new EditFormModel 
-            { 
-                VillainId = node.VillainId,
-                VillainName = node.VillainName,
-                ParentVillainId = node.RequiredParentVillainId,
-                UnlockedPieceId = node.UnlockedPieceId
-            };
-        ShowEditDialog = true;
-    }
-
-    private async Task SaveNode()
-    {
-        try
+        var parameters = new DialogParameters<VillainNodeDialog>
         {
-            if (string.IsNullOrEmpty(EditForm.VillainId) || string.IsNullOrEmpty(EditForm.VillainName))
-            {
-                Snackbar.Add("⚠️ Villain ID and Name are required", Severity.Warning);
-                return;
-            }
+            { x => x.AllNodes, AllNodes },
+            { x => x.IsEdit, false }
+        };
+        var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Add Villain Node", parameters,
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        var result = await dialog.Result;
 
-            if (EditingNode == null)
+        if (result is { Canceled: false, Data: VillainNodeDialog.Result data })
+        {
+            try
             {
-                var displayOrder = AllNodes.Count + 1;
-                var cmd = new AddVillainNodeCommand(
-                    EditForm.VillainId,
-                    EditForm.VillainName,
-                    EditForm.ParentVillainId,
-                    EditForm.UnlockedPieceId,
-                    displayOrder
-                );
-                await Mediator.Send(cmd);
+                await Mediator.Send(new AddVillainNodeCommand(
+                    data.VillainId, data.VillainName, data.ParentVillainId, data.UnlockedPieceId, AllNodes.Count + 1));
                 Snackbar.Add("✅ Villain node added", Severity.Success);
+                await LoadTree();
             }
-            else
+            catch (Exception ex)
             {
-                var cmd = new UpdateVillainNodeCommand(
-                    EditForm.VillainId,
-                    EditForm.VillainName,
-                    EditForm.ParentVillainId,
-                    EditForm.UnlockedPieceId,
-                    EditingNode.DisplayOrder
-                );
-                await Mediator.Send(cmd);
-                Snackbar.Add("✅ Villain node updated", Severity.Success);
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
             }
-
-            ShowEditDialog = false;
-            await LoadTree();
         }
-        catch (Exception ex)
+    }
+
+    private async Task OpenEditDialog(VillainNodeDto node)
+    {
+        var parameters = new DialogParameters<VillainNodeDialog>
         {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            { x => x.VillainId, node.VillainId },
+            { x => x.VillainName, node.VillainName },
+            { x => x.ParentVillainId, node.RequiredParentVillainId },
+            { x => x.UnlockedPieceId, node.UnlockedPieceId },
+            { x => x.AllNodes, AllNodes },
+            { x => x.IsEdit, true }
+        };
+        var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Edit Villain Node", parameters,
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: VillainNodeDialog.Result data })
+        {
+            try
+            {
+                await Mediator.Send(new UpdateVillainNodeCommand(
+                    data.VillainId, data.VillainName, data.ParentVillainId, data.UnlockedPieceId, node.DisplayOrder));
+                Snackbar.Add("✅ Villain node updated", Severity.Success);
+                await LoadTree();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
         }
     }
 
@@ -214,8 +174,7 @@
     {
         try
         {
-            var cmd = new DeleteVillainNodeCommand(villainId);
-            await Mediator.Send(cmd);
+            await Mediator.Send(new DeleteVillainNodeCommand(villainId));
             Snackbar.Add("🗑️ Villain node deleted", Severity.Success);
             await LoadTree();
         }
@@ -225,147 +184,23 @@
         }
     }
 
-    private class EditFormModel
+    private RenderFragment RenderNodes(List<VillainNodeDto> nodes) => __builder =>
     {
-        public string? VillainId { get; set; }
-        public string? VillainName { get; set; }
-        public string? ParentVillainId { get; set; }
-        public string? UnlockedPieceId { get; set; }
-    }
-
-    private RenderFragment RenderTree(List<VillainNodeDto> nodes) => @<text>
-        @foreach (var node in nodes.OrderBy(n => n.DisplayOrder))
+        foreach (var node in nodes.OrderBy(n => n.DisplayOrder))
         {
             <div class="villain-tree-node">
                 <MudPaper Class="pa-2 mb-1" Elevation="2">
-                    <div Class="d-flex justify-space-between align-center">
-                        <div style="flex: 1;">
-                            <strong>@node.VillainName</strong>
-                            @if (node.Children.Any())
-                            {
-                                <MudIcon Icon="@Icons.Material.Filled.ExpandMore" Size="Size.Small" />
-                            }
-                        </div>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => OnEditClicked(node))" />
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.body2"><strong>@node.VillainName</strong></MudText>
                     </div>
                 </MudPaper>
                 @if (node.Children.Any())
                 {
                     <div style="margin-left: 1.5rem; border-left: 2px solid #555; padding-left: 0.5rem;">
-                        <RenderTree Nodes="node.Children.ToList()" />
+                        @RenderNodes(node.Children.ToList())
                     </div>
                 }
             </div>
         }
-    </text>;
-}
-
-@using ScrambleCoin.Application.VillainTree
-
-@code {
-    private List<VillainNodeItem> VillainNodes = new()
-    {
-        new VillainNodeItem { VillainId = "elsa", Name = "Elsa", Difficulty = 2 },
-        new VillainNodeItem { VillainId = "ursula", Name = "Ursula", Difficulty = 3 },
-        new VillainNodeItem { VillainId = "gaston", Name = "Gaston", Difficulty = 4 }
     };
-
-    private string? NewVillainId;
-    private string? NewVillainName;
-    private string? NewVillainDifficulty;
-    private string? SelectedParentId;
-    private string? Message;
-    private Severity MessageSeverity = Severity.Info;
-
-    private void AddVillainNode()
-    {
-        if (string.IsNullOrEmpty(NewVillainId) || string.IsNullOrEmpty(NewVillainName))
-        {
-            Message = "⚠️ Villain ID and Name are required";
-            MessageSeverity = Severity.Warning;
-            return;
-        }
-
-        if (!int.TryParse(NewVillainDifficulty, out int difficulty) || difficulty < 1 || difficulty > 5)
-        {
-            Message = "⚠️ Difficulty must be between 1 and 5";
-            MessageSeverity = Severity.Warning;
-            return;
-        }
-
-        var newNode = new VillainNodeItem
-        {
-            VillainId = NewVillainId,
-            Name = NewVillainName,
-            Difficulty = difficulty
-        };
-
-        if (string.IsNullOrEmpty(SelectedParentId))
-        {
-            VillainNodes.Add(newNode);
-        }
-        else
-        {
-            var parent = FindNode(VillainNodes, SelectedParentId);
-            if (parent != null)
-            {
-                parent.Children.Add(newNode);
-            }
-        }
-
-        Message = $"✅ Added villain node: {NewVillainName}";
-        MessageSeverity = Severity.Success;
-
-        NewVillainId = null;
-        NewVillainName = null;
-        NewVillainDifficulty = null;
-        SelectedParentId = null;
-    }
-
-    private void DeleteVillainNode(string villainId)
-    {
-        RemoveNode(VillainNodes, villainId);
-        Message = $"🗑️ Deleted villain: {villainId}";
-        MessageSeverity = Severity.Success;
-    }
-
-    private void ResetAllVillains()
-    {
-        VillainNodes = new()
-        {
-            new VillainNodeItem { VillainId = "elsa", Name = "Elsa", Difficulty = 2 },
-            new VillainNodeItem { VillainId = "ursula", Name = "Ursula", Difficulty = 3 },
-            new VillainNodeItem { VillainId = "gaston", Name = "Gaston", Difficulty = 4 }
-        };
-        Message = "🔄 Reset all villain trees to default state";
-        MessageSeverity = Severity.Warning;
-    }
-
-    private VillainNodeItem? FindNode(List<VillainNodeItem> nodes, string id)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.VillainId == id) return node;
-            var found = FindNode(node.Children, id);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private void RemoveNode(List<VillainNodeItem> nodes, string id)
-    {
-        nodes.RemoveAll(n => n.VillainId == id);
-        foreach (var node in nodes)
-        {
-            RemoveNode(node.Children, id);
-        }
-    }
-
-    private class VillainNodeItem
-    {
-        public string VillainId { get; set; } = "";
-        public string Name { get; set; } = "";
-        public int Difficulty { get; set; }
-        public List<VillainNodeItem> Children { get; set; } = new();
-    }
 }

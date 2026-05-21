@@ -1,0 +1,50 @@
+@using MudBlazor
+@using ScrambleCoin.Application.VillainTree
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEdit ? "✏️ Edit Villain Node" : "➕ Add Villain Node")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="VillainId" Label="Villain ID" Variant="Variant.Outlined" Class="my-2"
+                      Disabled="IsEdit" Required="true" />
+        <MudTextField @bind-Value="VillainName" Label="Display Name" Variant="Variant.Outlined" Class="my-2"
+                      Required="true" />
+        <MudTextField @bind-Value="UnlockedPieceId" Label="Unlocked Piece ID (optional)" Variant="Variant.Outlined" Class="my-2" />
+        <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="ParentVillainId"
+                   Variant="Variant.Outlined" Class="my-2" Clearable="true">
+            <MudSelectItem Value="@((string?)null)">-- Root Node (no parent) --</MudSelectItem>
+            @foreach (var node in AllNodes.Where(n => n.VillainId != VillainId))
+            {
+                <MudSelectItem Value="@node.VillainId">@node.VillainName</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string? VillainId { get; set; }
+    [Parameter] public string? VillainName { get; set; }
+    [Parameter] public string? ParentVillainId { get; set; }
+    [Parameter] public string? UnlockedPieceId { get; set; }
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(VillainId) || string.IsNullOrWhiteSpace(VillainName))
+            return;
+
+        MudDialog.Close(DialogResult.Ok(new Result(VillainId!, VillainName!, ParentVillainId, UnlockedPieceId)));
+    }
+
+    public record Result(string VillainId, string VillainName, string? ParentVillainId, string? UnlockedPieceId);
+}
