@@ -54,10 +54,10 @@ public class VillainAutomationServiceIntegrationTests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
 
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
 
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
 
         // Assert: No actions should be dispatched
         await dispatcher.DidNotReceive().ExecuteVillainActionAsync(
@@ -90,10 +90,10 @@ public class VillainAutomationServiceIntegrationTests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
 
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
 
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
 
         // Assert
         strategy.Received(1).DecideAction(game, villainPlayerId);
@@ -142,10 +142,10 @@ public class VillainAutomationServiceIntegrationTests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
          
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
          
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
          
         // Assert: Strategy should be called during villain's MovePhase turn
         strategy.Received(1).DecideAction(game, villainPlayerId);
@@ -173,10 +173,10 @@ public class VillainAutomationServiceIntegrationTests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
 
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
 
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
 
         // Assert: Dispatcher should be called once, then stop (because of skip action)
         await dispatcher.Received(1).ExecuteVillainActionAsync(

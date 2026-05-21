@@ -79,7 +79,7 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
             request.Action, playerId, request.GameId, game.TurnNumber);
 
         // Trigger villain automation if it's now the villain's turn
-        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, _mediator, cancellationToken);
+        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
         return new PlacementResult(game.CurrentPhase?.ToString(), game.MovePhaseActivePlayer?.ToString());
     }

@@ -76,7 +76,7 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
             await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);
 
         // Trigger villain automation if it's now the villain's turn
-        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, _mediator, cancellationToken);
+        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
         var yourScore = game.Scores.TryGetValue(playerId, out var s) ? s : 0;
         var opponentId = game.PlayerOne == playerId ? game.PlayerTwo : game.PlayerOne;

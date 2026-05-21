@@ -20,10 +20,9 @@ public interface IVillainAutomationService
     /// the phase advances or the villain passes.
     /// </summary>
     /// <param name="gameId">The game identifier.</param>
-    /// <param name="mediator">The MediatR mediator for dispatching commands.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the async operation.</returns>
-    Task EnsureVillainActsIfNeededAsync(Guid gameId, IMediator mediator, CancellationToken cancellationToken = default);
+    Task EnsureVillainActsIfNeededAsync(Guid gameId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -34,21 +33,24 @@ public sealed class VillainAutomationService : IVillainAutomationService
     private readonly IGameRepository _gameRepository;
     private readonly IVillainStrategyFactory _villainStrategyFactory;
     private readonly IVillainActionDispatcher _villainActionDispatcher;
+    private readonly IMediator _mediator;
     private readonly ILogger<VillainAutomationService> _logger;
 
     public VillainAutomationService(
         IGameRepository gameRepository,
         IVillainStrategyFactory villainStrategyFactory,
         IVillainActionDispatcher villainActionDispatcher,
+        IMediator mediator,
         ILogger<VillainAutomationService> logger)
     {
         _gameRepository = gameRepository;
         _villainStrategyFactory = villainStrategyFactory;
         _villainActionDispatcher = villainActionDispatcher;
+        _mediator = mediator;
         _logger = logger;
     }
 
-    public async Task EnsureVillainActsIfNeededAsync(Guid gameId, IMediator mediator, CancellationToken cancellationToken = default)
+    public async Task EnsureVillainActsIfNeededAsync(Guid gameId, CancellationToken cancellationToken = default)
     {
         var game = await _gameRepository.GetByIdAsync(gameId, cancellationToken);
 
@@ -111,7 +113,7 @@ public sealed class VillainAutomationService : IVillainAutomationService
             _logger.LogDebug("Villain {VillainId} decided action: {ActionType}", game.VillainId, action.GetType().Name);
 
             // Execute the action
-            await _villainActionDispatcher.ExecuteVillainActionAsync(action, gameId, villainPlayerId, mediator, cancellationToken);
+            await _villainActionDispatcher.ExecuteVillainActionAsync(action, gameId, villainPlayerId, _mediator, cancellationToken);
 
             actionsProcessed++;
 

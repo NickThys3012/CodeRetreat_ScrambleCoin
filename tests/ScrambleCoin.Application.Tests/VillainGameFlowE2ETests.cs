@@ -179,10 +179,10 @@ public class VillainGameFlowE2ETests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
 
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
 
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
 
         // Assert: Service processed the request
         await repo.Received().GetByIdAsync(game.Id, Arg.Any<CancellationToken>());
@@ -204,10 +204,10 @@ public class VillainGameFlowE2ETests
         var mediator = Substitute.For<IMediator>();
         var logger = Substitute.For<ILogger<VillainAutomationService>>();
 
-        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+        var service = new VillainAutomationService(repo, factory, dispatcher, mediator, logger);
 
         // Act
-        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+        await service.EnsureVillainActsIfNeededAsync(game.Id);
 
         // Assert: No dispatcher calls should be made
         await dispatcher.DidNotReceive().ExecuteVillainActionAsync(
