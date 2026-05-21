@@ -41,6 +41,13 @@ public sealed class Position : IEquatable<Position>
         return rowDiff == 1 && colDiff == 1;
     }
 
+    /// <summary>
+    /// Returns the Chebyshev distance (max of absolute differences) between this position and <paramref name="other"/>.
+    /// Used for Jump movement range validation.
+    /// </summary>
+    public int ChebyshevDistance(Position other) =>
+        Math.Max(Math.Abs(Row - other.Row), Math.Abs(Col - other.Col));
+
     public bool Equals(Position? other)
     {
         if (other is null) return false;
