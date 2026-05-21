@@ -108,24 +108,47 @@ public class VillainAutomationServiceIntegrationTests
     [Fact]
     public async Task EnsureVillainActsIfNeeded_MovePhase_CallsStrategyWhenVillainIsActive()
     {
-        // Arrange: Game in MovePhase with villain as active player
+        // Arrange: Create game in PlacePhase (easier to test than MovePhase via public API)
+        // and verify the strategy is called. MovePhase testing is harder because
+        // MovePhaseActivePlayer starts as PlayerOne, making it hard to test villain's MovePhase turn.
         var (game, botPlayerId, villainPlayerId, villainId) = CreateGameWithVillain();
-        
-        // Advance to MovePhase
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase (active player is PlayerOne)
-        
-        // Switch to villain's turn in MovePhase
-        game = new Game(botPlayerId, villainPlayerId, NewBoard());
-        game.SetLineup(botPlayerId, NewLineup(botPlayerId));
-        game.SetLineup(villainPlayerId, NewLineup(villainPlayerId));
-        game.VillainId = villainId;
-        game.Start();
-        game.AdvancePhase(); // CoinSpawn → PlacePhase
-        
-        // Manually set MovePhaseActivePlayer to villain
-        // We can't easily do this through the public API, so we'll skip this for now
-        // and rely on the other tests for PlacePhase behavior
+         
+        // Place pieces to advance to MovePhase
+        game.PlacePiece(botPlayerId, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(villainPlayerId, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 7));
+        // Both have now acted, auto-advancing to MovePhase
+         
+        Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
+         
+        // Skip bot's move to allow villain to move
+        game.SkipMovement(botPlayerId);
+         
+        // Now it's villain's turn in MovePhase
+        Assert.Equal(villainPlayerId, game.MovePhaseActivePlayer);
+         
+        var expectedAction = new SkipMovementAction();
+         
+        var repo = Substitute.For<IGameRepository>();
+        repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+         
+        var strategy = Substitute.For<IVillainStrategy>();
+        strategy.DecideAction(game, villainPlayerId).Returns(expectedAction);
+         
+        var factory = Substitute.For<IVillainStrategyFactory>();
+        factory.CreateStrategy(villainId).Returns(strategy);
+         
+        var dispatcher = Substitute.For<IVillainActionDispatcher>();
+        var mediator = Substitute.For<IMediator>();
+        var logger = Substitute.For<ILogger<VillainAutomationService>>();
+         
+        var service = new VillainAutomationService(repo, factory, dispatcher, logger);
+         
+        // Act
+        await service.EnsureVillainActsIfNeededAsync(game.Id, mediator);
+         
+        // Assert: Strategy should be called during villain's MovePhase turn
+        strategy.Received(1).DecideAction(game, villainPlayerId);
     }
 
     [Fact]

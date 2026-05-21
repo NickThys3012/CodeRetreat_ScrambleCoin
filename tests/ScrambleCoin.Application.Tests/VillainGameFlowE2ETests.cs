@@ -5,6 +5,7 @@ using ScrambleCoin.Application.Games.VillainActions;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Application.Services.Villains;
+using ScrambleCoin.Application.Services.Villains.Implementations;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Tests.Helpers;
@@ -90,13 +91,19 @@ public class VillainGameFlowE2ETests
     {
         // Arrange
         var (game, botPlayerId, villainPlayerId) = CreateSoloGame();
-        
+         
         var botPiece = game.LineupPlayerOne!.Pieces.First();
         var villainPiece = game.LineupPlayerTwo!.Pieces.First();
 
+        // Spawn coins in CoinSpawn phase before advancing
+        game.SpawnCoins([
+            (new Position(5, 4), CoinType.Silver),
+            (new Position(5, 5), CoinType.Gold)
+        ]);
+         
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
-        // Place both pieces on board
+        // Place both pieces on board (this auto-advances to MovePhase)
         var botPos = new Position(0, 3);
         var villainPos = new Position(7, 4);
         game.PlacePiece(botPlayerId, botPiece.Id, botPos);
@@ -104,20 +111,22 @@ public class VillainGameFlowE2ETests
 
         var initialVillainScore = game.GetScore(villainPlayerId);
 
-        // Advance to MovePhase and get coins
+        // Verify we're in MovePhase and coins exist
         Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
         var coinsOnBoard = game.Board.GetAllCoins();
+        Assert.NotEmpty(coinsOnBoard);
+         
+        // Bot moves first (PlayerOne is always active first in MovePhase)
+        game.SkipMovement(botPlayerId);
+         
+        // Now it's villain's turn in MovePhase
+        // Act: Move villain piece to coin via orthogonal path
+        // Piece is at (7, 4), coin at (5, 4) - can move straight up
+        game.MovePiece(villainPlayerId, villainPiece.Id, new[] { new[] { new Position(6, 4), new Position(5, 4) } });
 
-        if (coinsOnBoard.Count > 0)
-        {
-            // Act: Move villain piece to coin
-            var coin = coinsOnBoard.First();
-            game.MovePiece(villainPlayerId, villainPiece.Id, new[] { new[] { coin.Position } });
-
-            // Assert: Score increased or stayed the same (might collect other coin types)
-            var finalVillainScore = game.GetScore(villainPlayerId);
-            Assert.True(finalVillainScore >= initialVillainScore);
-        }
+        // Assert: Score increased after collecting coin
+        var finalVillainScore = game.GetScore(villainPlayerId);
+        Assert.True(finalVillainScore > initialVillainScore);
     }
 
     /// <summary>
@@ -263,6 +272,93 @@ public class VillainGameFlowE2ETests
         // Assert
         Assert.NotNull(result);
         await repo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Test 7.5: Villain respects 3-piece placement limit.
+    /// Verifies that villain skips placement when already at maximum pieces.
+    /// </summary>
+    [Fact]
+    public void SoloGameWithVillain_ThreePieceLimit_SkipsPlacementWhenFull()
+    {
+        // Arrange: Create game and manually place 3 villain pieces across multiple turns
+        var (game, botPlayerId, villainPlayerId) = CreateSoloGame("elsa");
+         
+        var villainPieces = game.LineupPlayerTwo!.Pieces.Take(3).ToList();
+        var botPieces = game.LineupPlayerOne!.Pieces.ToList();
+         
+        // Turn 1, PlacePhase: Place first villain piece
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(botPlayerId, botPieces[0].Id, new Position(0, 0));
+        game.PlacePiece(villainPlayerId, villainPieces[0].Id, new Position(7, 0));
+        // Auto-advances to MovePhase
+         
+        // MovePhase: Skip both
+        game.SkipMovement(botPlayerId);
+        game.SkipMovement(villainPlayerId);
+        // Auto-advances to CoinSpawn of turn 2
+         
+        // Turn 2, PlacePhase: Place second villain piece
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(botPlayerId, botPieces[1].Id, new Position(0, 1));
+        game.PlacePiece(villainPlayerId, villainPieces[1].Id, new Position(7, 1));
+        // Auto-advances to MovePhase
+         
+        // MovePhase: Skip both
+        game.SkipMovement(botPlayerId);
+        game.SkipMovement(villainPlayerId);
+        // Auto-advances to CoinSpawn of turn 3
+         
+        // Turn 3, PlacePhase: Place third villain piece
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(botPlayerId, botPieces[2].Id, new Position(0, 2));
+        game.PlacePiece(villainPlayerId, villainPieces[2].Id, new Position(7, 2));
+        // Auto-advances to MovePhase
+         
+        // Verify villain has 3 pieces on board
+        Assert.Equal(3, game.PiecesOnBoard[villainPlayerId]);
+         
+        // MovePhase: Skip both
+        game.SkipMovement(botPlayerId);
+        game.SkipMovement(villainPlayerId);
+        // Auto-advances to CoinSpawn of turn 4
+         
+        // Turn 4, PlacePhase: Villain at 3-piece limit, so should skip
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
+         
+        // Act: Get strategy's decision when already at max pieces
+        var strategy = new ElsaStrategy();
+        var action = strategy.DecideAction(game, villainPlayerId);
+         
+        // Assert: Should skip placement, not try to place 4th piece
+        Assert.IsType<SkipPlacementAction>(action);
+    }
+
+    /// <summary>
+    /// Test 7.75: Verify MovePhase setup for villain actions.
+    /// Validates that a game can reach MovePhase with pieces placed for both players.
+    /// </summary>
+    [Fact]
+    public void SoloGameWithVillain_MovePhase_GameStateValid()
+    {
+        // Arrange: Game with both pieces placed and in MovePhase
+        var (game, botPlayerId, villainPlayerId) = CreateSoloGame("elsa");
+         
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+         
+        // Place bot piece
+        game.PlacePiece(botPlayerId, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+         
+        // Place villain piece on the board
+        game.PlacePiece(villainPlayerId, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 4));
+        // Both players have now acted, so this auto-advances to MovePhase
+         
+        // Assert: Game is in MovePhase and both pieces are on board
+        Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
+        Assert.Equal(1, game.PiecesOnBoard[botPlayerId]);
+        Assert.Equal(1, game.PiecesOnBoard[villainPlayerId]);
+        Assert.Equal(botPlayerId, game.MovePhaseActivePlayer); // Bot moves first
     }
 
     /// <summary>
