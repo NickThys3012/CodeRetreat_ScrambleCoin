@@ -1,0 +1,84 @@
+@page "/admin"
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
+        ⚙️ Admin Dashboard
+    </div>
+    
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Class="h-100">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div style="font-size: 1.25rem; font-weight: bold;">🎮 Active Games</div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2">Games currently in progress</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; margin-top: 1rem;">0</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Class="h-100">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div style="font-size: 1.25rem; font-weight: bold;">🤖 Registered Bots</div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2">Bots ready to compete</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; margin-top: 1rem;">0</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Class="h-100">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div style="font-size: 1.25rem; font-weight: bold;">🏆 Completed Games</div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2">Total games finished</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; margin-top: 1rem;">0</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudCard Class="my-6">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div style="font-size: 1.25rem; font-weight: bold;">🎯 Tournament Management</div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudText Class="mb-4">Control tournament settings and manage active competitions.</MudText>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mr-3 mb-2">
+                Start Tournament
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mr-3 mb-2">
+                Pause Tournament
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" Class="mb-2">
+                Reset All Data
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="my-6">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div style="font-size: 1.25rem; font-weight: bold;">📊 Recent Activity</div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudText Typo="Typo.body2" Color="Color.Tertiary">No recent activity</MudText>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
