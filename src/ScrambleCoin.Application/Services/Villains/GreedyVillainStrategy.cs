@@ -15,20 +15,19 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
 {
     public VillainAction DecideAction(Game game, Guid villainPlayerId)
     {
-        if (game.CurrentPhase == TurnPhase.PlacePhase)
-            return DecidePlacement(game, villainPlayerId);
-
-        if (game.CurrentPhase == TurnPhase.MovePhase)
-            return DecideMovement(game, villainPlayerId);
-
-        throw new DomainException($"Invalid phase for villain action: {game.CurrentPhase}");
+        return game.CurrentPhase switch
+        {
+            TurnPhase.PlacePhase => DecidePlacement(game, villainPlayerId),
+            TurnPhase.MovePhase => DecideMovement(game, villainPlayerId),
+            _ => throw new DomainException($"Invalid phase for villain action: {game.CurrentPhase}")
+        };
     }
 
     /// <summary>
     /// Decides placement action: place the next unplaced piece on the nearest free border tile,
     /// or skip if at max pieces or no valid placement.
     /// </summary>
-    private VillainAction DecidePlacement(Game game, Guid villainPlayerId)
+    private static VillainAction DecidePlacement(Game game, Guid villainPlayerId)
     {
         var lineup = game.CurrentPhase == TurnPhase.PlacePhase
             ? (villainPlayerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo)
@@ -37,16 +36,16 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         if (lineup is null)
             return new SkipPlacementAction();
 
-        // Check if villain has reached 3-piece limit
+        // Check if the villain has reached the 3-piece limit
         if (game.PiecesOnBoard[villainPlayerId] >= Game.MaxPiecesOnBoard)
             return new SkipPlacementAction();
 
-        // Find next unplaced piece
+        // Find the next unplaced piece
         var nextPiece = lineup.Pieces.FirstOrDefault(p => !p.IsOnBoard);
         if (nextPiece is null)
             return new SkipPlacementAction();
 
-        // Find nearest free border tile for placing the piece
+        // Find the nearest free border tile for placing the piece
         var position = FindNearestFreeBorderTile(game, nextPiece);
         if (position is null)
             return new SkipPlacementAction();
@@ -58,7 +57,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Decides movement action: for each on-board piece, generate a move segment toward the nearest coin.
     /// If no valid moves, skip.
     /// </summary>
-    private VillainAction DecideMovement(Game game, Guid villainPlayerId)
+    private static VillainAction DecideMovement(Game game, Guid villainPlayerId)
     {
         var lineup = villainPlayerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
         if (lineup is null)
@@ -68,10 +67,10 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             .Where(p => p.IsOnBoard)
             .ToList();
 
-        if (!villainPieces.Any())
+        if (villainPieces.Count == 0)
             return new SkipMovementAction();
 
-        // Try to move the first piece toward nearest coin
+        // Try to move the first piece toward the nearest coin
         var piece = villainPieces.First();
         var pathTowardsCoin = FindPathTowardNearestCoin(game, piece);
 
@@ -79,7 +78,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             return new SkipMovementAction();
 
         // For simplicity, move only the first piece with one segment.
-        // This is a greedy approach: move first piece toward nearest coin.
+        // This is a greedy approach: move the first piece toward the nearest coin.
         var segments = new List<IReadOnlyList<Position>> { pathTowardsCoin };
         return new MovementAction(piece.Id, segments);
     }
@@ -99,11 +98,11 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             {
                 var position = new Position(row, col);
 
-                // Check if position is a valid border entry point
+                // Check if the position is a valid border entry point
                 if (!Board.IsValidEntryPoint(position, piece.EntryPointType))
                     continue;
 
-                // Check if tile is free (no piece and no obstacle)
+                // Check if the tile is free (no piece and no obstacle)
                 if (!game.Board.IsEmpty(position))
                     continue;
 
@@ -118,9 +117,9 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             return null;
 
         // Return the nearest free border tile (using Manhattan distance)
-        // For now, use center of board (3, 3) as reference point
-        var referenceRow = 3;
-        var referenceCol = 3;
+        // For now, use the centre of the board (3, 3) as a reference point
+        const int referenceRow = 3;
+        const int referenceCol = 3;
 
         return freeBorderTiles
             .OrderBy(p => Math.Abs(p.Row - referenceRow) + Math.Abs(p.Col - referenceCol))
@@ -132,7 +131,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Returns a list of positions representing the path (not including the current position).
     /// Uses Manhattan distance to find the nearest coin.
     /// </summary>
-    protected IReadOnlyList<Position>? FindPathTowardNearestCoin(Game game, Piece piece)
+    private static IReadOnlyList<Position>? FindPathTowardNearestCoin(Game game, Piece piece)
     {
         if (piece.Position is null)
             return null;
@@ -142,7 +141,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         if (coins.Count == 0)
             return new List<Position>();
 
-        // Find nearest coin
+        // Find the nearest coin
         var nearestCoinPos = coins
             .OrderBy(tile => ManhattanDistance(piece.Position, tile.Position))
             .FirstOrDefault()?.Position;
@@ -154,30 +153,29 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         // This is a greedy approach: move in the direction that reduces distance most
         var nextPos = MoveTowardTarget(piece.Position, nearestCoinPos, game, piece);
 
-        if (nextPos is null)
-            return new List<Position>();
-
-        return new List<Position> { nextPos };
+        return nextPos is null ?
+            new List<Position>() : 
+            new List<Position> { nextPos };
     }
 
     /// <summary>
-    /// Moves one step from current position toward target position.
+    /// Moves one step from the current position toward the target position.
     /// For orthogonal pieces, prefer orthogonal moves; for diagonal, prefer diagonal moves; etc.
     /// </summary>
     private static Position? MoveTowardTarget(Position current, Position target, Game game, Piece piece)
     {
         var candidates = new List<Position>();
 
-        // Generate adjacent candidates based on movement type
+        // Generate adjacent candidates based on a movement type
         var adjacents = GetAdjacentPositions(current, piece.MovementType);
 
         foreach (var adjacent in adjacents)
         {
-            // Check if position is within bounds
+            // Check if the position is within bounds
             if (!Board.IsWithinBounds(adjacent))
                 continue;
 
-            // Check if position is free (not occupied by piece or obstacle)
+            // Check if the position is free (not occupied by a piece or obstacle)
             if (!game.Board.IsEmpty(adjacent))
                 continue;
 
@@ -197,13 +195,13 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     }
 
     /// <summary>
-    /// Gets adjacent positions based on movement type.
+    /// Gets adjacent positions based on a movement type.
     /// </summary>
     private static List<Position> GetAdjacentPositions(Position from, MovementType movementType)
     {
         var candidates = new List<Position>();
 
-        if (movementType == MovementType.Orthogonal || movementType == MovementType.AnyDirection)
+        if (movementType is MovementType.Orthogonal or MovementType.AnyDirection)
         {
             // Orthogonal moves
             candidates.Add(new Position(from.Row - 1, from.Col)); // Up
@@ -212,14 +210,18 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             candidates.Add(new Position(from.Row, from.Col + 1)); // Right
         }
 
-        if (movementType == MovementType.Diagonal || movementType == MovementType.AnyDirection)
+        if (movementType is not (MovementType.Diagonal or MovementType.AnyDirection))
         {
-            // Diagonal moves
-            candidates.Add(new Position(from.Row - 1, from.Col - 1)); // Up-Left
-            candidates.Add(new Position(from.Row - 1, from.Col + 1)); // Up-Right
-            candidates.Add(new Position(from.Row + 1, from.Col - 1)); // Down-Left
-            candidates.Add(new Position(from.Row + 1, from.Col + 1)); // Down-Right
+            return candidates
+                .Where(Board.IsWithinBounds)
+                .ToList();
         }
+        
+        // Diagonal moves
+        candidates.Add(new Position(from.Row - 1, from.Col - 1)); // Up-Left
+        candidates.Add(new Position(from.Row - 1, from.Col + 1)); // Up-Right
+        candidates.Add(new Position(from.Row + 1, from.Col - 1)); // Down-Left
+        candidates.Add(new Position(from.Row + 1, from.Col + 1)); // Down-Right
 
         return candidates
             .Where(Board.IsWithinBounds)

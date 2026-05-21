@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Application.Games.VillainActions;
 

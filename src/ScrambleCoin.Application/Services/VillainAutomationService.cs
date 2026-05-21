@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services.Villains;
-using ScrambleCoin.Domain.Exceptions;
 
 namespace ScrambleCoin.Application.Services;
 
@@ -83,7 +82,7 @@ public sealed class VillainAutomationService : IVillainAutomationService
             // Reload the game state to check current conditions
             game = await _gameRepository.GetByIdAsync(gameId, cancellationToken);
 
-            // Check if the phase has advanced or game is no longer active
+            // Check if the phase has advanced or the game is no longer active
             if (game.CurrentPhase != previousPhase || game.Status != Domain.Enums.GameStatus.InProgress)
             {
                 _logger.LogInformation(
@@ -117,14 +116,14 @@ public sealed class VillainAutomationService : IVillainAutomationService
 
             actionsProcessed++;
 
-            // Check for skip actions - if skip, we're done with this turn for the villain
-            if (action is SkipPlacementAction or SkipMovementAction)
-            {
-                _logger.LogInformation(
-                    "Villain {VillainId} skipped action ({ActionType}) in game {GameId}",
-                    game.VillainId, action.GetType().Name, gameId);
-                break;
-            }
+            // Check for skip actions - if skipped, we're done with this turn for the villain
+            if (action is not (SkipPlacementAction or SkipMovementAction))
+                continue;
+            
+            _logger.LogInformation(
+                "Villain {VillainId} skipped action ({ActionType}) in game {GameId}",
+                game.VillainId, action.GetType().Name, gameId);
+            break;
         }
 
         if (actionsProcessed >= maxActionsPerTurn)

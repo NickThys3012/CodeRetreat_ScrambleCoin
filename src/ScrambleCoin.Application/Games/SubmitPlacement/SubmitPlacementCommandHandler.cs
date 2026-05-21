@@ -18,20 +18,17 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IVillainAutomationService _villainAutomationService;
-    private readonly IMediator _mediator;
     private readonly ILogger<SubmitPlacementCommandHandler> _logger;
 
     public SubmitPlacementCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IVillainAutomationService villainAutomationService,
-        IMediator mediator,
         ILogger<SubmitPlacementCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _villainAutomationService = villainAutomationService;
-        _mediator = mediator;
         _logger = logger;
     }
 

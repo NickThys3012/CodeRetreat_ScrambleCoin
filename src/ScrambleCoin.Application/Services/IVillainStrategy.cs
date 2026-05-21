@@ -29,7 +29,7 @@ public abstract record VillainAction;
 public sealed record PlacementAction(Guid PieceId, Position Position) : VillainAction;
 
 /// <summary>
-/// Villain decides to skip placement (e.g., already has 3 pieces on board or no valid placement).
+/// Villain decides to skip placement (e.g. already has 3 pieces on board or no valid placement).
 /// </summary>
 public sealed record SkipPlacementAction : VillainAction;
 

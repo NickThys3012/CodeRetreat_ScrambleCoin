@@ -1,7 +1,6 @@
 using MediatR;
 using ScrambleCoin.Application.Games.VillainActions;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Application.Services;
 

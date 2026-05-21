@@ -91,12 +91,10 @@ public class MovePieceCommandHandlerTests
         IGameRepository repo,
         IBotRegistrationRepository? botRepo = null,
         IVillainAutomationService? villainAutomationService = null,
-        IMediator? mediator = null,
         IPublisher? publisher = null)
         => new(repo,
                botRepo ?? Substitute.For<IBotRegistrationRepository>(),
                villainAutomationService ?? Substitute.For<IVillainAutomationService>(),
-               mediator ?? Substitute.For<IMediator>(),
                publisher ?? Substitute.For<IPublisher>(),
                Substitute.For<ILogger<MovePieceCommandHandler>>());
 
