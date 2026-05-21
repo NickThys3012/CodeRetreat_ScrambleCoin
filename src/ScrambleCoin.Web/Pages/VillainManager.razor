@@ -1,99 +1,240 @@
 @page "/admin/villains"
 @using MudBlazor
+@using MediatR
+
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Large">
-    <div style="font-size: 1.5rem; font-weight: bold; margin: 1.5rem 0;">
-        🎭 Villain Tree Manager
+    <div Class="d-flex justify-space-between align-center mb-4">
+        <div style="font-size: 1.5rem; font-weight: bold;">🎭 Villain Tree Manager</div>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenEditDialog(null))">
+            Add Villain
+        </MudButton>
     </div>
-    
-    <MudGrid>
-        <MudItem xs="12" md="6">
-            <MudCard Class="h-100">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <div style="font-size: 1.1rem; font-weight: bold;">➕ Add New Villain Node</div>
-                    </CardHeaderContent>
-                </MudCardHeader>
-                <MudCardContent>
-                    <MudTextField @bind-Value="NewVillainId" Label="Villain ID" Variant="Variant.Outlined" Class="mb-3" />
-                    <MudTextField @bind-Value="NewVillainName" Label="Display Name" Variant="Variant.Outlined" Class="mb-3" />
-                    <MudTextField @bind-Value="NewVillainDifficulty" Label="Difficulty (1-5)" Variant="Variant.Outlined" Class="mb-3" />
-                    
-                    <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="SelectedParentId" Variant="Variant.Outlined" Class="mb-4">
-                        <MudSelectItem Value="@((string?)null)">-- Root Node --</MudSelectItem>
-                        <MudSelectItem Value="@("elsa")">Elsa</MudSelectItem>
-                        <MudSelectItem Value="@("ursula")">Ursula</MudSelectItem>
-                        <MudSelectItem Value="@("gaston")">Gaston</MudSelectItem>
-                    </MudSelect>
-                    
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="AddVillainNode">
-                        ➕ Add Villain
-                    </MudButton>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
 
-        <MudItem xs="12" md="6">
-            <MudCard Class="h-100">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <div style="font-size: 1.1rem; font-weight: bold;">🌳 Villain List</div>
-                    </CardHeaderContent>
-                </MudCardHeader>
-                <MudCardContent>
-                    @foreach (var villain in VillainNodes)
-                    {
-                        <MudPaper Class="pa-3 mb-2" Elevation="1">
-                            <div Class="d-flex justify-space-between align-center">
-                                <div>
-                                    <strong>@villain.Name</strong>
-                                    <MudText Typo="Typo.caption" Color="Color.Surface">ID: @villain.VillainId | Difficulty: @villain.Difficulty</MudText>
-                                </div>
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@((MouseEventArgs e) => DeleteVillainNode(villain.VillainId))" />
-                            </div>
-                        </MudPaper>
-                    }
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
-
-    <MudCard Class="my-4">
-        <MudCardHeader>
-            <CardHeaderContent>
-                <div style="font-size: 1.1rem; font-weight: bold;">📊 DAG Structure</div>
-            </CardHeaderContent>
-        </MudCardHeader>
-        <MudCardContent>
-            <div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9rem; color: #00ff00; max-height: 300px; overflow-y: auto;">
-                <div>Root</div>
-                <div style="margin-left: 1rem;">├─ Elsa (Difficulty: 2)</div>
-                <div style="margin-left: 1rem;">├─ Ursula (Difficulty: 3)</div>
-                <div style="margin-left: 1rem;">├─ Gaston (Difficulty: 4)</div>
-                <div style="margin-left: 2rem; color: #888;">└─ [No child nodes yet]</div>
-            </div>
-        </MudCardContent>
-    </MudCard>
-
-    <MudCard Class="my-4">
-        <MudCardHeader>
-            <CardHeaderContent>
-                <div style="font-size: 1.1rem; font-weight: bold;">⚠️ Danger Zone</div>
-            </CardHeaderContent>
-        </MudCardHeader>
-        <MudCardContent>
-            <MudText Class="mb-4">Reset all villain trees and start fresh.</MudText>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="ResetAllVillains">
-                🗑️ Reset All Villain Trees
-            </MudButton>
-        </MudCardContent>
-    </MudCard>
-
-    @if (!string.IsNullOrEmpty(Message))
+    @if (IsLoading)
     {
-        <MudAlert Severity="@MessageSeverity" Class="my-4">@Message</MudAlert>
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (AllNodes.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">No villain nodes found. Create one to get started!</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="7">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <div style="font-size: 1.1rem; font-weight: bold;">🌳 Villain Tree</div>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div style="max-height: 500px; overflow-y: auto;">
+                            <RenderTree Nodes="RootNodes" />
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudCard Class="h-100">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <div style="font-size: 1.1rem; font-weight: bold;">📋 All Nodes (@AllNodes.Count)</div>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div style="max-height: 500px; overflow-y: auto;">
+                            @foreach (var node in AllNodes.OrderBy(n => n.DisplayOrder))
+                            {
+                                <MudPaper Class="pa-3 mb-2" Elevation="1">
+                                    <div Class="d-flex justify-space-between align-center">
+                                        <div style="flex: 1;">
+                                            <strong>@node.VillainName</strong>
+                                            <MudText Typo="Typo.caption" Color="Color.Surface">@node.VillainId</MudText>
+                                            @if (node.RequiredParentVillainId != null)
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Surface">
+                                                    ← @(AllNodes.FirstOrDefault(n => n.VillainId == node.RequiredParentVillainId)?.VillainName ?? "Unknown")
+                                                </MudText>
+                                            }
+                                        </div>
+                                        <div>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(node))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteNode(node.VillainId))" />
+                                        </div>
+                                    </div>
+                                </MudPaper>
+                            }
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
     }
 </MudContainer>
+
+<MudDialog @bind-IsVisible="ShowEditDialog" Options="new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small }">
+    <DialogContent>
+        <MudText Typo="Typo.h6">@(EditingNode == null ? "➕ Add Villain Node" : "✏️ Edit Villain Node")</MudText>
+        <MudTextField @bind-Value="EditForm.VillainId" Label="Villain ID" Variant="Variant.Outlined" Class="my-3" Disabled="EditingNode != null" />
+        <MudTextField @bind-Value="EditForm.VillainName" Label="Display Name" Variant="Variant.Outlined" Class="my-3" />
+        <MudTextField @bind-Value="EditForm.UnlockedPieceId" Label="Unlocked Piece ID (optional)" Variant="Variant.Outlined" Class="my-3" />
+        
+        <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="EditForm.ParentVillainId" Variant="Variant.Outlined" Class="my-3">
+            <MudSelectItem Value="@((string?)null)">-- Root Node --</MudSelectItem>
+            @foreach (var node in AllNodes.Where(n => n.VillainId != EditForm.VillainId))
+            {
+                <MudSelectItem Value="@node.VillainId">@node.VillainName</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => ShowEditDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveNode">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<VillainNodeDto> AllNodes = new();
+    private List<VillainNodeDto> RootNodes = new();
+    private bool IsLoading = true;
+    private bool ShowEditDialog = false;
+    private VillainNodeDto? EditingNode;
+    private EditFormModel EditForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTree();
+    }
+
+    private async Task LoadTree()
+    {
+        IsLoading = true;
+        try
+        {
+            var result = await Mediator.Send(new GetVillainTreeQuery());
+            AllNodes = result.AllNodes.ToList();
+            RootNodes = result.RootNodes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load villain tree: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OpenEditDialog(VillainNodeDto? node)
+    {
+        EditingNode = node;
+        EditForm = node == null
+            ? new EditFormModel { ParentVillainId = null }
+            : new EditFormModel 
+            { 
+                VillainId = node.VillainId,
+                VillainName = node.VillainName,
+                ParentVillainId = node.RequiredParentVillainId,
+                UnlockedPieceId = node.UnlockedPieceId
+            };
+        ShowEditDialog = true;
+    }
+
+    private async Task SaveNode()
+    {
+        try
+        {
+            if (EditingNode == null)
+            {
+                var displayOrder = AllNodes.Count + 1;
+                var cmd = new AddVillainNodeCommand(
+                    EditForm.VillainId!,
+                    EditForm.VillainName!,
+                    EditForm.ParentVillainId,
+                    EditForm.UnlockedPieceId,
+                    displayOrder
+                );
+                await Mediator.Send(cmd);
+                Snackbar.Add("✅ Villain node added", Severity.Success);
+            }
+            else
+            {
+                var cmd = new UpdateVillainNodeCommand(
+                    EditForm.VillainId!,
+                    EditForm.VillainName!,
+                    EditForm.ParentVillainId,
+                    EditForm.UnlockedPieceId,
+                    EditingNode.DisplayOrder
+                );
+                await Mediator.Send(cmd);
+                Snackbar.Add("✅ Villain node updated", Severity.Success);
+            }
+
+            ShowEditDialog = false;
+            await LoadTree();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteNode(string villainId)
+    {
+        try
+        {
+            var cmd = new DeleteVillainNodeCommand(villainId);
+            await Mediator.Send(cmd);
+            Snackbar.Add("🗑️ Villain node deleted", Severity.Success);
+            await LoadTree();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private class EditFormModel
+    {
+        public string? VillainId { get; set; }
+        public string? VillainName { get; set; }
+        public string? ParentVillainId { get; set; }
+        public string? UnlockedPieceId { get; set; }
+    }
+
+    private RenderFragment RenderTree(List<VillainNodeDto> nodes) => @<text>
+        @foreach (var node in nodes.OrderBy(n => n.DisplayOrder))
+        {
+            <div class="villain-tree-node">
+                <MudPaper Class="pa-2 mb-1" Elevation="2">
+                    <div Class="d-flex justify-space-between align-center">
+                        <div style="flex: 1;">
+                            <strong>@node.VillainName</strong>
+                            @if (node.Children.Any())
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.ExpandMore" Size="Size.Small" />
+                            }
+                        </div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(node))" />
+                    </div>
+                </MudPaper>
+                @if (node.Children.Any())
+                {
+                    <div style="margin-left: 1.5rem; border-left: 2px solid #555; padding-left: 0.5rem;">
+                        <RenderTree Nodes="node.Children.ToList()" />
+                    </div>
+                }
+            </div>
+        }
+    </text>;
+}
+
+@using ScrambleCoin.Application.VillainTree
 
 @code {
     private List<VillainNodeItem> VillainNodes = new()
