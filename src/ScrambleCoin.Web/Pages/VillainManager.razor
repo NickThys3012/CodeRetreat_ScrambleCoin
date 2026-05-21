@@ -8,7 +8,7 @@
 <MudContainer MaxWidth="MaxWidth.Large">
     <div Class="d-flex justify-space-between align-center mb-4">
         <div style="font-size: 1.5rem; font-weight: bold;">🎭 Villain Tree Manager</div>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenEditDialog(null))">
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="OnAddClicked">
             Add Villain
         </MudButton>
     </div>
@@ -63,8 +63,8 @@
                                             }
                                         </div>
                                         <div>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(node))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteNode(node.VillainId))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => OnEditClicked(node))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@((e) => OnDeleteClicked(node.VillainId))" />
                                         </div>
                                     </div>
                                 </MudPaper>
@@ -94,7 +94,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@(() => ShowEditDialog = false)">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveNode">Save</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="OnSaveClicked">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -130,6 +130,26 @@
         }
     }
 
+    private async Task OnAddClicked()
+    {
+        OpenEditDialog(null);
+    }
+
+    private async Task OnEditClicked(VillainNodeDto node)
+    {
+        OpenEditDialog(node);
+    }
+
+    private async Task OnDeleteClicked(string villainId)
+    {
+        await DeleteNode(villainId);
+    }
+
+    private async Task OnSaveClicked()
+    {
+        await SaveNode();
+    }
+
     private void OpenEditDialog(VillainNodeDto? node)
     {
         EditingNode = node;
@@ -149,12 +169,18 @@
     {
         try
         {
+            if (string.IsNullOrEmpty(EditForm.VillainId) || string.IsNullOrEmpty(EditForm.VillainName))
+            {
+                Snackbar.Add("⚠️ Villain ID and Name are required", Severity.Warning);
+                return;
+            }
+
             if (EditingNode == null)
             {
                 var displayOrder = AllNodes.Count + 1;
                 var cmd = new AddVillainNodeCommand(
-                    EditForm.VillainId!,
-                    EditForm.VillainName!,
+                    EditForm.VillainId,
+                    EditForm.VillainName,
                     EditForm.ParentVillainId,
                     EditForm.UnlockedPieceId,
                     displayOrder
@@ -165,8 +191,8 @@
             else
             {
                 var cmd = new UpdateVillainNodeCommand(
-                    EditForm.VillainId!,
-                    EditForm.VillainName!,
+                    EditForm.VillainId,
+                    EditForm.VillainName,
                     EditForm.ParentVillainId,
                     EditForm.UnlockedPieceId,
                     EditingNode.DisplayOrder
@@ -220,7 +246,7 @@
                                 <MudIcon Icon="@Icons.Material.Filled.ExpandMore" Size="Size.Small" />
                             }
                         </div>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(node))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => OnEditClicked(node))" />
                     </div>
                 </MudPaper>
                 @if (node.Children.Any())
