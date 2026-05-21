@@ -35,23 +35,33 @@ public sealed class BotUnlocksRepository : IBotUnlocksRepository
 
     public async Task RecordDefeatAsync(Guid botId, string villainId, string? unlockedPieceId, CancellationToken cancellationToken = default)
     {
-        // Check if already defeated
+        // UPSERT: update if exists, insert if not
         var existing = _context.BotUnlocks.FirstOrDefault(bu => bu.BotId == botId && bu.VillainId == villainId);
+
         if (existing != null)
         {
-            throw new InvalidOperationException($"Bot {botId} has already defeated villain '{villainId}'.");
+            // Update: bot is re-challenging this villain
+            existing.DefeatedAtUtc = DateTime.UtcNow;
+            if (unlockedPieceId != null && string.IsNullOrEmpty(existing.UnlockedPieceId))
+            {
+                existing.UnlockedPieceId = unlockedPieceId;
+            }
+            _context.BotUnlocks.Update(existing);
+        }
+        else
+        {
+            // Insert: first time defeating this villain
+            var unlock = new BotUnlock
+            {
+                Id = Guid.NewGuid(),
+                BotId = botId,
+                VillainId = villainId,
+                UnlockedPieceId = unlockedPieceId,
+                DefeatedAtUtc = DateTime.UtcNow
+            };
+            _context.BotUnlocks.Add(unlock);
         }
 
-        var unlock = new BotUnlock
-        {
-            Id = Guid.NewGuid(),
-            BotId = botId,
-            VillainId = villainId,
-            UnlockedPieceId = unlockedPieceId,
-            DefeatedAtUtc = DateTime.UtcNow
-        };
-
-        _context.BotUnlocks.Add(unlock);
         await _context.SaveChangesAsync(cancellationToken);
     }
 

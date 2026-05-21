@@ -52,13 +52,6 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
                 $"Villain '{request.VillainId}' is locked. Defeat parent villain '{villain.RequiredParentVillainId}' first.");
         }
 
-        // Check if the bot has already defeated this villain
-        var alreadyDefeated = defeatedVillainIds.Contains(request.VillainId);
-        if (alreadyDefeated)
-        {
-            throw new DomainException($"Villain '{request.VillainId}' has already been defeated.");
-        }
-
         // Generate a deterministic villain "player" ID based on the villain name
         var villainPlayerId = GenerateVillainPlayerId(request.VillainId);
 
@@ -95,6 +88,7 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
     {
         // This is a simplified V5 UUID implementation
         // In production, consider using a library or the standard .NET implementation
+#pragma warning disable CA5350  // Weak cryptography (deterministic GuidV5 for testing)
         using (var sha1 = System.Security.Cryptography.SHA1.Create())
         {
             var nameBytes = System.Text.Encoding.UTF8.GetBytes(name);
@@ -113,5 +107,6 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
 
             return new Guid(hash.Take(16).ToArray());
         }
+#pragma warning restore CA5350
     }
 }

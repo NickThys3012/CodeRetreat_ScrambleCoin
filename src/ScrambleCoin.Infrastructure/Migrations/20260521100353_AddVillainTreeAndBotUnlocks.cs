@@ -67,7 +67,7 @@ namespace ScrambleCoin.Infrastructure.Migrations
                 name: "IX_BotUnlocks_BotId_VillainId",
                 table: "BotUnlocks",
                 columns: new[] { "BotId", "VillainId" },
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_BotUnlocks_VillainId",
