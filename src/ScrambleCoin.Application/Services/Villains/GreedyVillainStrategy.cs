@@ -88,7 +88,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Finds the nearest free border tile to place a piece.
     /// Uses Manhattan distance for simplicity.
     /// </summary>
-    protected Position? FindNearestFreeBorderTile(Game game, Piece piece)
+    private static Position? FindNearestFreeBorderTile(Game game, Piece piece)
     {
         var freeBorderTiles = new List<Position>();
 
@@ -164,7 +164,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Moves one step from current position toward target position.
     /// For orthogonal pieces, prefer orthogonal moves; for diagonal, prefer diagonal moves; etc.
     /// </summary>
-    private Position? MoveTowardTarget(Position current, Position target, Game game, Piece piece)
+    private static Position? MoveTowardTarget(Position current, Position target, Game game, Piece piece)
     {
         var candidates = new List<Position>();
 

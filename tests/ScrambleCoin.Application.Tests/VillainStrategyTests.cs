@@ -72,15 +72,6 @@ public class VillainStrategyTests
     }
 
     [Fact]
-    public void Strategy_DecideAction_SkipsPlacementWhenAtMaxPieces()
-    {
-        // This test verifies that the strategy checks and skips placement when at max pieces.
-        // We'll test this by checking the logic without actually placing 3 pieces,
-        // which would require more complex game state management.
-        // For now, remove this test as it's testing game logic, not strategy logic.
-    }
-
-    [Fact]
     public void Strategy_DecideAction_SkipsMovementWhenNoCoinsOnBoard()
     {
         // This test verifies the strategy skips when no coins are on board.
