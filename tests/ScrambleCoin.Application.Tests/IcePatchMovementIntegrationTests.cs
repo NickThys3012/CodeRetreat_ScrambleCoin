@@ -4,6 +4,7 @@ using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
@@ -249,6 +250,8 @@ public class IcePatchMovementIntegrationTests
         IBotRegistrationRepository botRepo)
         => new(gameRepo,
             botRepo,
+            Substitute.For<IVillainAutomationService>(),
+            Substitute.For<IMediator>(),
             Substitute.For<IPublisher>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
@@ -16,22 +17,29 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 /// <c>NewPhase == CoinSpawn</c>. This handler translates that signal into a
 /// <see cref="TurnRolledOver"/> MediatR notification, which <see cref="TurnRolledOverHandler"/>
 /// reacts to — keeping coin-spawn logic out of this handler entirely.
+/// After execution, triggers villain automation if needed.
 /// </summary>
 public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, MoveResult>
 {
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
+    private readonly IVillainAutomationService _villainAutomationService;
+    private readonly IMediator _mediator;
     private readonly IPublisher _publisher;
     private readonly ILogger<MovePieceCommandHandler> _logger;
 
     public MovePieceCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
+        IVillainAutomationService villainAutomationService,
+        IMediator mediator,
         IPublisher publisher,
         ILogger<MovePieceCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
+        _villainAutomationService = villainAutomationService;
+        _mediator = mediator;
         _publisher = publisher;
         _logger = logger;
     }
@@ -66,6 +74,9 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
 
         if (turnRolledOver)
             await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);
+
+        // Trigger villain automation if it's now the villain's turn
+        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, _mediator, cancellationToken);
 
         var yourScore = game.Scores.TryGetValue(playerId, out var s) ? s : 0;
         var opponentId = game.PlayerOne == playerId ? game.PlayerTwo : game.PlayerOne;

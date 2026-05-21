@@ -4,6 +4,7 @@ using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -92,6 +93,8 @@ public class EtherealMovementIntegrationTests
         IPublisher? publisher = null)
         => new(gameRepo,
             botRepo,
+            Substitute.For<IVillainAutomationService>(),
+            Substitute.For<IMediator>(),
             publisher ?? Substitute.For<IPublisher>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 

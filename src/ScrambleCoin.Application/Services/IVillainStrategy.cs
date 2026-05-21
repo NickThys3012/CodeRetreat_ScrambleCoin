@@ -26,7 +26,7 @@ public abstract record VillainAction;
 /// <summary>
 /// Villain decides to place a piece on the board at the specified position.
 /// </summary>
-public sealed record PlacementAction(Position Position) : VillainAction;
+public sealed record PlacementAction(Guid PieceId, Position Position) : VillainAction;
 
 /// <summary>
 /// Villain decides to skip placement (e.g., already has 3 pieces on board or no valid placement).

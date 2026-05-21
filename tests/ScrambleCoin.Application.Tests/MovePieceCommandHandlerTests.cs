@@ -90,9 +90,13 @@ public class MovePieceCommandHandlerTests
     private static MovePieceCommandHandler BuildHandler(
         IGameRepository repo,
         IBotRegistrationRepository? botRepo = null,
+        IVillainAutomationService? villainAutomationService = null,
+        IMediator? mediator = null,
         IPublisher? publisher = null)
         => new(repo,
                botRepo ?? Substitute.For<IBotRegistrationRepository>(),
+               villainAutomationService ?? Substitute.For<IVillainAutomationService>(),
+               mediator ?? Substitute.For<IMediator>(),
                publisher ?? Substitute.For<IPublisher>(),
                Substitute.For<ILogger<MovePieceCommandHandler>>());
 
@@ -199,7 +203,7 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var publisher = Substitute.For<IPublisher>();
-        var handler = BuildHandler(repo, BotRepo(p2Token, p2, game.Id), publisher);
+        var handler = BuildHandler(repo, BotRepo(p2Token, p2, game.Id), publisher: publisher);
 
         var p2Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {
@@ -226,7 +230,7 @@ public class MovePieceCommandHandlerTests
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var publisher = Substitute.For<IPublisher>();
-        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), publisher);
+        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), publisher: publisher);
 
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
         {

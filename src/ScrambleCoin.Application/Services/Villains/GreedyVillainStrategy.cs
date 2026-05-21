@@ -51,7 +51,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         if (position is null)
             return new SkipPlacementAction();
 
-        return new PlacementAction(position);
+        return new PlacementAction(nextPiece.Id, position);
     }
 
     /// <summary>
