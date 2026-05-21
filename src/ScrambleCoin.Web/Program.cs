@@ -72,6 +72,14 @@ try
     
     var app = builder.Build();
 
+    // ── Database initialization & seeding ─────────────────────────────────────
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoin.Infrastructure.Persistence.ScrambleCoinDbContext>();
+        dbContext.Database.Migrate();
+        ScrambleCoin.Infrastructure.Persistence.VillainTreeSeeder.SeedDefaultTree(dbContext);
+    }
+
     // ── Middleware pipeline ───────────────────────────────────────────────────
     if (!app.Environment.IsDevelopment())
     {
