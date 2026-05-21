@@ -675,6 +675,7 @@ public class PiecePlacementTests
     [InlineData(0, 0, EntryPointType.Anywhere, true)]
     public void Board_IsValidEntryPoint_ReturnsCorrectly(int row, int col, EntryPointType entryPointType, bool expected)
     {
-        Assert.Equal(expected, Board.IsValidEntryPoint(new Position(row, col), entryPointType));
+        var board = new Board();
+        Assert.Equal(expected, board.IsValidEntryPoint(new Position(row, col), entryPointType));
     }
 }
