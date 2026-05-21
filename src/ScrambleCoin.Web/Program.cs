@@ -1,6 +1,7 @@
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
+using Microsoft.EntityFrameworkCore;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -42,6 +43,23 @@ try
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblies(
             typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
+
+    // ── Database & EF Core ─────────────────────────────────────────────────────
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<ScrambleCoin.Infrastructure.Persistence.ScrambleCoinDbContext>(opts =>
+        opts.UseSqlServer(connectionString));
+
+    // ── Repositories ──────────────────────────────────────────────────────────
+    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IGameRepository,
+        ScrambleCoin.Infrastructure.Persistence.GameRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IBotUnlocksRepository,
+        ScrambleCoin.Infrastructure.BotUnlocksRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IVillainTreeRepository,
+        ScrambleCoin.Infrastructure.VillainTreeRepository>();
+
+    // ── Application Services ───────────────────────────────────────────────────
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
+        ScrambleCoin.Application.Services.CoinSpawnService>();
     
     var app = builder.Build();
 
