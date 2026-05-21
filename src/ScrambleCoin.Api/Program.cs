@@ -5,6 +5,7 @@ using Serilog.Events;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
+using ScrambleCoin.Application.Services.Villains;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Infrastructure.Services;
 using ScrambleCoin.Api.Endpoints;
@@ -47,6 +48,11 @@ builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
 builder.Services.AddSingleton<IQueueService, QueueService>();
+
+// ── Villain services ──────────────────────────────────────────────────────────
+builder.Services.AddScoped<IVillainStrategyFactory, ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
+builder.Services.AddScoped<IVillainActionDispatcher, VillainActionDispatcher>();
+builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>();
 
 // ── EF Core (SQL Server) ──────────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")

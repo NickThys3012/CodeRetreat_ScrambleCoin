@@ -38,6 +38,12 @@ public partial class Game
     /// <summary>Identifier of player two.</summary>
     public Guid PlayerTwo { get; }
 
+    /// <summary>
+    /// Optional villain ID for solo mode games. When set, PlayerTwo is controlled by the CPU villain AI.
+    /// <c>null</c> for multiplayer/PvP games.
+    /// </summary>
+    public string? VillainId { get; set; }
+
     // ── Board ─────────────────────────────────────────────────────────────────
 
     /// <summary>The game board.</summary>
