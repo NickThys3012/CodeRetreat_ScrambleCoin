@@ -30,14 +30,7 @@ public sealed class RecordVillainDefeatedCommandHandler : IRequestHandler<Record
             throw new DomainException($"Villain '{request.VillainId}' not found.");
         }
 
-        // Check if the bot has already defeated this villain
-        var alreadyDefeated = await _botUnlocksRepository.HasDefeatedVillainAsync(request.BotId, request.VillainId, cancellationToken);
-        if (alreadyDefeated)
-        {
-            throw new DomainException($"Bot has already defeated villain '{request.VillainId}'.");
-        }
-
-        // Record the defeat
+        // Record the defeat (UPSERT: allows re-challenging same villain)
         await _botUnlocksRepository.RecordDefeatAsync(
             request.BotId,
             request.VillainId,

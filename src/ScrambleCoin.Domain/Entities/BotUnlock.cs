@@ -2,7 +2,7 @@ namespace ScrambleCoin.Domain.Entities;
 
 /// <summary>
 /// Records when a bot defeats a villain and unlocks a piece reward.
-/// Each (BotId, VillainId) pair can only exist once in the database.
+/// Multiple records can exist per (BotId, VillainId) pair to support re-challenging.
 /// </summary>
 public sealed class BotUnlock
 {
