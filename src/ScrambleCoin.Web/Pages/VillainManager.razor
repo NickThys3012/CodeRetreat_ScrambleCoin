@@ -1,0 +1,204 @@
+@page "/admin/villains"
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div style="font-size: 1.5rem; font-weight: bold; margin: 1.5rem 0;">
+        🎭 Villain Tree Manager
+    </div>
+    
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudCard Class="h-100">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div style="font-size: 1.1rem; font-weight: bold;">➕ Add New Villain Node</div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="NewVillainId" Label="Villain ID" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField @bind-Value="NewVillainName" Label="Display Name" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField @bind-Value="NewVillainDifficulty" Label="Difficulty (1-5)" Variant="Variant.Outlined" Class="mb-3" />
+                    
+                    <MudSelect T="string?" Label="Parent Villain (optional)" @bind-Value="SelectedParentId" Variant="Variant.Outlined" Class="mb-4">
+                        <MudSelectItem Value="@((string?)null)">-- Root Node --</MudSelectItem>
+                        <MudSelectItem Value="@("elsa")">Elsa</MudSelectItem>
+                        <MudSelectItem Value="@("ursula")">Ursula</MudSelectItem>
+                        <MudSelectItem Value="@("gaston")">Gaston</MudSelectItem>
+                    </MudSelect>
+                    
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="AddVillainNode">
+                        ➕ Add Villain
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudCard Class="h-100">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <div style="font-size: 1.1rem; font-weight: bold;">🌳 Villain List</div>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var villain in VillainNodes)
+                    {
+                        <MudPaper Class="pa-3 mb-2" Elevation="1">
+                            <div Class="d-flex justify-space-between align-center">
+                                <div>
+                                    <strong>@villain.Name</strong>
+                                    <MudText Typo="Typo.caption" Color="Color.Surface">ID: @villain.VillainId | Difficulty: @villain.Difficulty</MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@((MouseEventArgs e) => DeleteVillainNode(villain.VillainId))" />
+                            </div>
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudCard Class="my-4">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div style="font-size: 1.1rem; font-weight: bold;">📊 DAG Structure</div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9rem; color: #00ff00; max-height: 300px; overflow-y: auto;">
+                <div>Root</div>
+                <div style="margin-left: 1rem;">├─ Elsa (Difficulty: 2)</div>
+                <div style="margin-left: 1rem;">├─ Ursula (Difficulty: 3)</div>
+                <div style="margin-left: 1rem;">├─ Gaston (Difficulty: 4)</div>
+                <div style="margin-left: 2rem; color: #888;">└─ [No child nodes yet]</div>
+            </div>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="my-4">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div style="font-size: 1.1rem; font-weight: bold;">⚠️ Danger Zone</div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudText Class="mb-4">Reset all villain trees and start fresh.</MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="ResetAllVillains">
+                🗑️ Reset All Villain Trees
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <MudAlert Severity="@MessageSeverity" Class="my-4">@Message</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<VillainNodeItem> VillainNodes = new()
+    {
+        new VillainNodeItem { VillainId = "elsa", Name = "Elsa", Difficulty = 2 },
+        new VillainNodeItem { VillainId = "ursula", Name = "Ursula", Difficulty = 3 },
+        new VillainNodeItem { VillainId = "gaston", Name = "Gaston", Difficulty = 4 }
+    };
+
+    private string? NewVillainId;
+    private string? NewVillainName;
+    private string? NewVillainDifficulty;
+    private string? SelectedParentId;
+    private string? Message;
+    private Severity MessageSeverity = Severity.Info;
+
+    private void AddVillainNode()
+    {
+        if (string.IsNullOrEmpty(NewVillainId) || string.IsNullOrEmpty(NewVillainName))
+        {
+            Message = "⚠️ Villain ID and Name are required";
+            MessageSeverity = Severity.Warning;
+            return;
+        }
+
+        if (!int.TryParse(NewVillainDifficulty, out int difficulty) || difficulty < 1 || difficulty > 5)
+        {
+            Message = "⚠️ Difficulty must be between 1 and 5";
+            MessageSeverity = Severity.Warning;
+            return;
+        }
+
+        var newNode = new VillainNodeItem
+        {
+            VillainId = NewVillainId,
+            Name = NewVillainName,
+            Difficulty = difficulty
+        };
+
+        if (string.IsNullOrEmpty(SelectedParentId))
+        {
+            VillainNodes.Add(newNode);
+        }
+        else
+        {
+            var parent = FindNode(VillainNodes, SelectedParentId);
+            if (parent != null)
+            {
+                parent.Children.Add(newNode);
+            }
+        }
+
+        Message = $"✅ Added villain node: {NewVillainName}";
+        MessageSeverity = Severity.Success;
+
+        NewVillainId = null;
+        NewVillainName = null;
+        NewVillainDifficulty = null;
+        SelectedParentId = null;
+    }
+
+    private void DeleteVillainNode(string villainId)
+    {
+        RemoveNode(VillainNodes, villainId);
+        Message = $"🗑️ Deleted villain: {villainId}";
+        MessageSeverity = Severity.Success;
+    }
+
+    private void ResetAllVillains()
+    {
+        VillainNodes = new()
+        {
+            new VillainNodeItem { VillainId = "elsa", Name = "Elsa", Difficulty = 2 },
+            new VillainNodeItem { VillainId = "ursula", Name = "Ursula", Difficulty = 3 },
+            new VillainNodeItem { VillainId = "gaston", Name = "Gaston", Difficulty = 4 }
+        };
+        Message = "🔄 Reset all villain trees to default state";
+        MessageSeverity = Severity.Warning;
+    }
+
+    private VillainNodeItem? FindNode(List<VillainNodeItem> nodes, string id)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.VillainId == id) return node;
+            var found = FindNode(node.Children, id);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private void RemoveNode(List<VillainNodeItem> nodes, string id)
+    {
+        nodes.RemoveAll(n => n.VillainId == id);
+        foreach (var node in nodes)
+        {
+            RemoveNode(node.Children, id);
+        }
+    }
+
+    private class VillainNodeItem
+    {
+        public string VillainId { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int Difficulty { get; set; }
+        public List<VillainNodeItem> Children { get; set; } = new();
+    }
+}
