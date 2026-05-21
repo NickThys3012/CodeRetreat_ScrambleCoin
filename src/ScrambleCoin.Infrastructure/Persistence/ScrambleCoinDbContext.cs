@@ -96,8 +96,8 @@ public class ScrambleCoinDbContext : DbContext
                 .HasForeignKey(bu => bu.VillainId)
                 .HasPrincipalKey(v => v.VillainId);
 
-            // Unique constraint: each bot can only defeat each villain once
-            entity.HasIndex(bu => new { bu.BotId, bu.VillainId }).IsUnique();
+            // Index on (BotId, VillainId): non-unique to allow re-challenges
+            entity.HasIndex(bu => new { bu.BotId, bu.VillainId }).IsUnique(false);
         });
     }
 }
