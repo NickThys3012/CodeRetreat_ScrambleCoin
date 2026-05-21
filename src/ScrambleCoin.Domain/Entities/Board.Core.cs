@@ -1,4 +1,3 @@
-using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
@@ -48,8 +47,8 @@ public partial class Board
     /// Returns <c>true</c> if the given <paramref name="position"/> is within board bounds.
     /// </summary>
     public static bool IsWithinBounds(Position position) =>
-        position.Row >= 0 && position.Row < Size &&
-        position.Col >= 0 && position.Col < Size;
+        position.Row is >= 0 and < Size &&
+        position.Col is >= 0 and < Size;
 
     /// <summary>
     /// Returns <c>true</c> if the tile at <paramref name="position"/> has no occupant (piece or coin).

@@ -170,15 +170,16 @@ public partial class Game
         
         // The slide is valid. Collect any coin at the slide destination.
         var coin = slideTile.AsCoin;
-        if (coin is not null)
-        {
-            slideTile.ClearOccupant();
-            AddScore(playerId, coin.Value);
-            _domainEvents.Add(new CoinCollected(
-                Id, TurnNumber, playerId, pieceId, slideTarget,
-                coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
-        }
+        if (coin is null)
+            return slideTarget;
         
+        
+        slideTile.ClearOccupant();
+        AddScore(playerId, coin.Value);
+        _domainEvents.Add(new CoinCollected(
+            Id, TurnNumber, playerId, pieceId, slideTarget,
+            coin.CoinType, coin.Value, DateTimeOffset.UtcNow));
+
         return slideTarget;
     }
 
@@ -186,7 +187,7 @@ public partial class Game
     /// Places ice patches on all intermediate positions that Elsa passed through.
     /// Excludes the starting position and the final destination.
     /// </summary>
-    private void PlaceElsaIcePatches(Position startPosition, IReadOnlyList<Position> fullPath)
+    private void PlaceElsaIcePatches(Position startPosition, List<Position> fullPath)
     {
         // Ice patches are placed in all positions except the final destination.
         // fullPath contains the visited positions in order (not including the starting position).

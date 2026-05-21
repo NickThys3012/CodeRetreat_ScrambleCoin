@@ -24,13 +24,19 @@ public static class PieceFactory
             ["Goofy"]     = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
             ["Scrooge"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
             ["Elsa"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 4, MovesPerTurn: 1),
-            // Multi-step movement pieces
-            ["Cogsworth"] = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.Orthogonal }, SegmentMaxDistances: new[] { 1, 2 }),
-            ["Lumiere"]   = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.Diagonal }, SegmentMaxDistances: new[] { 1, 2 }),
-            ["Remy"]      = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.Diagonal, MovementType.Diagonal }, SegmentMaxDistances: new[] { 2, 2 }),
-            ["Anna"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Orthogonal, MovementType.Orthogonal, MovementType.Orthogonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
-            ["Olaf"]      = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.AnyDirection }, SegmentMaxDistances: new[] { 1, 1 }),
-            ["Kristoff"]  = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: new[] { MovementType.Diagonal, MovementType.Diagonal, MovementType.Diagonal }, SegmentMaxDistances: new[] { 1, 1, 1 }),
+            // Multistep movement pieces
+            ["Cogsworth"] = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.Orthogonal], SegmentMaxDistances:
+                [1, 2]),
+            ["Lumiere"]   = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.Diagonal], SegmentMaxDistances:
+                [1, 2]),
+            ["Remy"]      = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: [MovementType.Diagonal, MovementType.Diagonal], SegmentMaxDistances: [2, 2
+            ]),
+            ["Anna"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: [MovementType.Orthogonal, MovementType.Orthogonal, MovementType.Orthogonal
+            ], SegmentMaxDistances: [1, 1, 1]),
+            ["Olaf"]      = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.AnyDirection], SegmentMaxDistances:
+                [1, 1]),
+            ["Kristoff"]  = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: [MovementType.Diagonal, MovementType.Diagonal, MovementType.Diagonal], SegmentMaxDistances:
+                [1, 1, 1]),
             
             // On-stop ability pieces (Issue #49)
             ["Ralph"]     = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 3, MovesPerTurn: 1),
@@ -45,14 +51,15 @@ public static class PieceFactory
             // Passive & turn-based ability pieces (Issue #50)
             ["Flynn"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
             ["Moana"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
-            ["Jafar"]           = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1), // Jafar multi-step movement (grows)
+            ["Jafar"]           = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1), // Jafar multistep movement (grows)
             ["Merlin"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
             ["Rapunzel"]        = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
-            ["Cinderella"]      = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: new[] { MovementType.AnyDirection, MovementType.AnyDirection }, SegmentMaxDistances: new[] { 2, 1 }),
+            ["Cinderella"]      = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.AnyDirection], SegmentMaxDistances:
+                [2, 1]),
             ["Fairy Godmother"] = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
             ["Ursula"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
             ["Mike Wazowski"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
-            ["Forky"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            ["Forky"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1)
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -79,13 +86,13 @@ public static class PieceFactory
             template.MovesPerTurn);
 
         // If the template specifies per-segment movement types, set them
-        if (template.SegmentTypes != null && template.SegmentTypes.Length > 0)
+        if (template.SegmentTypes is { Length: > 0 })
         {
             piece.SetSegmentMovementTypes(template.SegmentTypes);
         }
 
         // If the template specifies per-segment max distances, set them
-        if (template.SegmentMaxDistances != null && template.SegmentMaxDistances.Length > 0)
+        if (template.SegmentMaxDistances is { Length: > 0 })
         {
             piece.SetSegmentMaxDistances(template.SegmentMaxDistances);
         }

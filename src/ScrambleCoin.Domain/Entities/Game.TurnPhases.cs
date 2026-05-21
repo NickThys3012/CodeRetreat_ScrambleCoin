@@ -74,6 +74,8 @@ public partial class Game
                     OnTurnStart();
                 }
                 break;
+            default:
+                throw new DomainException($"Current phase isn't implemented: {CurrentPhase}");
         }
     }
 

@@ -110,21 +110,21 @@ public partial class Game
             var pushTarget = GetPositionInDirection(adjacent, pushDirection);
 
             // Check if the push target is valid (in bounds, no obstacle, no piece)
-            if (pushTarget is not null &&
-                !Board.IsObstacleCovering(pushTarget) &&
-                Board.GetTile(pushTarget).AsPiece is null)
-            {
-                // Valid push - move the piece
-                tile.ClearOccupant();
-                var targetTile = Board.GetTile(pushTarget);
-                targetTile.SetOccupant(targetPiece);
-                targetPiece.PlaceAt(pushTarget);
+            if (pushTarget is null ||
+                Board.IsObstacleCovering(pushTarget) ||
+                Board.GetTile(pushTarget).AsPiece is not null)
+                continue;
+            
+            // Valid push - move the piece
+            tile.ClearOccupant();
+            var targetTile = Board.GetTile(pushTarget);
+            targetTile.SetOccupant(targetPiece);
+            targetPiece.PlaceAt(pushTarget);
 
-                _domainEvents.Add(new PieceMoved(
-                    Id, TurnNumber, targetPiece.PlayerId, targetPiece.Id,
-                    adjacent, pushTarget, new[] { pushTarget }.ToList().AsReadOnly(),
-                    DateTimeOffset.UtcNow));
-            }
+            _domainEvents.Add(new PieceMoved(
+                Id, TurnNumber, targetPiece.PlayerId, targetPiece.Id,
+                adjacent, pushTarget, new[] { pushTarget }.ToList().AsReadOnly(),
+                DateTimeOffset.UtcNow));
             // If blocked, a piece stays in place (no event)
         }
     }
@@ -214,21 +214,21 @@ public partial class Game
             var pushTarget = GetPositionInDirection(adjacent, pushDirection);
 
             // Check if the push target is valid (in bounds, no obstacle, no piece)
-            if (pushTarget is not null &&
-                !Board.IsObstacleCovering(pushTarget) &&
-                Board.GetTile(pushTarget).AsPiece is null)
-            {
-                // Valid push - move the piece
-                tile.ClearOccupant();
-                var targetTile = Board.GetTile(pushTarget);
-                targetTile.SetOccupant(targetPiece);
-                targetPiece.PlaceAt(pushTarget);
+            if (pushTarget is null ||
+                Board.IsObstacleCovering(pushTarget) ||
+                Board.GetTile(pushTarget).AsPiece is not null)
+                continue;
+            
+            // Valid push - move the piece
+            tile.ClearOccupant();
+            var targetTile = Board.GetTile(pushTarget);
+            targetTile.SetOccupant(targetPiece);
+            targetPiece.PlaceAt(pushTarget);
 
-                _domainEvents.Add(new PieceMoved(
-                    Id, TurnNumber, targetPiece.PlayerId, targetPiece.Id,
-                    adjacent, pushTarget, new[] { pushTarget }.ToList().AsReadOnly(),
-                    DateTimeOffset.UtcNow));
-            }
+            _domainEvents.Add(new PieceMoved(
+                Id, TurnNumber, targetPiece.PlayerId, targetPiece.Id,
+                adjacent, pushTarget, new[] { pushTarget }.ToList().AsReadOnly(),
+                DateTimeOffset.UtcNow));
             // If blocked, a piece stays in place (no event)
         }
     }
@@ -247,17 +247,17 @@ public partial class Game
         var destinationTile = Board.GetTile(destination);
         var targetPiece = destinationTile.AsPiece;
 
-        if (targetPiece is not null && targetPiece.PlayerId != scarPlayerId)
-        {
-            // Opponent piece - remove it
-            destinationTile.ClearOccupant();
-            targetPiece.RemoveFromBoard();
+        if (targetPiece is null || targetPiece.PlayerId == scarPlayerId)
+            return destination;
+        
+        // Opponent piece - remove it
+        destinationTile.ClearOccupant();
+        targetPiece.RemoveFromBoard();
 
-            _domainEvents.Add(new PieceRemoved(
-                Id, TurnNumber, targetPiece.Id, /* scarPieceId would be passed separately */
-                Guid.Empty, // Placeholder - caller will have this
-                destination, DateTimeOffset.UtcNow));
-        }
+        _domainEvents.Add(new PieceRemoved(
+            Id, TurnNumber, targetPiece.Id, /* scarPieceId would be passed separately */
+            Guid.Empty,                     // Placeholder - caller will have this
+            destination, DateTimeOffset.UtcNow));
 
         return destination;
     }
@@ -276,37 +276,36 @@ public partial class Game
         var destinationTile = Board.GetTile(destination);
         var targetPiece = destinationTile.AsPiece;
 
-        if (targetPiece is not null)
-        {
-            // Swap positions
-            var daisyTile = Board.GetTile(daisyPosition);
-            daisyTile.ClearOccupant();
-            destinationTile.ClearOccupant();
+        if (targetPiece is null)
+            return destination;
+        
+        // Swap positions
+        var daisyTile = Board.GetTile(daisyPosition);
+        daisyTile.ClearOccupant();
+        destinationTile.ClearOccupant();
 
-            daisyTile.SetOccupant(targetPiece);
-            targetPiece.PlaceAt(daisyPosition);
+        daisyTile.SetOccupant(targetPiece);
+        targetPiece.PlaceAt(daisyPosition);
 
-            destinationTile.SetOccupant(null); // Will be set to Daisy by caller
+        destinationTile.SetOccupant(null); // Will be set to Daisy by caller
 
-            // If opponent, steal 1 coin
-            if (targetPiece.PlayerId != daisyPlayerId)
-            {
-                var opponentId = targetPiece.PlayerId;
-                var daisyOwner = daisyPlayerId;
+        // If opponent, steal 1 coin
+        if (targetPiece.PlayerId == daisyPlayerId)
+            return destination;
+        
+        var opponentId = targetPiece.PlayerId;
 
-                // Steal 1 coin
-                if (_scores.TryGetValue(opponentId, out var currentScore) && currentScore > 0)
-                {
-                    _scores[opponentId] -= 1;
-                    _scores[daisyOwner] += 1;
+        // Steal 1 coin
+        if (!_scores.TryGetValue(opponentId, out var currentScore) || currentScore <= 0)
+            return destination;
+            
+        _scores[opponentId] -= 1;
+        _scores[daisyPlayerId] += 1;
 
-                    _domainEvents.Add(new CoinStolen(
-                        Id, TurnNumber, opponentId, daisyOwner,
-                        Guid.Empty, // Placeholder - caller will have Daisy's piece ID
-                        1, DateTimeOffset.UtcNow));
-                }
-            }
-        }
+        _domainEvents.Add(new CoinStolen(
+            Id, TurnNumber, opponentId, daisyPlayerId,
+            Guid.Empty, // Placeholder - caller will have Daisy's piece ID
+            1, DateTimeOffset.UtcNow));
 
         return destination;
     }
@@ -322,26 +321,25 @@ public partial class Game
     public bool ApplyStitchAbility(Position from, Position to)
     {
         // Check if the move is blocked by a fence
-        if (Board.IsFenceBlocked(from, to))
+        if (!Board.IsFenceBlocked(from, to))
+            return false; // Move was passable without needing the ability
+        
+        // Destroy all fences on the edge
+        var fencesDestroyed = Board.DestroyFence(from);
+        for (var i = 0; i < fencesDestroyed; i++)
         {
-            // Destroy all fences on the edge
-            var fencesDestroyed = Board.DestroyFence(from);
-            for (var i = 0; i < fencesDestroyed; i++)
-            {
-                _domainEvents.Add(new FenceDestroyed(
-                    Id, TurnNumber, from, DateTimeOffset.UtcNow));
-            }
-            fencesDestroyed = Board.DestroyFence(to);
-            for (var i = 0; i < fencesDestroyed; i++)
-            {
-                _domainEvents.Add(new FenceDestroyed(
-                    Id, TurnNumber, to, DateTimeOffset.UtcNow));
-            }
-
-            return true; // Allow the move despite the fence
+            _domainEvents.Add(new FenceDestroyed(
+                Id, TurnNumber, from, DateTimeOffset.UtcNow));
+        }
+        fencesDestroyed = Board.DestroyFence(to);
+        for (var i = 0; i < fencesDestroyed; i++)
+        {
+            _domainEvents.Add(new FenceDestroyed(
+                Id, TurnNumber, to, DateTimeOffset.UtcNow));
         }
 
-        return false; // Move was passable without needing the ability
+        return true; // Allow the move despite the fence
+
     }
 
     /// <summary>
@@ -447,12 +445,12 @@ public partial class Game
             var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
             var scroogeCount = lineup.Pieces.Count(p => p.IsOnBoard && p.Name.Equals("Scrooge", StringComparison.OrdinalIgnoreCase));
 
-            if (scroogeCount > 0)
-            {
-                AddScore(playerId, scroogeCount);
-                var scrooge = lineup.Pieces.First(p => p.IsOnBoard && p.Name.Equals("Scrooge", StringComparison.OrdinalIgnoreCase));
-                _domainEvents.Add(new ScroogeGainedCoin(Id, TurnNumber, scrooge.Id, scroogeCount, DateTimeOffset.UtcNow));
-            }
+            if (scroogeCount <= 0)
+                continue;
+            
+            AddScore(playerId, scroogeCount);
+            var scrooge = lineup.Pieces.First(p => p.IsOnBoard && p.Name.Equals("Scrooge", StringComparison.OrdinalIgnoreCase)); 
+            _domainEvents.Add(new ScroogeGainedCoin(Id, TurnNumber, scrooge.Id, scroogeCount, DateTimeOffset.UtcNow));
         }
     }
 
@@ -501,11 +499,11 @@ public partial class Game
             foreach (var coinPos in adjacentCoins)
             {
                 var coin = Board.GetTile(coinPos).AsCoin;
-                if (coin != null)
-                {
-                    AddScore(playerId, coin.CoinType == CoinType.Gold ? 3 : 1);
-                    Board.GetTile(coinPos).ClearOccupant();
-                }
+                if (coin == null)
+                    continue;
+                
+                AddScore(playerId, coin.CoinType == CoinType.Gold ? 3 : 1);
+                Board.GetTile(coinPos).ClearOccupant();
             }
         }
 
@@ -562,11 +560,11 @@ public partial class Game
         {
             var tile = Board.GetTile(adjPos);
             var adjPiece = tile.AsPiece;
-            if (adjPiece != null && adjPiece.PlayerId == playerId && !adjPiece.Name.Equals("Fairy Godmother", StringComparison.OrdinalIgnoreCase))
-            {
-                adjPiece.ApplyTemporaryMoveAdjustment(1);
-                affectedPieceIds.Add(adjPiece.Id);
-            }
+            if (adjPiece == null || adjPiece.PlayerId != playerId || adjPiece.Name.Equals("Fairy Godmother", StringComparison.OrdinalIgnoreCase))
+                continue;
+            
+            adjPiece.ApplyTemporaryMoveAdjustment(1);
+            affectedPieceIds.Add(adjPiece.Id);
         }
 
         if (affectedPieceIds.Count > 0)
@@ -588,11 +586,11 @@ public partial class Game
         {
             var tile = Board.GetTile(adjPos);
             var adjPiece = tile.AsPiece;
-            if (adjPiece != null && adjPiece.PlayerId == opponentId && !adjPiece.Name.Equals("Ursula", StringComparison.OrdinalIgnoreCase))
-            {
-                adjPiece.ApplyTemporaryMoveAdjustment(-1);
-                affectedPieceIds.Add(adjPiece.Id);
-            }
+            if (adjPiece == null || adjPiece.PlayerId != opponentId || adjPiece.Name.Equals("Ursula", StringComparison.OrdinalIgnoreCase))
+                continue;
+            
+            adjPiece.ApplyTemporaryMoveAdjustment(-1);
+            affectedPieceIds.Add(adjPiece.Id);
         }
 
         if (affectedPieceIds.Count > 0)
@@ -612,14 +610,17 @@ public partial class Game
             .Where(p => p != null && p.PlayerId == playerId && !p.Name.Equals("Mike Wazowski", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (adjacentAllies.Count > 0)
-        {
-            // Use deterministic selection based on piece ID hash for testing consistency
-            var selectedIndex = Math.Abs(HashCode.Combine(Id, TurnNumber, from).GetHashCode()) % adjacentAllies.Count;
-            var randomAlly = adjacentAllies[selectedIndex];
-            randomAlly.ApplyCoinBuff(1);
-            _domainEvents.Add(new CoinBuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, randomAlly.Id, 1, DateTimeOffset.UtcNow));
-        }
+        if (adjacentAllies.Count <= 0)
+            return;
+        
+        // Use deterministic selection based on piece ID hash for testing consistency
+        var selectedIndex = Math.Abs(HashCode.Combine(Id, TurnNumber, from).GetHashCode()) % adjacentAllies.Count;
+        var randomAlly = adjacentAllies[selectedIndex];
+        if (randomAlly == null)
+            return;
+        
+        randomAlly.ApplyCoinBuff(1);
+        _domainEvents.Add(new CoinBuffApplied(Id, TurnNumber, Board.GetTile(from).AsPiece!.Id, randomAlly.Id, 1, DateTimeOffset.UtcNow));
     }
 
     /// <summary>
@@ -633,17 +634,17 @@ public partial class Game
         {
             var lineup = playerId == PlayerOne ? LineupPlayerOne! : LineupPlayerTwo!;
             var forky = lineup.Pieces.FirstOrDefault(p => p.IsOnBoard && p.Name.Equals("Forky", StringComparison.OrdinalIgnoreCase));
-            
-            if (forky is { HasMovedOnFirstTurn: true })
-            {
-                // Save position BEFORE RemoveFromBoard() sets Position to null
-                var piecePosition = forky.Position!;
-                Board.GetTile(piecePosition).ClearOccupant();
-                RemovePieceFromBoard(playerId);
-                forky.RemoveFromBoard();
 
-                _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, forky.Id, "Forky auto-removed after first move", DateTimeOffset.UtcNow));
-            }
+            if (forky is not { HasMovedOnFirstTurn: true })
+                continue;
+            
+            // Save position BEFORE RemoveFromBoard() sets Position to null
+            var piecePosition = forky.Position!;
+            Board.GetTile(piecePosition).ClearOccupant();
+            RemovePieceFromBoard(playerId);
+            forky.RemoveFromBoard();
+
+            _domainEvents.Add(new PieceAutoRemoved(Id, TurnNumber, forky.Id, "Forky auto-removed after first move", DateTimeOffset.UtcNow));
         }
     }
 }

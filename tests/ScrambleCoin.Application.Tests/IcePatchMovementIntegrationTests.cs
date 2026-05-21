@@ -7,7 +7,6 @@ using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
-using Xunit;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 
 namespace ScrambleCoin.Application.Tests;

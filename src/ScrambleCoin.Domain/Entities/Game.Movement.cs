@@ -196,17 +196,17 @@ public partial class Game
         }
 
         var finalSegmentMovementType = piece.GetSegmentMovementType(segments.Count - 1);
-        if (finalSegmentMovementType == MovementType.Ethereal && currentPosition != startPosition)
-        {
-            var destinationTile = Board.GetTile(currentPosition);
-            if (destinationTile.AsPiece is not null)
-                throw new DomainException(
-                    $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
+        if (finalSegmentMovementType != MovementType.Ethereal || currentPosition == startPosition)
+            return;
+        
+        var destinationTile = Board.GetTile(currentPosition);
+        if (destinationTile.AsPiece is not null)
+            throw new DomainException(
+                $"Piece {pieceId}: tile {currentPosition} is already occupied by a piece. Ethereal movement must end on a free tile.");
 
-            if (Board.IsObstacleCovering(currentPosition))
-                throw new DomainException(
-                    $"Piece {pieceId}: tile {currentPosition} is covered by an obstacle. Ethereal movement must end on a free tile.");
-        }
+        if (Board.IsObstacleCovering(currentPosition))
+            throw new DomainException(
+                $"Piece {pieceId}: tile {currentPosition} is covered by an obstacle. Ethereal movement must end on a free tile.");
     }
 
     private Position ValidateChargeSegment(
@@ -222,13 +222,13 @@ public partial class Game
         var chargePath = ResolveValidatedChargePath(currentPosition, segment[0], pieceId, MovementType.Charge);
         var chargeEndPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
 
-        if (Board.HasIcePatch(chargeEndPosition))
-        {
-            var slidePreviousPosition = chargePath.Count > 1
-                ? chargePath[^2]
-                : currentPosition;
-            chargeEndPosition = ResolveIcePatchSlideDestination(chargeEndPosition, slidePreviousPosition);
-        }
+        if (!Board.HasIcePatch(chargeEndPosition))
+            return chargeEndPosition;
+        
+        var slidePreviousPosition = chargePath.Count > 1
+            ? chargePath[^2]
+            : currentPosition;
+        chargeEndPosition = ResolveIcePatchSlideDestination(chargeEndPosition, slidePreviousPosition);
 
         return chargeEndPosition;
     }
@@ -394,10 +394,8 @@ public partial class Game
             }
         }
 
-        if (!Board.IsPassable(startPosition, firstStep))
-            return [];
-
-        if (Board.GetTile(firstStep).AsPiece is not null)
+        if (!Board.IsPassable(startPosition, firstStep) || 
+            Board.GetTile(firstStep).AsPiece is not null)
             return [];
 
         var rowDelta = Math.Sign(firstStep.Row - startPosition.Row);
@@ -441,16 +439,15 @@ public partial class Game
             return currentPosition;
 
         var slideTarget = new Position(slideRow, slideCol);
-        if (Board.IsObstacleCovering(slideTarget) || IsFenceBlockedForValidation(currentPosition, slideTarget, destroyedFencePositions))
-            return currentPosition;
-
-        if (Board.GetTile(slideTarget).AsPiece is not null)
+        if (Board.IsObstacleCovering(slideTarget) 
+            || IsFenceBlockedForValidation(currentPosition, slideTarget, destroyedFencePositions) 
+            || Board.GetTile(slideTarget).AsPiece is not null)
             return currentPosition;
 
         return slideTarget;
     }
 
-    private bool HasFenceForValidation(Position position, ISet<Position>? destroyedFencePositions = null)
+    private bool HasFenceForValidation(Position position, HashSet<Position>? destroyedFencePositions = null)
     {
         if (destroyedFencePositions is null || destroyedFencePositions.Count == 0)
             return Board.HasFence(position);
@@ -483,11 +480,6 @@ public partial class Game
 
         var fences = Board.GetAllObstacles().Fences;
 
-        bool HasActiveFenceOnEdge(Position edgeStart, Position edgeEnd) =>
-            !destroyedFencePositions.Contains(edgeStart) &&
-            !destroyedFencePositions.Contains(edgeEnd) &&
-            fences.Any(f => f.IsOnEdge(edgeStart, edgeEnd));
-
         var rowDiff = to.Row - from.Row;
         var colDiff = to.Col - from.Col;
 
@@ -513,6 +505,11 @@ public partial class Game
         var fenceToVertical = HasActiveFenceOnEdge(to, cornerA);
         var fenceToHorizontal = HasActiveFenceOnEdge(to, cornerB);
         return fenceToVertical && fenceToHorizontal;
+
+        bool HasActiveFenceOnEdge(Position edgeStart, Position edgeEnd) =>
+            !destroyedFencePositions.Contains(edgeStart) &&
+            !destroyedFencePositions.Contains(edgeEnd) &&
+            fences.Any(f => f.IsOnEdge(edgeStart, edgeEnd));
     }
 
     private Position HandleChargeMovement(
@@ -533,18 +530,18 @@ public partial class Game
         fullPath.AddRange(chargePath);
         var chargeEndPosition = chargePath.Count > 0 ? chargePath[^1] : currentPosition;
 
-        if (Board.HasIcePatch(chargeEndPosition))
-        {
-            var slidePreviousPosition = chargePath.Count > 1
-                ? chargePath[^2]
-                : currentPosition;
-            var slidePosition = ApplyIcePatchSlide(chargeEndPosition, slidePreviousPosition, playerId, pieceId);
-            if (slidePosition != chargeEndPosition)
-            {
-                fullPath.Add(slidePosition);
-                chargeEndPosition = slidePosition;
-            }
-        }
+        if (!Board.HasIcePatch(chargeEndPosition))
+            return chargeEndPosition;
+        
+        var slidePreviousPosition = chargePath.Count > 1
+            ? chargePath[^2]
+            : currentPosition;
+        var slidePosition = ApplyIcePatchSlide(chargeEndPosition, slidePreviousPosition, playerId, pieceId);
+        if (slidePosition == chargeEndPosition)
+            return chargeEndPosition;
+        
+        fullPath.Add(slidePosition);
+        chargeEndPosition = slidePosition;
 
         return chargeEndPosition;
     }

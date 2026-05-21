@@ -96,7 +96,7 @@ public partial class Board
         if (col > 0) adjacentPositions.Add(new Position(row, col - 1)); // West edge
         if (col < Size - 1) adjacentPositions.Add(new Position(row, col + 1)); // East edge
 
-        // Remove all fences on edges between position and its adjacent tiles
+        // Remove all fences on edges between the position and its adjacent tiles
         _fences.RemoveAll(f =>
             adjacentPositions.Any(adj => f.IsOnEdge(position, adj)));
 
@@ -119,7 +119,7 @@ public partial class Board
     /// <summary>
     /// Returns all positions currently covered by ice patches.
     /// </summary>
-    public IReadOnlySet<Position> GetIcePatches() => (IReadOnlySet<Position>)_icePatches;
+    public IReadOnlySet<Position> GetIcePatches() => _icePatches;
 
     /// <summary>
     /// Removes all ice patches from the board. Used for testing and potential future game rule changes.

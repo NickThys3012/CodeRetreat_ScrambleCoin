@@ -294,7 +294,7 @@ public partial class Board
     }
 
     /// <summary>
-    /// Returns the 8 adjacent positions (orthogonal + diagonal) that are within board bounds.
+    /// Returns the 8 adjacent positions (orthogonal and diagonal) that are within board bounds.
     /// </summary>
     public static IReadOnlyList<Position> GetAllAdjacentPositions(Position position)
     {
@@ -306,14 +306,14 @@ public partial class Board
         {
             for (var dc = -1; dc <= 1; dc++)
             {
-                // Skip the center position itself
+                // Skip the centre position itself
                 if (dr == 0 && dc == 0) continue;
 
                 var newRow = row + dr;
                 var newCol = col + dc;
 
                 // Check bounds
-                if (newRow >= 0 && newRow < Size && newCol >= 0 && newCol < Size)
+                if (newRow is >= 0 and < Size && newCol is >= 0 and < Size)
                     result.Add(new Position(newRow, newCol));
             }
         }

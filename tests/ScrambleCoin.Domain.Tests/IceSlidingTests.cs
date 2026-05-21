@@ -1,6 +1,5 @@
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Domain.Tests;

@@ -3,7 +3,6 @@ using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.ValueObjects;
 using NSubstitute;
 using Microsoft.Extensions.Logging;

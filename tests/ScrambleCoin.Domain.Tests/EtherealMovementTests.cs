@@ -2,7 +2,6 @@ using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
 

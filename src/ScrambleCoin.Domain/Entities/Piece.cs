@@ -123,7 +123,7 @@ public sealed class Piece
     /// </summary>
     public void SetSegmentMovementTypes(params MovementType[] types)
     {
-        if (types != null && types.Length > 0)
+        if (types is { Length: > 0 })
             SegmentMovementTypes = types.ToList().AsReadOnly();
     }
 
@@ -133,7 +133,7 @@ public sealed class Piece
     /// </summary>
     public void SetSegmentMaxDistances(params int[] distances)
     {
-        if (distances != null && distances.Length > 0)
+        if (distances is { Length: > 0 })
             SegmentMaxDistances = distances.ToList().AsReadOnly();
     }
 
