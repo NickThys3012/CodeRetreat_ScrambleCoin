@@ -8,6 +8,7 @@ using ScrambleCoin.Application.Services;
 using ScrambleCoin.Application.Services.Villains;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Infrastructure.Services;
+using ScrambleCoin.Infrastructure;
 using ScrambleCoin.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,8 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddSingleton(Random.Shared);
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
+builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
+builder.Services.AddScoped<IBotUnlocksRepository, BotUnlocksRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
 builder.Services.AddSingleton<IQueueService, QueueService>();
 
@@ -93,6 +96,14 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ── Database initialization ───────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
+    await dbContext.Database.MigrateAsync();
+    VillainTreeSeeder.SeedDefaultTree(dbContext);
+}
+
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
 {
@@ -132,6 +143,7 @@ app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.Healt
 .Produces<object>(StatusCodes.Status200OK)
 .Produces<object>(StatusCodes.Status503ServiceUnavailable);
 app.MapGameEndpoints();
+app.MapSoloModeEndpoints();
 
 app.Run();
 

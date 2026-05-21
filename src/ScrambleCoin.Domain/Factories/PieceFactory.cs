@@ -100,6 +100,43 @@ public static class PieceFactory
         return piece;
     }
 
+    /// <summary>
+    /// Attempts to get a piece by name, returning null if the piece is unknown.
+    /// </summary>
+    /// <param name="pieceName">The canonical piece name (case-insensitive).</param>
+    /// <returns>A <see cref="Piece"/> with a null owner, or null if the piece is unknown.</returns>
+    public static Piece? TryCreate(string? pieceName)
+    {
+        if (string.IsNullOrEmpty(pieceName) || !Catalogue.TryGetValue(pieceName, out var template))
+            return null;
+
+        var piece = new Piece(
+            pieceName,
+            Guid.Empty,
+            template.EntryPointType,
+            template.MovementType,
+            template.MaxDistance,
+            template.MovesPerTurn);
+
+        // If the template specifies per-segment movement types, set them
+        if (template.SegmentTypes is { Length: > 0 })
+        {
+            piece.SetSegmentMovementTypes(template.SegmentTypes);
+        }
+
+        // If the template specifies per-segment max distances, set them
+        if (template.SegmentMaxDistances is { Length: > 0 })
+        {
+            piece.SetSegmentMaxDistances(template.SegmentMaxDistances);
+        }
+
+        return piece;
+    }
+
+    /// <summary>Gets the default starter pieces available to all bots.</summary>
+    public static IReadOnlyList<string> GetStarterPieces() =>
+        new[] { "Mickey", "Minnie", "Donald", "Goofy" };
+
     // ── Template ──────────────────────────────────────────────────────────────
 
     private sealed record PieceTemplate(

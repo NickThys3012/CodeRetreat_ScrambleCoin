@@ -79,6 +79,16 @@ public partial class Game
     public GameStatus Status { get; private set; }
 
     /// <summary>
+    /// The game mode: Standard (1v1) or Solo (vs villain).
+    /// </summary>
+    public GameMode GameMode { get; set; } = GameMode.Standard;
+
+    /// <summary>
+    /// (Solo mode only) The ID of the villain being challenged. Null for Standard mode games.
+    /// </summary>
+    public string? VillainId { get; set; }
+
+    /// <summary>
     /// The active phase within the current turn (<see cref="TurnPhase.CoinSpawn"/>,
     /// <see cref="TurnPhase.PlacePhase"/>, or <see cref="TurnPhase.MovePhase"/>).
     /// <c>null</c> when the game has not yet started or has already finished.
