@@ -77,6 +77,8 @@ public sealed class GameRepository : IGameRepository
             PlayerOne = game.PlayerOne,
             PlayerTwo = game.PlayerTwo,
             Status = (int)game.Status,
+            GameMode = (int)game.GameMode,
+            VillainId = game.VillainId,
             TurnNumber = game.TurnNumber,
             CurrentPhase = game.CurrentPhase.HasValue ? (int)game.CurrentPhase.Value : null,
             MovePhaseActivePlayer = game.MovePhaseActivePlayer,
@@ -163,6 +165,10 @@ public sealed class GameRepository : IGameRepository
         SetPrivateProperty(gameType, nameof(Game.CurrentPhase), game,
             record.CurrentPhase.HasValue ? (TurnPhase?)(TurnPhase)record.CurrentPhase.Value : null);
         SetPrivateProperty(gameType, nameof(Game.MovePhaseActivePlayer), game, record.MovePhaseActivePlayer);
+
+        // Restore GameMode and VillainId
+        game.GameMode = (GameMode)record.GameMode;
+        game.VillainId = record.VillainId;
 
         // 7. Restore Lineups (bypasses the WaitingForBots guard in SetLineup).
         if (piecesOne.Count > 0)

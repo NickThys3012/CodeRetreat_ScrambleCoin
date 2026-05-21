@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.Games.SpawnCoins;
@@ -45,7 +46,8 @@ public class SpawnCoinsCommandHandlerTests
         // Use a seeded Random for deterministic tile selection
         var random = new Random(42);
         var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
-        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
+        var publisher = Substitute.For<IPublisher>();
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService, repo, publisher);
 
         var command = new SpawnCoinsCommand(game.Id);
 
@@ -71,7 +73,8 @@ public class SpawnCoinsCommandHandlerTests
 
         var random = new Random(0);
         var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
-        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
+        var publisher = Substitute.For<IPublisher>();
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService, repo, publisher);
 
         // Act
         await handler.Handle(new SpawnCoinsCommand(game.Id), CancellationToken.None);
@@ -115,7 +118,8 @@ public class SpawnCoinsCommandHandlerTests
 
         var random = new Random(1);
         var coinSpawnService = new CoinSpawnService(repo, random, Substitute.For<ILogger<CoinSpawnService>>());
-        var handler = new SpawnCoinsCommandHandler(coinSpawnService);
+        var publisher = Substitute.For<IPublisher>();
+        var handler = new SpawnCoinsCommandHandler(coinSpawnService, repo, publisher);
 
         // Act: should not throw; spawns ≤ 2 coins
         await handler.Handle(new SpawnCoinsCommand(game.Id), CancellationToken.None);

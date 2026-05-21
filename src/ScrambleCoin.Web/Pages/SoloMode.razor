@@ -1,0 +1,96 @@
+@page "/solo-mode"
+@using MudBlazor
+@using MediatR
+@using ScrambleCoin.Application.Games.SoloMode
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
+        🎮 Solo Mode - Challenge the Villains
+    </div>
+    
+    <MudCard Class="my-4">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div style="font-size: 1.25rem; font-weight: bold;">Select a Villain</div>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudSelect T="string?" Label="Choose your opponent" @bind-Value="SelectedVillainId" Variant="Variant.Outlined" Class="mb-4">
+                <MudSelectItem Value="@((string?)null)">-- Select Villain --</MudSelectItem>
+                <MudSelectItem Value="@("elsa")">❄️ Elsa - The Ice Queen</MudSelectItem>
+                <MudSelectItem Value="@("ursula")">🐙 Ursula - The Sea Witch</MudSelectItem>
+                <MudSelectItem Value="@("gaston")">🔫 Gaston - The Hunter</MudSelectItem>
+            </MudSelect>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="CreateGame" Disabled="string.IsNullOrEmpty(SelectedVillainId) || IsCreatingGame" FullWidth="true">
+                @if (IsCreatingGame)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Creating Game...</span>
+                }
+                else if (string.IsNullOrEmpty(SelectedVillainId))
+                {
+                    <span>Select a Villain to Begin</span>
+                }
+                else
+                {
+                    <span>⚔️ Challenge @GetVillainName(SelectedVillainId)</span>
+                }
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <MudAlert Severity="@MessageSeverity" Class="my-4">@Message</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private string? SelectedVillainId;
+    private bool IsCreatingGame = false;
+    private string? Message;
+    private Severity MessageSeverity = Severity.Info;
+
+    private string GetVillainName(string? villainId) => villainId switch
+    {
+        "elsa" => "Elsa",
+        "ursula" => "Ursula",
+        "gaston" => "Gaston",
+        _ => "Villain"
+    };
+
+    private async Task CreateGame()
+    {
+        if (string.IsNullOrEmpty(SelectedVillainId))
+        {
+            Message = "Please select a villain";
+            MessageSeverity = Severity.Warning;
+            return;
+        }
+
+        try
+        {
+            IsCreatingGame = true;
+            Message = null;
+            
+            var command = new CreateSoloGameCommand(BotId: Guid.Empty, VillainId: SelectedVillainId);
+            var result = await Mediator.Send(command);
+            
+            Message = $"✅ Game created! You're now facing {GetVillainName(SelectedVillainId)}!";
+            MessageSeverity = Severity.Success;
+            SelectedVillainId = null;
+        }
+        catch (Exception ex)
+        {
+            Message = $"❌ Error creating game: {ex.Message}";
+            MessageSeverity = Severity.Error;
+        }
+        finally
+        {
+            IsCreatingGame = false;
+        }
+    }
+}

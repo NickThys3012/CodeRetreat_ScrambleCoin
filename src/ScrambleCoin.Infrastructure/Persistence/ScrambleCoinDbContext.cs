@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Infrastructure.Persistence.Records;
+using ScrambleCoin.Domain.Entities;
 
 namespace ScrambleCoin.Infrastructure.Persistence;
 
@@ -21,6 +22,12 @@ public class ScrambleCoinDbContext : DbContext
     /// <summary>The BotRegistrations table — one row per bot that has joined a game.</summary>
     public DbSet<BotRegistrationRecord> BotRegistrations => Set<BotRegistrationRecord>();
 
+    /// <summary>The VillainTreeNodes table — villain unlock tree nodes.</summary>
+    public DbSet<VillainTreeNode> VillainTreeNodes => Set<VillainTreeNode>();
+
+    /// <summary>The BotUnlocks table — records of villain defeats and piece unlocks.</summary>
+    public DbSet<BotUnlock> BotUnlocks => Set<BotUnlock>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -41,6 +48,8 @@ public class ScrambleCoinDbContext : DbContext
             entity.Property(g => g.PlayerOne).IsRequired();
             entity.Property(g => g.PlayerTwo).IsRequired();
             entity.Property(g => g.Status).IsRequired();
+            entity.Property(g => g.GameMode).IsRequired();
+            entity.Property(g => g.VillainId);
             entity.Property(g => g.TurnNumber).IsRequired();
             entity.Property(g => g.CurrentPhase);
             entity.Property(g => g.MovePhaseActivePlayer);
@@ -53,6 +62,42 @@ public class ScrambleCoinDbContext : DbContext
             entity.Property(g => g.LineupPlayerOneJson).HasColumnName("LineupPlayerOne");
             entity.Property(g => g.LineupPlayerTwoJson).HasColumnName("LineupPlayerTwo");
             entity.Property(g => g.BoardStateJson).IsRequired().HasColumnName("BoardState");
+        });
+
+        modelBuilder.Entity<VillainTreeNode>(entity =>
+        {
+            entity.ToTable("VillainTreeNodes");
+            entity.HasKey(v => v.Id);
+
+            entity.Property(v => v.VillainId).IsRequired().HasMaxLength(100);
+            entity.Property(v => v.VillainName).IsRequired().HasMaxLength(200);
+            entity.Property(v => v.RequiredParentVillainId).HasMaxLength(100);
+            entity.Property(v => v.UnlockedPieceId).HasMaxLength(100);
+            entity.Property(v => v.DisplayOrder).IsRequired();
+            entity.Property(v => v.CreatedAtUtc).IsRequired();
+
+            // Unique constraint on VillainId
+            entity.HasIndex(v => v.VillainId).IsUnique();
+        });
+
+        modelBuilder.Entity<BotUnlock>(entity =>
+        {
+            entity.ToTable("BotUnlocks");
+            entity.HasKey(bu => bu.Id);
+
+            entity.Property(bu => bu.BotId).IsRequired();
+            entity.Property(bu => bu.VillainId).IsRequired().HasMaxLength(100);
+            entity.Property(bu => bu.UnlockedPieceId).HasMaxLength(100);
+            entity.Property(bu => bu.DefeatedAtUtc).IsRequired();
+
+            // Foreign key to VillainTreeNodes
+            entity.HasOne<VillainTreeNode>()
+                .WithMany()
+                .HasForeignKey(bu => bu.VillainId)
+                .HasPrincipalKey(v => v.VillainId);
+
+            // Index on (BotId, VillainId): non-unique to allow re-challenges
+            entity.HasIndex(bu => new { bu.BotId, bu.VillainId }).IsUnique(false);
         });
     }
 }

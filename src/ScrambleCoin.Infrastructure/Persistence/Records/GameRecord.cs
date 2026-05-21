@@ -13,6 +13,12 @@ public sealed class GameRecord
     /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.GameStatus"/> cast to int.</summary>
     public int Status { get; set; }
 
+    /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.GameMode"/> cast to int. Default is Standard (0).</summary>
+    public int GameMode { get; set; }
+
+    /// <summary>(Solo mode only) The ID of the villain being challenged.</summary>
+    public string? VillainId { get; set; }
+
     public int TurnNumber { get; set; }
 
     /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.TurnPhase"/> cast to int; null when no active phase.</summary>
