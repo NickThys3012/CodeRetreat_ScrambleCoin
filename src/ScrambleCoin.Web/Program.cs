@@ -62,6 +62,12 @@ try
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
         ScrambleCoin.Application.Services.CoinSpawnService>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.IVillainActionDispatcher,
+        ScrambleCoin.Application.Services.VillainActionDispatcher>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.IVillainAutomationService,
+        ScrambleCoin.Application.Services.VillainAutomationService>();
+    builder.Services.AddSingleton<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
+        ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
     builder.Services.AddSingleton<System.Random>();
     
     var app = builder.Build();
