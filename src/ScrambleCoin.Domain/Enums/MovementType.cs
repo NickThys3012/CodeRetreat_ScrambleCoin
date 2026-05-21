@@ -12,5 +12,21 @@ public enum MovementType
     Diagonal,
 
     /// <summary>The piece may move in any direction (orthogonal or diagonal).</summary>
-    AnyDirection
+    AnyDirection,
+
+    /// <summary>
+    /// The piece teleports directly to its destination, ignoring all obstacles and pieces along the way.
+    /// Only collects coins at the destination tile, not intermediate tiles.
+    /// </summary>
+    Jump,
+
+    /// <summary>The piece slides in a chosen direction until hitting an obstacle, piece, or board edge. The player does not choose how far it goes.</summary>
+    Charge,
+
+    /// <summary>
+    /// The piece passes through pieces and obstacles on intermediate tiles but must end on a free tile.
+    /// Collects coins on all tiles in the path (intermediate and destination).
+    /// Fences still block Ethereal movement.
+    /// </summary>
+    Ethereal
 }
