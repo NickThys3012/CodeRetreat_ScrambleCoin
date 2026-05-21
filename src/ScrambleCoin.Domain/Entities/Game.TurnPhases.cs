@@ -309,37 +309,6 @@ public partial class Game
         MarkPlacePhaseActed(playerId);
     }
 
-    /// <summary>
-    /// Skips the movement action for the active player this turn.
-    /// Marks all their on-board pieces as already moved, triggering auto-advance to the next player
-    /// or advancement to the next turn/phase if all players are done.
-    /// </summary>
-    /// <exception cref="DomainException">
-    /// Thrown when the current phase is not <see cref="TurnPhase.MovePhase"/>,
-    /// or when the player is not the active mover.
-    /// </exception>
-    public void SkipMovement(Guid playerId)
-    {
-        EnsureInMovePhase();
-
-        if (playerId != MovePhaseActivePlayer)
-            throw new DomainException(
-                $"It is not player {playerId}'s turn to move. " +
-                $"Current active mover: {MovePhaseActivePlayer}.");
-
-        var lineup = GetLineupForPlayer(playerId);
-        var onBoardPieceIds = lineup.Pieces
-            .Where(p => p.IsOnBoard)
-            .Select(p => p.Id)
-            .ToList();
-
-        // Mark all on-board pieces as moved
-        foreach (var pieceId in onBoardPieceIds)
-            _movedPieceIds.Add(pieceId);
-
-        TryAutoAdvanceMovePhase();
-    }
-
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /// <summary>

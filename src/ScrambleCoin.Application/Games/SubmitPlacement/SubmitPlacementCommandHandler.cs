@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
 
@@ -11,24 +10,20 @@ namespace ScrambleCoin.Application.Games.SubmitPlacement;
 /// <summary>
 /// Handles <see cref="SubmitPlacementCommand"/>: resolves the bot token to a player,
 /// validates the action, delegates to the domain, persists the game, and returns the resulting phase state.
-/// After execution, triggers villain automation if needed.
 /// </summary>
 public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacementCommand, PlacementResult>
 {
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
-    private readonly IVillainAutomationService _villainAutomationService;
     private readonly ILogger<SubmitPlacementCommandHandler> _logger;
 
     public SubmitPlacementCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
-        IVillainAutomationService villainAutomationService,
         ILogger<SubmitPlacementCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
-        _villainAutomationService = villainAutomationService;
         _logger = logger;
     }
 
@@ -74,9 +69,6 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
         _logger.LogInformation(
             "Placement action '{Action}' committed by player {PlayerId} in game {GameId} on turn {Turn}",
             request.Action, playerId, request.GameId, game.TurnNumber);
-
-        // Trigger villain automation if it's now the villain's turn
-        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
         return new PlacementResult(game.CurrentPhase?.ToString(), game.MovePhaseActivePlayer?.ToString());
     }

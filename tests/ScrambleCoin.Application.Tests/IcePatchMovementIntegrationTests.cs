@@ -4,7 +4,6 @@ using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
@@ -23,7 +22,7 @@ public class IcePatchMovementIntegrationTests
 
     /// <summary>
     /// Creates a game in MovePhase with Elsa positioned on a valid border tile.
-    /// Returns (game, p. 1, p. 2, elsaPiece, p2Piece).
+    /// Returns (game, p1, p2, elsaPiece, p2Piece).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece elsaPiece, Piece p2Piece)
         GameInMovePhaseWithElsa(
@@ -63,7 +62,7 @@ public class IcePatchMovementIntegrationTests
 
     /// <summary>
     /// Creates a game in MovePhase with a regular piece on a valid border tile for sliding tests.
-    /// Returns (game, p. 1, p. 2, regularPiece).
+    /// Returns (game, p1, p2, regularPiece).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece regularPiece)
         GameInMovePhaseWithRegularPiece(
@@ -103,7 +102,7 @@ public class IcePatchMovementIntegrationTests
 
     /// <summary>
     /// Creates a game in MovePhase with a Jump piece on a valid border tile.
-    /// Returns (game, p. 1, p. 2, jumpPiece).
+    /// Returns (game, p1, p2, jumpPiece).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece jumpPiece)
         GameInMovePhaseWithJumpPiece(
@@ -143,7 +142,7 @@ public class IcePatchMovementIntegrationTests
 
     /// <summary>
     /// Creates a game in MovePhase with a Charge piece on a valid border tile.
-    /// Returns (game, p. 1, p. 2, chargePiece).
+    /// Returns (game, p1, p2, chargePiece).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece chargePiece)
         GameInMovePhaseWithChargePiece(
@@ -183,7 +182,7 @@ public class IcePatchMovementIntegrationTests
 
     /// <summary>
     /// Creates a game in MovePhase with an Ethereal piece on a valid border tile.
-    /// Returns (game, p. 1, p. 2, etherealPiece).
+    /// Returns (game, p1, p2, etherealPiece).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece etherealPiece)
         GameInMovePhaseWithEtherealPiece(
@@ -250,7 +249,6 @@ public class IcePatchMovementIntegrationTests
         IBotRegistrationRepository botRepo)
         => new(gameRepo,
             botRepo,
-            Substitute.For<IVillainAutomationService>(),
             Substitute.For<IPublisher>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
@@ -264,7 +262,7 @@ public class IcePatchMovementIntegrationTests
         }.AsReadOnly();
 
     /// <summary>
-    /// Builds a multistep segment for orthogonal movement.
+    /// Builds a multi-step segment for orthogonal movement.
     /// </summary>
     private static IReadOnlyList<IReadOnlyList<Position>> BuildMultiSegment(params Position[] steps)
         => new List<IReadOnlyList<Position>>
@@ -277,7 +275,7 @@ public class IcePatchMovementIntegrationTests
     [Fact]
     public async Task ElsaPlacesIcePatches_OnIntermediateTiles_ExcludingStartAndEnd()
     {
-        // Arrange: Elsa at (0,0) will move right to (0,3).
+        // Arrange: Elsa at (0,0), will move right to (0,3).
         // Intermediate tiles: (0,1) and (0,2) should receive ice patches.
         var (game, p1, _, elsaPiece, _) = GameInMovePhaseWithElsa();
 
@@ -471,7 +469,7 @@ public class IcePatchMovementIntegrationTests
 
         var patchCount = game.Board.GetIcePatches().Count();
 
-        Assert.True(game.Board.GetIcePatches().Any());
+        Assert.True(game.Board.GetIcePatches().Count() > 0);
         Assert.Equal(patchCount, game.Board.GetIcePatches().Count());
     }
 
@@ -549,7 +547,7 @@ public class IcePatchMovementIntegrationTests
     [Fact]
     public async Task IcePatchSliding_Idempotent_MultiplePatchesOnSameTile()
     {
-        // Arrange: placing the same patch twice should not change behaviour.
+        // Arrange: placing the same patch twice should not change behavior.
         var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece();
 
         game.Board.PlaceIcePatch(new Position(0, 2));

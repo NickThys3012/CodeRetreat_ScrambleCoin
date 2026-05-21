@@ -115,7 +115,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(row, col);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && Board.IsValidEntryPoint(pos, type))
+            && g.Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     for (var r = 0; r < Board.Size; r++)
@@ -124,7 +124,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(r, c);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && Board.IsValidEntryPoint(pos, type))
+            && g.Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     return null;
