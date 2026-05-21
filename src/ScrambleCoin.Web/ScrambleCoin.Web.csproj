@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ScrambleCoin.Application\ScrambleCoin.Application.csproj" />
+    <ProjectReference Include="..\ScrambleCoin.Infrastructure\ScrambleCoin.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
