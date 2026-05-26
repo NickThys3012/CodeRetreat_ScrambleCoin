@@ -1,5 +1,4 @@
 @page "/admin/villains"
-@using MudBlazor
 @using MediatR
 @using ScrambleCoin.Application.VillainTree
 
@@ -17,11 +16,11 @@
         </MudButton>
     </div>
 
-    @if (IsLoading)
+    @if (_isLoading)
     {
         <MudProgressCircular Indeterminate="true" />
     }
-    else if (AllNodes.Count == 0)
+    else if (_allNodes.Count == 0)
     {
         <MudAlert Severity="Severity.Info">No villain nodes found. Click "Add Villain" to create one!</MudAlert>
     }
@@ -36,7 +35,7 @@
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent Style="overflow:auto;">
-                        <VillainPathView AllNodes="AllNodes" Interactive="false" />
+                        <VillainPathView AllNodes="_allNodes" Interactive="false" />
                     </MudCardContent>
                 </MudCard>
             </MudItem>
@@ -45,12 +44,12 @@
                 <MudCard>
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">📋 All Nodes (@AllNodes.Count)</MudText>
+                            <MudText Typo="Typo.h6">📋 All Nodes (@_allNodes.Count)</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <div style="max-height: 500px; overflow-y: auto;">
-                            @foreach (var node in AllNodes.OrderBy(n => n.DisplayOrder))
+                            @foreach (var node in _allNodes.OrderBy(n => n.DisplayOrder))
                             {
                                 <MudPaper Class="pa-3 mb-2" Elevation="1">
                                     <div class="d-flex justify-space-between align-center">
@@ -61,7 +60,7 @@
                                             {
                                                 <MudText Typo="Typo.caption">
                                                     ← @string.Join(" + ", node.RequiredParentVillainIds
-                                                        .Select(pid => AllNodes.FirstOrDefault(n => n.VillainId == pid)?.VillainName ?? pid))
+                                                        .Select(pid => _allNodes.FirstOrDefault(n => n.VillainId == pid)?.VillainName ?? pid))
                                                 </MudText>
                                             }
                                             @if (!string.IsNullOrEmpty(node.UnlockedPieceId))
@@ -96,20 +95,20 @@
 </MudContainer>
 
 @code {
-    private List<VillainNodeDto> AllNodes = new();
-    private List<VillainNodeDto> RootNodes = new();
-    private bool IsLoading = true;
+    private List<VillainNodeDto> _allNodes = [];
+    private List<VillainNodeDto> _rootNodes = [];
+    private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync() => await LoadTree();
 
     private async Task LoadTree()
     {
-        IsLoading = true;
+        _isLoading = true;
         try
         {
             var result = await Mediator.Send(new GetVillainTreeQuery());
-            AllNodes = result.AllNodes.ToList();
-            RootNodes = result.RootNodes.ToList();
+            _allNodes = result.AllNodes.ToList();
+            _rootNodes = result.RootNodes.ToList();
         }
         catch (Exception ex)
         {
@@ -117,7 +116,7 @@
         }
         finally
         {
-            IsLoading = false;
+            _isLoading = false;
         }
     }
 
@@ -125,7 +124,7 @@
     {
         var parameters = new DialogParameters<VillainNodeDialog>
         {
-            { x => x.AllNodes, AllNodes },
+            { x => x.AllNodes, _allNodes },
             { x => x.IsEdit, false }
         };
         var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Add Villain Node", parameters,
@@ -137,7 +136,7 @@
             try
             {
                 await Mediator.Send(new AddVillainNodeCommand(
-                    data.VillainId, data.VillainName, data.ParentVillainIds, data.UnlockedPieceId, AllNodes.Count + 1));
+                    data.VillainId, data.VillainName, data.ParentVillainIds, data.UnlockedPieceId, _allNodes.Count + 1));
                 Snackbar.Add("✅ Villain node added", Severity.Success);
                 await LoadTree();
             }
@@ -156,7 +155,7 @@
             { x => x.VillainName, node.VillainName },
             { x => x.ParentVillainIds, node.RequiredParentVillainIds.ToList() },
             { x => x.UnlockedPieceId, node.UnlockedPieceId },
-            { x => x.AllNodes, AllNodes },
+            { x => x.AllNodes, _allNodes },
             { x => x.IsEdit, true }
         };
         var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Edit Villain Node", parameters,

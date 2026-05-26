@@ -2,6 +2,7 @@ using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Infrastructure.Persistence;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -53,9 +54,9 @@ try
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IGameRepository,
         ScrambleCoin.Infrastructure.Persistence.GameRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IBotUnlocksRepository,
-        ScrambleCoin.Infrastructure.BotUnlocksRepository>();
+        BotUnlocksRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IVillainTreeRepository,
-        ScrambleCoin.Infrastructure.VillainTreeRepository>();
+        VillainTreeRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
         ScrambleCoin.Infrastructure.Persistence.BotRegistrationRepository>();
 
@@ -68,7 +69,7 @@ try
         ScrambleCoin.Application.Services.VillainAutomationService>();
     builder.Services.AddSingleton<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
         ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
-    builder.Services.AddSingleton<System.Random>();
+    builder.Services.AddSingleton<Random>();
     
     var app = builder.Build();
 

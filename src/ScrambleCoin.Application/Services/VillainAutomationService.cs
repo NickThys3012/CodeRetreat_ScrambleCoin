@@ -74,7 +74,7 @@ public sealed class VillainAutomationService : IVillainAutomationService
         // Process villain actions until they pass or the phase ends
         var villainPlayerId = game.PlayerTwo;
         var previousPhase = game.CurrentPhase;
-        var maxActionsPerTurn = 10; // Safety limit to prevent infinite loops
+        const int maxActionsPerTurn = 10; // Safety limit to prevent infinite loops
         var actionsProcessed = 0;
 
         while (actionsProcessed < maxActionsPerTurn)

@@ -90,24 +90,21 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
         // This is a simplified V5 UUID implementation
         // In production, consider using a library or the standard .NET implementation
 #pragma warning disable CA5350  // Weak cryptography (deterministic GuidV5 for testing)
-        using (var sha1 = System.Security.Cryptography.SHA1.Create())
-        {
-            var nameBytes = System.Text.Encoding.UTF8.GetBytes(name);
-            var namespaceBytes = namespaceId.ToByteArray();
-            
-            // Combine namespace and name
-            var data = new byte[namespaceBytes.Length + nameBytes.Length];
-            System.Buffer.BlockCopy(namespaceBytes, 0, data, 0, namespaceBytes.Length);
-            System.Buffer.BlockCopy(nameBytes, 0, data, namespaceBytes.Length, nameBytes.Length);
+        var nameBytes = System.Text.Encoding.UTF8.GetBytes(name);
+        var namespaceBytes = namespaceId.ToByteArray();
 
-            var hash = sha1.ComputeHash(data);
+        // Combine namespace and name
+        var data = new byte[namespaceBytes.Length + nameBytes.Length];
+        Buffer.BlockCopy(namespaceBytes, 0, data, 0, namespaceBytes.Length);
+        Buffer.BlockCopy(nameBytes, 0, data, namespaceBytes.Length, nameBytes.Length);
 
-            // Set version to 5 and variant to RFC 4122
-            hash[6] = (byte)((hash[6] & 0x0F) | 0x50);
-            hash[8] = (byte)((hash[8] & 0x3F) | 0x80);
+        var hash = System.Security.Cryptography.SHA1.HashData(data);
 
-            return new Guid(hash.Take(16).ToArray());
-        }
+        // Set version to 5 and variant to RFC 4122
+        hash[6] = (byte)((hash[6] & 0x0F) | 0x50);
+        hash[8] = (byte)((hash[8] & 0x3F) | 0x80);
+
+        return new Guid(hash.Take(16).ToArray());
 #pragma warning restore CA5350
     }
 }

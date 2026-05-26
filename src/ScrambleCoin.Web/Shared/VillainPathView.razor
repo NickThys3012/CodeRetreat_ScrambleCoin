@@ -15,11 +15,11 @@
         const double nodeW = 140, nodeH = 76, colStep = 185, rowStep = 140;
         const double padX = 30, padY = 30;
 
-        double maxCol = positioned.Max(n => n.Col);
-        int    maxRow = positioned.Max(n => n.Row);
+        var maxCol = positioned.Max(n => n.Col);
+        var    maxRow = positioned.Max(n => n.Row);
 
-        double svgW = (maxCol + 1) * colStep + nodeW + padX * 2;
-        double svgH = (maxRow + 1) * rowStep + nodeH + padY * 2;
+        var svgW = (maxCol + 1) * colStep + nodeW + padX * 2;
+        var svgH = (maxRow + 1) * rowStep + nodeH + padY * 2;
 
         var byId = positioned.ToDictionary(n => n.Node.VillainId);
     }
@@ -43,20 +43,20 @@
                 {
                     if (!byId.TryGetValue(parentId, out var parentPos)) continue;
 
-                    bool lit = IsOnSelectedPath(parentId, byId) &&
+                    var lit = IsOnSelectedPath(parentId, byId) &&
                                IsOnSelectedPath(pos.Node.VillainId, byId);
 
-                    double x1   = NodeCx(parentPos.Col, colStep, nodeW, padX);
-                    double y1   = NodeBottom(parentPos.Row, rowStep, nodeH, padY);
-                    double x2   = NodeCx(pos.Col, colStep, nodeW, padX);
-                    double y2   = NodeTop(pos.Row, rowStep, padY);
-                    double midY = (y1 + y2) / 2;
+                    var x1   = NodeCx(parentPos.Col, colStep, nodeW, padX);
+                    var y1   = NodeBottom(parentPos.Row, rowStep, nodeH, padY);
+                    var x2   = NodeCx(pos.Col, colStep, nodeW, padX);
+                    var y2   = NodeTop(pos.Row, rowStep, padY);
+                    var midY = (y1 + y2) / 2;
 
                     @* Multiple-parent merge: draw a small diamond indicator at the midpoint *@
-                    bool isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
+                    var isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
 
                     <path d="M @F(x1),@F(y1) C @F(x1),@F(midY) @F(x2),@F(midY) @F(x2),@F(y2)"
-                          stroke="@(lit ? "#f5a623" : (isMerge ? "#9c88ff" : "#2a2a4a"))"
+                          stroke="@(lit ? "#f5a623" : isMerge ? "#9c88ff" : "#2a2a4a")"
                           stroke-width="@(lit ? "4" : "3")"
                           fill="none"
                           stroke-linecap="round"
@@ -68,8 +68,8 @@
             @* Merge-point markers: small diamond on nodes that have 2+ parents *@
             @foreach (var pos in positioned.Where(p => p.Node.RequiredParentVillainIds.Count() > 1))
             {
-                double cx = NodeCx(pos.Col, colStep, nodeW, padX);
-                double cy = NodeTop(pos.Row, rowStep, padY) - 10;
+                var cx = NodeCx(pos.Col, colStep, nodeW, padX);
+                var cy = NodeTop(pos.Row, rowStep, padY) - 10;
                 <polygon points="@F(cx),@F(cy-8) @F(cx+8),@F(cy) @F(cx),@F(cy+8) @F(cx-8),@F(cy)"
                          fill="#9c88ff" opacity="0.8" />
             }
@@ -78,8 +78,8 @@
         @* ── Start markers ───────────────────────────────────────── *@
         @foreach (var root in positioned.Where(n => n.Row == 0))
         {
-            double markerX = NodeLeft(root.Col, colStep, nodeW, padX) + nodeW / 2 - 18;
-            double markerY = padY - 24;
+            var markerX = NodeLeft(root.Col, colStep, nodeW, padX) + nodeW / 2 - 18;
+            const double markerY = padY - 24;
             <div style="position:absolute;left:@Px(markerX);top:@Px(markerY);
                         font-size:0.65rem;color:#555;text-align:center;width:36px;">
                 🚶 START
@@ -89,25 +89,25 @@
         @* ── Villain node cards ──────────────────────────────────── *@
         @foreach (var pos in positioned)
         {
-            bool sel    = pos.Node.VillainId == SelectedVillainId;
-            bool onPath = IsOnSelectedPath(pos.Node.VillainId, byId);
-            bool isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
+            var sel    = pos.Node.VillainId == SelectedVillainId;
+            var onPath = IsOnSelectedPath(pos.Node.VillainId, byId);
+            var isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
 
-            double left = NodeLeft(pos.Col, colStep, nodeW, padX);
-            double top  = pos.Row * rowStep + padY;
+            var left = NodeLeft(pos.Col, colStep, nodeW, padX);
+            var top  = pos.Row * rowStep + padY;
 
-            string border = sel    ? "2px solid #f5a623"
+            var border = sel    ? "2px solid #f5a623"
                           : onPath ? "2px solid #7b6eff"
                           : isMerge ? "2px solid #9c88ff"
                                     : "2px solid #222";
-            string bg     = sel    ? "rgba(245,166,35,0.12)"
+            var bg     = sel    ? "rgba(245,166,35,0.12)"
                           : onPath ? "rgba(123,110,255,0.1)"
                                    : "rgba(18,18,36,0.97)";
-            string shadow = sel    ? "0 0 20px rgba(245,166,35,0.55)"
+            var shadow = sel    ? "0 0 20px rgba(245,166,35,0.55)"
                           : onPath ? "0 0 10px rgba(123,110,255,0.3)"
                                    : "0 2px 10px rgba(0,0,0,0.6)";
-            string scale  = sel ? "scale(1.07)" : "scale(1)";
-            string cursor = Interactive ? "pointer" : "default";
+            var scale  = sel ? "scale(1.07)" : "scale(1)";
+            var cursor = Interactive ? "pointer" : "default";
 
             <div style="position:absolute;left:@Px(left);top:@Px(top);width:@Px(nodeW);
                         cursor:@cursor;transition:transform 0.18s,box-shadow 0.18s;
@@ -149,7 +149,7 @@
 
 @code {
     /// <summary>All villain nodes (flat list). Roots and parent relationships are derived internally.</summary>
-    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = new();
+    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = [];
     [Parameter] public string? SelectedVillainId { get; set; }
     [Parameter] public EventCallback<string?> SelectedVillainIdChanged { get; set; }
     [Parameter] public bool Interactive { get; set; } = true;
@@ -160,7 +160,7 @@
 
     /// <summary>
     /// DAG layout: row = BFS depth from any root; col = derived bottom-up from leaf positions.
-    /// After initial assignment, same-row nodes are de-conflicted so no two share a column.
+    /// After the initial assignment, same-row nodes are de-conflicted so no two share a column.
     /// </summary>
     private static List<PositionedNode> ComputePositions(List<VillainNodeDto> all)
     {
@@ -180,12 +180,11 @@
             var node = queue.Dequeue();
             foreach (var child in all.Where(n => n.RequiredParentVillainIds.Contains(node.VillainId)))
             {
-                int proposed = rowMap[node.VillainId] + 1;
-                if (!rowMap.TryGetValue(child.VillainId, out int existing) || proposed > existing)
-                {
-                    rowMap[child.VillainId] = proposed;
-                    queue.Enqueue(child);
-                }
+                var proposed = rowMap[node.VillainId] + 1;
+                if (rowMap.TryGetValue(child.VillainId, out var existing) && proposed <= existing)
+                    continue;
+                rowMap[child.VillainId] = proposed;
+                queue.Enqueue(child);
             }
         }
         // Any node not reached (disconnected) gets row 0
@@ -216,7 +215,7 @@
         foreach (var rowGroup in all.GroupBy(n => rowMap[n.VillainId]))
         {
             var sorted = rowGroup.OrderBy(n => colMap[n.VillainId]).ToList();
-            for (int i = 1; i < sorted.Count; i++)
+            for (var i = 1; i < sorted.Count; i++)
             {
                 if (colMap[sorted[i].VillainId] - colMap[sorted[i - 1].VillainId] < 1.0)
                     colMap[sorted[i].VillainId] = colMap[sorted[i - 1].VillainId] + 1.0;

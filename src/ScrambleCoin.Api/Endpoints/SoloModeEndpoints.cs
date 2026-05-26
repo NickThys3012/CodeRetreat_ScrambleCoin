@@ -11,7 +11,7 @@ public static class SoloModeEndpoints
 {
     public static void MapSoloModeEndpoints(this WebApplication app)
     {
-        // GET /api/solo/path?botId={botId} — Get villain tree with lock status for a bot
+        // GET /api/solo/path?botId={botId} — Get a villain tree with lock status for a bot
         app.MapGet("/api/solo/path", GetVillainPath)
             .WithName("GetVillainPath")
             .WithTags("Solo")

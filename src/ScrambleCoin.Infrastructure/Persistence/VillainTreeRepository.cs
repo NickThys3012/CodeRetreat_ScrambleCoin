@@ -1,9 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Infrastructure.Persistence;
-
-namespace ScrambleCoin.Infrastructure;
+namespace ScrambleCoin.Infrastructure.Persistence;
 
 /// <summary>
 /// EF Core-backed implementation of <see cref="IVillainTreeRepository"/>.

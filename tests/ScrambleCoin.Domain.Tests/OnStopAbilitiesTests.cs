@@ -206,7 +206,7 @@ public class OnStopAbilitiesTests
             new Position(2, 3), // North
             new Position(4, 3), // South
             new Position(3, 2), // West
-            new Position(3, 4), // East
+            new Position(3, 4)  // East
         };
 
         var piecesToMove = new List<Piece>();
@@ -305,7 +305,7 @@ public class OnStopAbilitiesTests
         {
             new Position(1, 2), // East
             new Position(2, 1), // South
-            new Position(2, 2), // Southeast
+            new Position(2, 2)  // Southeast
         };
 
         var piecesToMove = new List<Piece>();

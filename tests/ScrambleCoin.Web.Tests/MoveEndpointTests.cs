@@ -36,7 +36,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
 
     // ── Test factory ──────────────────────────────────────────────────────────
 
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
         // Unique DB name per factory instance so test classes don't share state.
         private readonly string _dbName = $"MoveTestDb_{Guid.NewGuid()}";

@@ -53,7 +53,7 @@ builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
 builder.Services.AddSingleton<IQueueService, QueueService>();
 
 // ── Villain services ──────────────────────────────────────────────────────────
-builder.Services.AddScoped<IVillainStrategyFactory, ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
+builder.Services.AddScoped<IVillainStrategyFactory, VillainStrategyFactory>();
 builder.Services.AddScoped<IVillainActionDispatcher, VillainActionDispatcher>();
 builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>();
 
@@ -83,11 +83,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     // Admin key security scheme (lock icon on CreateGame)
-    options.AddSecurityDefinition("X-Admin-Key", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    options.AddSecurityDefinition("X-Admin-Key", new OpenApiSecurityScheme
     {
         Name = "X-Admin-Key",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
         Description = "Admin key required to create a game shell. Value: `scramblecoin-admin`"
     });
 
@@ -100,7 +100,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
-    await dbContext.Database.MigrateAsync();
+    if (dbContext.Database.IsRelational())
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    else
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
     VillainTreeSeeder.SeedDefaultTree(dbContext);
 }
 
@@ -140,7 +147,7 @@ app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.Healt
 .WithSummary("Health check")
 .WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
 .WithTags("Health")
-.Produces<object>(StatusCodes.Status200OK)
+.Produces<object>()
 .Produces<object>(StatusCodes.Status503ServiceUnavailable);
 app.MapGameEndpoints();
 app.MapSoloModeEndpoints();

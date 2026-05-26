@@ -23,7 +23,7 @@ public sealed class GetVillainTreeQueryHandler : IRequestHandler<GetVillainTreeQ
         return new VillainTreeDto(rootNodeDtos, allNodeDtos);
     }
 
-    private VillainNodeDto MapToDto(Domain.Entities.VillainTreeNode node, List<Domain.Entities.VillainTreeNode> allNodes)
+    private static VillainNodeDto MapToDto(Domain.Entities.VillainTreeNode node, List<Domain.Entities.VillainTreeNode> allNodes)
     {
         var parentIds = node.ParentLinks.Select(p => p.ParentVillainId).ToList();
 

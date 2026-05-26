@@ -1,4 +1,3 @@
-@using MudBlazor
 @using ScrambleCoin.Application.VillainTree
 @using ScrambleCoin.Domain.Factories
 
@@ -60,7 +59,7 @@
     [Parameter] public IEnumerable<string> ParentVillainIds { get; set; } = [];
     [Parameter] public string? UnlockedPieceId { get; set; }
     [Parameter] public bool IsEdit { get; set; }
-    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = new();
+    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = [];
 
     private string? SelectedVillainName { get; set; }
     private IReadOnlyCollection<string> SelectedParentIds { get; set; } = [];

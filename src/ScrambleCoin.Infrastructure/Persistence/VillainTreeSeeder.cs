@@ -21,7 +21,7 @@ public static class VillainTreeSeeder
             Node("maleficent", "Maleficent", "Scrooge",     order: 5),
             Node("gaston",     "Gaston",     "Ralph",       order: 6),
             Node("scar",       "Scar",       "Daisy",       order: 7),
-            Node("cruella",    "Cruella",    "Pumbaa",      order: 8),
+            Node("cruella",    "Cruella",    "Pumbaa",      order: 8)
         };
 
         context.VillainTreeNodes.AddRange(nodes);
@@ -35,7 +35,7 @@ public static class VillainTreeSeeder
             Edge(child: "maleficent", parent: "elsa"),
             Edge(child: "gaston",     parent: "ursula"),
             Edge(child: "scar",       parent: "jafar"),
-            Edge(child: "cruella",    parent: "maleficent"),
+            Edge(child: "cruella",    parent: "maleficent")
         };
 
         context.VillainNodeParents.AddRange(parents);

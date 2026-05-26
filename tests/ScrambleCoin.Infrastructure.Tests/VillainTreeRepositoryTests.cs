@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Infrastructure;
 using ScrambleCoin.Infrastructure.Persistence;
 
 namespace ScrambleCoin.Infrastructure.Tests;

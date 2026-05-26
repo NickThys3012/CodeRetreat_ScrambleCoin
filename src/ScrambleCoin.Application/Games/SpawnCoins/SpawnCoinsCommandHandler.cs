@@ -45,7 +45,7 @@ public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand
         {
             // Extract winner from the GameEnded domain event (if available)
             var gameEndedEvent = game.DomainEvents
-                .OfType<ScrambleCoin.Domain.Events.GameEnded>()
+                .OfType<Domain.Events.GameEnded>()
                 .FirstOrDefault();
 
             if (gameEndedEvent != null)

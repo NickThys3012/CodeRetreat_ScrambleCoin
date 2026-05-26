@@ -1,9 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Infrastructure.Persistence;
-
-namespace ScrambleCoin.Infrastructure;
+namespace ScrambleCoin.Infrastructure.Persistence;
 
 /// <summary>
 /// EF Core-backed implementation of <see cref="IBotUnlocksRepository"/>.
@@ -19,24 +17,22 @@ public sealed class BotUnlocksRepository : IBotUnlocksRepository
 
     public async Task<IEnumerable<BotUnlock>> GetDefeatedVillainsAsync(Guid botId, CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.BotUnlocks.Where(bu => bu.BotId == botId).ToList());
+        return await
+            _context.BotUnlocks.Where(bu => bu.BotId == botId).ToListAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<string>> GetUnlockedPieceIdsAsync(Guid botId, CancellationToken cancellationToken = default)
     {
-        var pieceIds = await Task.FromResult(
-            _context.BotUnlocks
-                .Where(bu => bu.BotId == botId && bu.UnlockedPieceId != null)
-                .Select(bu => bu.UnlockedPieceId!)
-                .ToList());
-        return pieceIds;
+       return await _context.BotUnlocks
+            .Where(bu => bu.BotId == botId && bu.UnlockedPieceId != null)
+            .Select(bu => bu.UnlockedPieceId!)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task RecordDefeatAsync(Guid botId, string villainId, string? unlockedPieceId, CancellationToken cancellationToken = default)
     {
         // UPSERT: update if exists, insert if not
-        var existing = _context.BotUnlocks.FirstOrDefault(bu => bu.BotId == botId && bu.VillainId == villainId);
+        var existing =await _context.BotUnlocks.FirstOrDefaultAsync(bu => bu.BotId == botId && bu.VillainId == villainId,cancellationToken);
 
         if (existing != null)
         {
@@ -65,9 +61,9 @@ public sealed class BotUnlocksRepository : IBotUnlocksRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<bool> HasDefeatedVillainAsync(Guid botId, string villainId, CancellationToken cancellationToken = default)
+    public Task<bool> HasDefeatedVillainAsync(Guid botId, string villainId, CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult(
-            _context.BotUnlocks.Any(bu => bu.BotId == botId && bu.VillainId == villainId));
+        return 
+            _context.BotUnlocks.AnyAsync(bu => bu.BotId == botId && bu.VillainId == villainId,cancellationToken);
     }
 }
