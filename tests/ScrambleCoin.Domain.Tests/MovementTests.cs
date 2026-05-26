@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -60,7 +61,7 @@ public class MovementTests
     /// <summary>
     /// Builds a single-segment move list containing the provided step positions.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
         var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
@@ -331,8 +332,8 @@ public class MovementTests
             p1MaxDistance: 2);
 
         // Act: two segments, each with 1 step
-        var segment1 = (IReadOnlyList<Position>)new List<Position> { new Position(0, 4) }.AsReadOnly();
-        var segment2 = (IReadOnlyList<Position>)new List<Position> { new Position(0, 5) }.AsReadOnly();
+        var segment1 = (IReadOnlyList<Position>)new List<Position> { new(0, 4) }.AsReadOnly();
+        var segment2 = (IReadOnlyList<Position>)new List<Position> { new(0, 5) }.AsReadOnly();
         var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>> { segment1, segment2 }.AsReadOnly();
 
         game.MovePiece(p1, p1Piece.Id, segments); // should not throw
@@ -413,10 +414,10 @@ public class MovementTests
     [Fact]
     public void MovePiece_AutoAdvances_WhenAllPiecesMoved()
     {
-        // Arrange: p1 piece at (0,3), p2 piece at (7,3)
+        // Arrange: p1 piece at (0,3), p. 2 piece at (7,3)
         var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithOnePieceEach();
 
-        // Act: p1 moves their piece, then p2 moves theirs
+        // Act: p. 1 moves their piece, then p. 2 moves theirs
         game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(0, 4)));
         game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
 
@@ -444,10 +445,10 @@ public class MovementTests
         // Arrange
         var (game, p1, _, p1Piece, _) = GameInMovePhaseWithOnePieceEach();
 
-        // Act: only p1 moves their piece
+        // Act: only p. 1 moves their piece
         game.MovePiece(p1, p1Piece.Id, BuildSegments(new Position(0, 4)));
 
-        // Assert: still in MovePhase (p2 hasn't moved yet)
+        // Assert: still in MovePhase (p. 2 hasn't moved yet)
         Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
     }
 

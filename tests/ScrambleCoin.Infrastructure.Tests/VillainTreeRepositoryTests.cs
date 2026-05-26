@@ -19,8 +19,8 @@ public class VillainTreeRepositoryTests
 
     private static IEnumerable<VillainTreeNode> CreateSampleNodes()
     {
-        return new[]
-        {
+        return
+        [
             new VillainTreeNode
             {
                 Id = Guid.NewGuid(),
@@ -49,7 +49,7 @@ public class VillainTreeRepositoryTests
                 DisplayOrder = 3,
                 CreatedAtUtc = DateTime.UtcNow
             }
-        };
+        ];
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────

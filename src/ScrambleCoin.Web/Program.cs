@@ -47,18 +47,18 @@ try
 
     // ── Database & EF Core ─────────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    builder.Services.AddDbContext<ScrambleCoin.Infrastructure.Persistence.ScrambleCoinDbContext>(opts =>
+    builder.Services.AddDbContext<ScrambleCoinDbContext>(opts =>
         opts.UseSqlServer(connectionString));
 
     // ── Repositories ──────────────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IGameRepository,
-        ScrambleCoin.Infrastructure.Persistence.GameRepository>();
+        GameRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IBotUnlocksRepository,
         BotUnlocksRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IVillainTreeRepository,
         VillainTreeRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
-        ScrambleCoin.Infrastructure.Persistence.BotRegistrationRepository>();
+        BotRegistrationRepository>();
 
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
@@ -76,9 +76,9 @@ try
     // ── Database initialization & seeding ─────────────────────────────────────
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoin.Infrastructure.Persistence.ScrambleCoinDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
         dbContext.Database.Migrate();
-        ScrambleCoin.Infrastructure.Persistence.VillainTreeSeeder.SeedDefaultTree(dbContext);
+        VillainTreeSeeder.SeedDefaultTree(dbContext);
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────

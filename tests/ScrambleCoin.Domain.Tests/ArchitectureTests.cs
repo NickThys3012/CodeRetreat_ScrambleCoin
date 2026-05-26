@@ -29,7 +29,7 @@ public class ArchitectureTests
         return XDocument.Load(fullPath);
     }
 
-    private static IReadOnlyList<string> GetProjectReferences(XDocument csproj) =>
+    private static List<string> GetProjectReferences(XDocument csproj) =>
         csproj.Descendants("ProjectReference")
               .Select(e => e.Attribute("Include")?.Value ?? string.Empty)
               .ToList();

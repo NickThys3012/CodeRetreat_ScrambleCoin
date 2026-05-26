@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -100,9 +101,9 @@ public class EtherealMovementIntegrationTests
     /// <summary>
     /// Builds a multistep segment for Ethereal movement.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
     {
-        var segment = (IReadOnlyList<Position>)positions.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = positions.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 

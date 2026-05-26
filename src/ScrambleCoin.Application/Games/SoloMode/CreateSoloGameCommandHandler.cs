@@ -43,7 +43,7 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
         var defeatedVillains = await _botUnlocksRepository.GetDefeatedVillainsAsync(request.BotId, cancellationToken);
         var defeatedVillainIds = defeatedVillains.Select(d => d.VillainId).ToHashSet();
 
-        var isLocked = villain.ParentLinks.Any() &&
+        var isLocked = villain.ParentLinks.Count != 0 &&
                        !villain.ParentLinks.Any(p => defeatedVillainIds.Contains(p.ParentVillainId));
 
         if (isLocked)

@@ -294,7 +294,7 @@ public class CreateSoloGameCommandHandlerTests
         await handler.Handle(command1, CancellationToken.None);
         await handler.Handle(command2, CancellationToken.None);
 
-        // Assert: Same villain should produce same villain player ID
+        // Assert: The same villain should produce the same villain player ID
         Assert.NotNull(capturedGame1);
         Assert.NotNull(capturedGame2);
         Assert.Equal(capturedGame1.PlayerTwo, capturedGame2.PlayerTwo);
@@ -304,7 +304,7 @@ public class CreateSoloGameCommandHandlerTests
     [Fact]
     public async Task Handle_ReChallengeDefeatedVillain_CreatesNewGame()
     {
-        // Arrange: Stitch was already defeated, but can be re-challenged
+        // Arrange: Stitch was already defeated but can be re-challenged
         var botId = Guid.NewGuid();
         var gameRepo = Substitute.For<IGameRepository>();
         var villainRepo = Substitute.For<IVillainTreeRepository>();

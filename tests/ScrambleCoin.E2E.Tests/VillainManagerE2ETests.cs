@@ -55,7 +55,7 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page!.GotoAsync(PageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await _page.WaitForTimeoutAsync(2000);
 
-        await _page.GetByRole(AriaRole.Button, new() { Name = "Add Villain" }).ClickAsync();
+        await _page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Add Villain" }).ClickAsync();
         await _page.WaitForTimeoutAsync(1000);
 
         var dialogOpen = await _page.Locator("text=Add Villain Node").IsVisibleAsync();
@@ -68,12 +68,12 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page!.GotoAsync(PageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await _page.WaitForTimeoutAsync(2000);
 
-        await _page.GetByRole(AriaRole.Button, new() { Name = "Add Villain" }).ClickAsync();
+        await _page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Add Villain" }).ClickAsync();
         await _page.WaitForTimeoutAsync(1000);
 
         Assert.True(await _page.Locator("text=Add Villain Node").IsVisibleAsync(), "Dialog should be open");
 
-        await _page.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await _page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Cancel" }).ClickAsync();
         await _page.WaitForTimeoutAsync(500);
 
         var stillOpen = await _page.Locator("text=Add Villain Node").IsVisibleAsync();
@@ -89,7 +89,7 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page!.GotoAsync(PageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
         await _page.WaitForTimeoutAsync(2000);
 
-        await _page.GetByRole(AriaRole.Button, new() { Name = "Add Villain" }).ClickAsync();
+        await _page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Add Villain" }).ClickAsync();
         await _page.WaitForTimeoutAsync(1000);
 
         // The villain name is now a MudSelect dropdown (label "Villain")
@@ -102,7 +102,7 @@ public class VillainManagerE2ETests : IAsyncLifetime
         await _page.WaitForTimeoutAsync(500);
 
         // Click Save
-        await _page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await _page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Save" }).ClickAsync();
         await _page.WaitForTimeoutAsync(2000);
 
         // Villain should appear in the right-panel list (or was already there from a prior run)

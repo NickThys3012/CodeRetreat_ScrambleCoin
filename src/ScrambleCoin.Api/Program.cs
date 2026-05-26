@@ -8,7 +8,6 @@ using ScrambleCoin.Application.Services;
 using ScrambleCoin.Application.Services.Villains;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Infrastructure.Services;
-using ScrambleCoin.Infrastructure;
 using ScrambleCoin.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);

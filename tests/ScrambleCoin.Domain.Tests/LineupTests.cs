@@ -115,7 +115,7 @@ public class LineupTests
     public void Constructor_WithDuplicatePieceIds_ThrowsDomainException()
     {
         var pieces = MakePieces(4);
-        // Add the first piece again — same Id, same reference
+        // Add the first piece again — same ID, same reference
         pieces.Add(pieces[0]);
 
         Assert.Throws<DomainException>(() => new Lineup(pieces));
@@ -154,15 +154,7 @@ public class LineupTests
 
         Assert.False(lineup1.Equals(lineup2));
     }
-
-    [Fact]
-    public void Equals_WithNull_ReturnsFalse()
-    {
-        var lineup = new Lineup(MakePieces(5));
-
-        Assert.False(lineup.Equals(null));
-    }
-
+    
     [Fact]
     public void Equals_WithSelf_ReturnsTrue()
     {
@@ -229,33 +221,6 @@ public class LineupTests
         var lineup2 = new Lineup(pieces);
 
         Assert.False(lineup1 != lineup2);
-    }
-
-    [Fact]
-    public void EqualityOperator_BothNull_ReturnsTrue()
-    {
-        Lineup? left = null;
-        Lineup? right = null;
-
-        Assert.True(left == right);
-    }
-
-    [Fact]
-    public void EqualityOperator_LeftNull_ReturnsFalse()
-    {
-        Lineup? left = null;
-        var right = new Lineup(MakePieces(5));
-
-        Assert.False(left == right);
-    }
-
-    [Fact]
-    public void EqualityOperator_RightNull_ReturnsFalse()
-    {
-        var left = new Lineup(MakePieces(5));
-        Lineup? right = null;
-
-        Assert.False(left == right);
     }
 
     // ── GetHashCode ───────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -8,7 +9,7 @@ using ScrambleCoin.Domain.ValueObjects;
 namespace ScrambleCoin.Domain.Tests;
 
 /// <summary>
-/// Unit tests for Ethereal movement type (Issue #46).
+/// Unit tests for an Ethereal movement type (Issue #46).
 /// Ethereal pieces pass through obstacles and pieces on intermediate tiles but must end on a free tile.
 /// Coins are collected on all tiles in the path (intermediate and destination).
 /// Fences still block Ethereal movement.
@@ -64,9 +65,9 @@ public class EtherealMovementTests
     }
 
     /// <summary>
-    /// Builds a multi-step segment for Ethereal movement.
+    /// Builds a multistep segment for Ethereal movement.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
     {
         var segment = (IReadOnlyList<Position>)positions.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
@@ -91,7 +92,7 @@ public class EtherealMovementTests
         // Act: Move ethereal through rock to coin tile
         game.MovePiece(p1, p1Piece.Id, BuildEtherealSegment(rockPos, coinPos));
 
-        // Assert: piece moved to coin position
+        // Assert: a piece moved to coin position
         Assert.Equal(coinPos, p1Piece.Position);
 
         // Assert: coin was collected
@@ -110,7 +111,7 @@ public class EtherealMovementTests
             p1StartPos: new Position(0, 0),
             p2StartPos: new Position(0, 1));
 
-        // Act: Move ethereal through opponent piece
+        // Act: Move ethereal through an opponent piece
         game.MovePiece(p1, p1Piece.Id, BuildEtherealSegment(
             new Position(0, 1), // through opponent
             new Position(0, 2)  // to free tile
@@ -119,7 +120,7 @@ public class EtherealMovementTests
         // Assert: piece moved to destination (passed through opponent)
         Assert.Equal(new Position(0, 2), p1Piece.Position);
 
-        // Assert: opponent piece is still there (not captured)
+        // Assert: an opponent piece is still there (not captured)
         Assert.Equal(new Position(0, 1), p2Piece.Position);
     }
 
@@ -328,11 +329,11 @@ public class EtherealMovementTests
             new Position(0, 4)
         ));
 
-        // Assert: reached destination and collected coin
+        // Assert: reached destination and collected a coin
         Assert.Equal(new Position(0, 4), p1Piece.Position);
         Assert.Equal(1, game.Scores[p1]);
         
-        // Assert: opponent piece still in place
+        // Assert: an opponent piece still in place
         Assert.Equal(new Position(0, 2), p2Piece.Position);
     }
 
@@ -367,13 +368,13 @@ public class EtherealMovementTests
         game.Board.AddFence(new Fence(new Position(0, 0), new Position(0, 1))); // Right
         game.Board.AddFence(new Fence(new Position(0, 0), new Position(1, 0))); // Down
 
-        // Act: Submit empty segment
+        // Act: Submit an empty segment
         game.MovePiece(p1, p1Piece.Id, new List<IReadOnlyList<Position>>
         {
             new List<Position>().AsReadOnly()
         }.AsReadOnly());
 
-        // Assert: piece did not move
+        // Assert: a piece did not move
         Assert.Equal(new Position(0, 0), p1Piece.Position);
     }
 
@@ -391,11 +392,11 @@ public class EtherealMovementTests
             new Position(0, 2)
         ));
 
-        // Assert: PieceMoved event includes full path
+        // Assert: PieceMoved event includes a full path
         var moveEvent = game.DomainEvents.OfType<PieceMoved>().Single();
         Assert.Equal(new Position(0, 0), moveEvent.From);
         Assert.Equal(new Position(0, 2), moveEvent.To);
-        Assert.Equal(new[] { new Position(0, 1), new Position(0, 2) }, moveEvent.Path);
+        Assert.Equal([new Position(0, 1), new Position(0, 2)], moveEvent.Path);
     }
 
     [Fact]

@@ -131,7 +131,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Returns a list of positions representing the path (not including the current position).
     /// Uses Manhattan distance to find the nearest coin.
     /// </summary>
-    private static IReadOnlyList<Position>? FindPathTowardNearestCoin(Game game, Piece piece)
+    private static List<Position>? FindPathTowardNearestCoin(Game game, Piece piece)
     {
         if (piece.Position is null)
             return null;

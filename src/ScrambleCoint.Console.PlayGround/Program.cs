@@ -59,6 +59,7 @@ Console.WriteLine($"  P1 score : {s1}");
 Console.WriteLine($"  P2 score : {s2}");
 Console.WriteLine($"  Result   : {(s1 > s2 ? "P1 wins 🏆" : s2 > s1 ? "P2 wins 🏆" : "Draw 🤝")}");
 Console.ReadLine();
+return;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

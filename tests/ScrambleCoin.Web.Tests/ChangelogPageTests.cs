@@ -53,7 +53,9 @@ public class ChangelogPageTests
     public void ChangelogRazor_HasPageRouteSlashChangelog()
     {
         var razor = ReadChangelogRazor();
-        Assert.Contains(@"@page ""/changelog""", razor, StringComparison.Ordinal);
+        Assert.Contains("""
+                        @page "/changelog"
+                        """, razor, StringComparison.Ordinal);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

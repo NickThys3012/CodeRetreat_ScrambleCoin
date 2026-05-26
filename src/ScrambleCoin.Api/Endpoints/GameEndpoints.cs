@@ -268,9 +268,6 @@ public static class GameEndpoints
 
         try
         {
-            if (body.Segments is null)
-                return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
-
             IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
                 .Select(IReadOnlyList<Position> (seg) => seg
                     .Select(p => new Position(p.Row, p.Col))

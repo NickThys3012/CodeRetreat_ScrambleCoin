@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -54,16 +55,14 @@ public class OnStopAbilitiesTests
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         // Place both pieces to auto-advance to MovePhase
-        var actualP1Pos = p1Position ?? new Position(0, 3); // Valid Border entry point
-        var actualP2Pos = p2Position ?? new Position(7, 3);  // Valid Border entry point
 
-        game.PlacePiece(p1, testPiece.Id, actualP1Pos);
-        game.PlacePiece(p2, p2Piece.Id, actualP2Pos);
+        game.PlacePiece(p1, testPiece.Id, p1Position);
+        game.PlacePiece(p2, p2Piece.Id, p2Position);
 
         return (game, p1, p2, testPiece, p2Piece);
     }
 
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
         var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
@@ -88,7 +87,7 @@ public class OnStopAbilitiesTests
         // Act: Move Ralph one step east to (0,4)
         game.MovePiece(p1, ralphPiece.Id, BuildSegments(new Position(0, 4)));
 
-        // Assert: Rock and fence adjacent to destination are destroyed
+        // Assert: Rock and fence adjacent to the destination are destroyed
         Assert.False(board.HasRock(new Position(1, 4)));
         Assert.False(board.HasFence(new Position(0, 4)));
 
@@ -147,7 +146,7 @@ public class OnStopAbilitiesTests
         var (game, p1, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
         var board = game.Board;
 
-        // Add obstacles adjacent to starting position
+        // Add obstacles adjacent to the starting position
         board.AddRock(new Rock(new Position(1, 3)));
         board.AddFence(new Fence(new Position(0, 3), new Position(0, 4)));
 
@@ -176,7 +175,7 @@ public class OnStopAbilitiesTests
         // Act: WALL•E charges down
         game.MovePiece(p1, wallEPiece.Id, new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(1, 3) }.AsReadOnly() // Charge down
+            new List<Position> { new(1, 3) }.AsReadOnly() // Charge down
         }.AsReadOnly());
 
         // Assert: Opponent piece pushed to (2,3)
@@ -222,7 +221,7 @@ public class OnStopAbilitiesTests
         // Act: WALL•E charges (simulating being in the middle)
         game.MovePiece(p1, wallEPiece.Id, new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(3, 2) }.AsReadOnly() // Charge left
+            new List<Position> { new(3, 2) }.AsReadOnly() // Charge left
         }.AsReadOnly());
 
         // Assert: All pieces pushed (at least check that some moved)
@@ -240,7 +239,7 @@ public class OnStopAbilitiesTests
         var (game, p1, p2, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
         var board = game.Board;
 
-        // Add opponent elsewhere on board (not blocking Sulley's move)
+        // Add an opponent elsewhere on the board (not blocking Sulley's move)
         var opponentPiece = new Piece(Guid.NewGuid(), "Opponent", p2,
             EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
         opponentPiece.PlaceAt(new Position(3, 3));
@@ -261,7 +260,7 @@ public class OnStopAbilitiesTests
         var (game, p1, p2, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
         var board = game.Board;
 
-        // Add rock at destination area
+        // Add rock at the destination area
         board.AddRock(new Rock(new Position(1, 4)));
 
         // Act: Sulley moves orthogonally east
@@ -296,7 +295,7 @@ public class OnStopAbilitiesTests
     [Fact]
     public void Rafiki_PushesAllAdjacentPieces_IncludingAllies()
     {
-        // Arrange: Rafiki at corner (0,0), jumps to adjacent position (1,1)
+        // Arrange: Rafiki in a corner (0,0), jumps to the adjacent position (1,1)
         var (game, p1, p2, rafikiPiece, _) = GameWithPiecesInMovePhase("Rafiki", new Position(0, 0));
         var board = game.Board;
 
@@ -324,7 +323,7 @@ public class OnStopAbilitiesTests
         // Act: Rafiki jumps to (1,1)
         game.MovePiece(p1, rafikiPiece.Id, new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(1, 1) }.AsReadOnly() // Jump to (1,1)
+            new List<Position> { new(1, 1) }.AsReadOnly() // Jump to (1,1)
         }.AsReadOnly());
 
         // Assert: At least some pieces were pushed
@@ -346,14 +345,14 @@ public class OnStopAbilitiesTests
         var gameId = game.Id;
         var turnNumber = game.TurnNumber;
 
-        // Act: Ralph moves one step east and destroys rock
+        // Act: Ralph moves one step east and destroys the rock
         game.MovePiece(p1, ralphPiece.Id, BuildSegments(new Position(0, 4)));
 
-        // Assert: Events have correct game ID and turn number
+        // Assert: Events have the correct game ID and turn number
         var rockDestroyed = game.DomainEvents.OfType<RockDestroyed>().FirstOrDefault();
         Assert.NotNull(rockDestroyed);
-        Assert.Equal(gameId, rockDestroyed!.GameId);
-        Assert.Equal(turnNumber, rockDestroyed!.TurnNumber);
+        Assert.Equal(gameId, rockDestroyed.GameId);
+        Assert.Equal(turnNumber, rockDestroyed.TurnNumber);
     }
 
     [Fact]
@@ -363,7 +362,7 @@ public class OnStopAbilitiesTests
         var (game, p1, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
         var board = game.Board;
 
-        // Add fence at destination
+        // Add a fence at destination
         board.AddFence(new Fence(new Position(0, 4), new Position(0, 5)));
 
         // Act: Pumbaa moves east

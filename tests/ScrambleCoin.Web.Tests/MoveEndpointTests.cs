@@ -22,11 +22,6 @@ namespace ScrambleCoin.Web.Tests;
 /// </summary>
 public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicationFactory>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TestWebApplicationFactory _factory;
 
     public MoveEndpointTests(TestWebApplicationFactory factory)

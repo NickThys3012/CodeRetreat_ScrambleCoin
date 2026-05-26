@@ -7,7 +7,7 @@ namespace ScrambleCoin.Application.Tests;
 
 /// <summary>
 /// Unit tests for <see cref="GetUnlockedPiecesQueryHandler"/> (Issue #42).
-/// Verifies that starter pieces + unlocked pieces are returned without duplicates.
+/// Verifies that starter pieces and unlocked pieces are returned without duplicates.
 /// </summary>
 public class GetUnlockedPiecesQueryHandlerTests
 {
@@ -45,7 +45,7 @@ public class GetUnlockedPiecesQueryHandlerTests
         Assert.Contains("donald", ids);
         Assert.Contains("goofy", ids);
 
-        // All should have Starter source
+        // All should have a Starter source
         foreach (var piece in result.Pieces)
         {
             Assert.Equal(PieceSourceEnum.Starter, piece.Source);
@@ -173,7 +173,7 @@ public class GetUnlockedPiecesQueryHandlerTests
     [Fact]
     public async Task Handle_NoPieceDuplicates_EvenIfStarnerAndUnlockedSame()
     {
-        // Arrange: Unlock "Donald" which is also a starter piece
+        // Arrange: Unlock "Donald", which is also a starter piece,
         // This shouldn't cause duplication
         var botId = Guid.NewGuid();
         var defeats = new[]
@@ -199,7 +199,7 @@ public class GetUnlockedPiecesQueryHandlerTests
         var result = await handler.Handle(query, CancellationToken.None);
 
         // Assert: 5 pieces total (4 starter + 1 extra Donald? or just 4?)
-        // Implementation note: Based on the code, it just adds both to the list
+        // Implementation note: Based on the code, it just adds both to the list,
         // so it will be 5 (the list is not deduplicated)
         Assert.NotNull(result.Pieces);
         Assert.True(result.Pieces.Count >= 4, "Must include at least starter pieces");

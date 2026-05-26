@@ -7,7 +7,7 @@ namespace ScrambleCoin.Application.Tests;
 
 /// <summary>
 /// Unit tests for <see cref="GetVillainPathQueryHandler"/> (Issue #42).
-/// Verifies that the villain tree is returned with correct lock/available/defeated status.
+/// Verifies that the villain tree is returned with the correct lock / available / defeated status.
 /// </summary>
 public class GetVillainPathQueryHandlerTests
 {
@@ -21,10 +21,10 @@ public class GetVillainPathQueryHandlerTests
     }
 
     /// <summary>Creates sample villain tree nodes.</summary>
-    private static IEnumerable<VillainTreeNode> CreateSampleVillainTree()
+    private static VillainTreeNode[] CreateSampleVillainTree()
     {
-        return new[]
-        {
+        return
+        [
             // Root villains (no parent)
             new VillainTreeNode
             {
@@ -78,7 +78,7 @@ public class GetVillainPathQueryHandlerTests
                 DisplayOrder = 5,
                 CreatedAtUtc = DateTime.UtcNow
             }
-        };
+        ];
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────

@@ -153,7 +153,7 @@ csharp_prefer_braces = true:silent
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_style_prefer_method_group_conversion = true:silent
-csharp_style_prefer_primary_constructors = false:suggestion
+csharp_style_prefer_primary_constructors = false:none
 csharp_style_prefer_top_level_statements = false:silent
 
 # Expression-level preferences
@@ -489,16 +489,30 @@ dotnet_diagnostic.CA2254.severity = error       # Structured logging: template s
 dotnet_diagnostic.CA2263.severity = warning     # review roel 20250114
 dotnet_diagnostic.CA2264.severity = error
 
+# Test method naming convention
+dotnet_naming_symbols.test_members.applicable_kinds = method
+dotnet_naming_symbols.test_members.resharper_applicable_kinds = test_member
+
+dotnet_naming_style.test_method_with_underscores.capitalization = pascal_case
+dotnet_naming_style.test_method_with_underscores.required_prefix =
+dotnet_naming_style.test_method_with_underscores.required_suffix =
+dotnet_naming_style.test_method_with_underscores.word_separator = _
+
+dotnet_naming_rule.test_members_should_allow_underscores.symbols = test_members
+dotnet_naming_rule.test_members_should_allow_underscores.style = test_method_with_underscores
+dotnet_naming_rule.test_members_should_allow_underscores.severity = suggestion
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Path-based overrides
 # ─────────────────────────────────────────────────────────────────────────────
 
-[tests/*.Tests/**/*.cs]
+[tests/**/*.cs]
 dotnet_diagnostic.IDE1006.severity = none
+dotnet_diagnostic.CA1707.severity = none
 resharper_inconsistent_naming_highlighting = none
 
 # Migrations: class names and file names follow the FluentMigrator timestamp
 # convention and may contain underscores (e.g. M20240101_AddRegistrationTable).
-[scr/ScrambleCoin.Infrastructure/Migrations/*.cs]
+[src/ScrambleCoin.Infrastructure/Migrations/*.cs]
 dotnet_diagnostic.IDE1006.severity = none
 resharper_inconsistent_naming_highlighting = none

@@ -147,9 +147,9 @@ public class IcePatchesTests
         // Act: Move Elsa from (0,0) to (0,3) via (0,1), (0,2), (0,3)
         var segment = (IReadOnlyList<Position>)new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2),
-            new Position(0, 3)
+            new(0, 1),
+            new(0, 2),
+            new(0, 3)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
@@ -170,7 +170,7 @@ public class IcePatchesTests
         var (game, p1, _) = CreateGameInMovePhase();
 
         // Act: Move Elsa from (0,0) to (0,1) - only 1 step
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(0, 1) }.AsReadOnly();
+        var segment = (IReadOnlyList<Position>)new List<Position> { new(0, 1) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
         var elsaPiece = game.LineupPlayerOne!.Pieces[0];
@@ -212,8 +212,8 @@ public class IcePatchesTests
         // Act: Move Elsa from (0,0) to (0,2) via (0,1), (0,2)
         var segment = (IReadOnlyList<Position>)new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2)
+            new(0, 1),
+            new(0, 2)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
@@ -259,7 +259,7 @@ public class IcePatchesTests
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
         // Act: Jump piece jumps to (3, 3) which has an ice patch
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(3, 3) }.AsReadOnly();
+        var segment = (IReadOnlyList<Position>)new List<Position> { new(3, 3) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
         game.MovePiece(p1, jumpPiece.Id, segments);
@@ -277,9 +277,9 @@ public class IcePatchesTests
         // Act: Move Elsa to place ice patches
         var segment = (IReadOnlyList<Position>)new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2),
-            new Position(0, 3)
+            new(0, 1),
+            new(0, 2),
+            new(0, 3)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
