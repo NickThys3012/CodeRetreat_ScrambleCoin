@@ -1,14 +1,12 @@
 using System.Collections.Concurrent;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ScrambleCoin.Application.BotRegistration;
+using ScrambleCoin.Application.Games.Matchmaking;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
-using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
-using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Factories;
-using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Infrastructure.Services;
 
@@ -46,9 +44,11 @@ public sealed class QueueService : IQueueService
     // ── DI ────────────────────────────────────────────────────────────────────
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ISender _sender;
     private readonly ILogger<QueueService> _logger;
 
-    /// <param name="scopeFactory">Used to create scoped repository instances.</param>
+    /// <param name="scopeFactory">Used to create scoped repository instances for conflict checks.</param>
+    /// <param name="sender">MediatR sender used to dispatch <see cref="StartMatchCommand"/>.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="options">
     /// Queue configuration (timeout etc.).  May be <c>null</c> in unit-test contexts;
@@ -56,10 +56,12 @@ public sealed class QueueService : IQueueService
     /// </param>
     public QueueService(
         IServiceScopeFactory scopeFactory,
+        ISender sender,
         ILogger<QueueService> logger,
         IOptions<QueueOptions>? options = null)
     {
         _scopeFactory = scopeFactory;
+        _sender = sender;
         _logger = logger;
         _timeout = TimeSpan.FromMinutes(options?.Value.TimeoutMinutes ?? 5);
     }
@@ -104,13 +106,28 @@ public sealed class QueueService : IQueueService
         }
 
         // ── Cleanup timed-out waiting bots before attempting to pair ──────────
-
-        CleanupExpiredEntries();
+        // Uses lazy eviction: skip expired candidates while searching for a match.
 
         var queueId = Guid.NewGuid();
 
-        // Try to dequeue a waiting bot (compare-and-dequeue is atomic on ConcurrentQueue).
-        if (_waitingQueue.TryDequeue(out var waitingBot))
+        // Try to find a non-expired waiting bot.
+        WaitingBot? waitingBot = null;
+        while (_waitingQueue.TryDequeue(out var candidate))
+        {
+            if (!IsExpired(candidate.QueueId))
+            {
+                waitingBot = candidate;
+                break;
+            }
+            // Discard expired bot.
+            _entries.TryRemove(candidate.QueueId, out _);
+            _enqueuedAt.TryRemove(candidate.QueueId, out _);
+            if (candidate.BotToken.HasValue)
+                _waitingTokens.TryRemove(candidate.BotToken.Value, out _);
+            _logger.LogInformation("Queue entry expired and evicted: QueueId={QueueId}", candidate.QueueId);
+        }
+
+        if (waitingBot is not null)
         {
             // Remove the matched waiting bot's token from the tracking set.
             if (waitingBot.BotToken.HasValue)
@@ -118,52 +135,34 @@ public sealed class QueueService : IQueueService
 
             _enqueuedAt.TryRemove(waitingBot.QueueId, out _);
 
-            // ── Match found — create game, assign both bots ───────────────────
-            using var scope = _scopeFactory.CreateScope();
-            var gameRepo = scope.ServiceProvider.GetRequiredService<IGameRepository>();
-            var botRegRepo = scope.ServiceProvider.GetRequiredService<IBotRegistrationRepository>();
-
-            var board = new Board();
-            var game = Game.CreateShell(board);
-
-            // Assign waiting bot → PlayerOne slot.
-            var tokenOne = Guid.NewGuid();
-            var lineupOne = BuildLineup(game.PlayerOne, waitingBot.LineupPieceNames);
-            game.SetLineup(game.PlayerOne, lineupOne);
-            var regOne = new DomainBotReg(tokenOne, game.PlayerOne, game.Id);
-
-            // Assign incoming bot → PlayerTwo slot.
-            var tokenTwo = Guid.NewGuid();
-            var lineupTwo = BuildLineup(game.PlayerTwo, lineupPieceNames);
-            game.SetLineup(game.PlayerTwo, lineupTwo);
-            var regTwo = new DomainBotReg(tokenTwo, game.PlayerTwo, game.Id);
-
-            game.Start();
-
-            await gameRepo.SaveAsync(game, cancellationToken);
-            await botRegRepo.SaveAsync(regOne, cancellationToken);
-            await botRegRepo.SaveAsync(regTwo, cancellationToken);
+            // ── Match found — delegate game creation to StartMatchCommand ─────
+            var result = await _sender.Send(
+                new StartMatchCommand(waitingBot.LineupPieceNames, lineupPieceNames),
+                cancellationToken);
 
             // Update the waiting bot's entry so polling returns "matched".
             var matchedOne = new QueueEntry(
                 waitingBot.QueueId,
                 Status: "matched",
-                GameId: game.Id,
-                PlayerId: game.PlayerOne,
-                Token: tokenOne);
+                GameId: result.GameId,
+                PlayerId: result.PlayerOneId,
+                Token: result.PlayerOneToken);
             _entries[waitingBot.QueueId] = matchedOne;
 
             _logger.LogInformation(
                 "Queue matched: GameId={GameId}, P1QueueId={P1}, P2QueueId={P2}",
-                game.Id, waitingBot.QueueId, queueId);
+                result.GameId, waitingBot.QueueId, queueId);
 
-            // Return the incoming bot's matched entry (not stored — returned directly).
-            return new QueueEntry(
+            // Store the second bot's entry so they can poll if their HTTP response is lost.
+            var matchedTwo = new QueueEntry(
                 queueId,
                 Status: "matched",
-                GameId: game.Id,
-                PlayerId: game.PlayerTwo,
-                Token: tokenTwo);
+                GameId: result.GameId,
+                PlayerId: result.PlayerTwoId,
+                Token: result.PlayerTwoToken);
+            _entries[queueId] = matchedTwo;
+
+            return matchedTwo;
         }
 
         // ── No match yet — park this bot and return 202 ───────────────────
@@ -206,42 +205,10 @@ public sealed class QueueService : IQueueService
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Removes stale (timed-out) bots from the waiting queue.
-    /// Called before pairing to prevent matching a new bot with an already-expired one.
+    /// Returns <c>true</c> when the given queue entry has exceeded the configured timeout.
     /// </summary>
-    private void CleanupExpiredEntries()
-    {
-        var now = DateTimeOffset.UtcNow;
-
-        // Drain the queue, filter out expired bots, re-enqueue valid ones.
-        var remaining = new List<WaitingBot>();
-        while (_waitingQueue.TryDequeue(out var bot))
-        {
-            if (_enqueuedAt.TryGetValue(bot.QueueId, out var enqueuedAt) && now - enqueuedAt > _timeout)
-            {
-                // Expired — remove its entry and token tracking.
-                _entries.TryRemove(bot.QueueId, out _);
-                _enqueuedAt.TryRemove(bot.QueueId, out _);
-                if (bot.BotToken.HasValue)
-                    _waitingTokens.TryRemove(bot.BotToken.Value, out _);
-
-                _logger.LogInformation(
-                    "Expired waiting bot removed during cleanup: QueueId={QueueId}", bot.QueueId);
-            }
-            else
-            {
-                remaining.Add(bot);
-            }
-        }
-
-        foreach (var bot in remaining)
-            _waitingQueue.Enqueue(bot);
-    }
-
-    private static Lineup BuildLineup(Guid playerId, IReadOnlyList<string> pieceNames)
-    {
-        var pieces = pieceNames.Select(name => PieceFactory.Create(name, playerId)).ToList();
-        return new Lineup(pieces);
-    }
+    private bool IsExpired(Guid queueId) =>
+        _enqueuedAt.TryGetValue(queueId, out var enqueuedAt) &&
+        DateTimeOffset.UtcNow - enqueuedAt > _timeout;
 }
 
