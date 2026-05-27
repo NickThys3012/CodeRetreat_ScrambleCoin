@@ -12,4 +12,11 @@ public interface IGameRepository
 
     /// <summary>Persists the current state of a game.</summary>
     public Task SaveAsync(Game game, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns <c>true</c> when the given player has an active (InProgress) game.
+    /// </summary>
+    /// <param name="playerId">The player-slot identifier to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default);
 }

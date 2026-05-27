@@ -243,4 +243,7 @@ sealed class InMemoryGameRepository(Game initial) : IGameRepository
         game.ClearDomainEvents();
         return Task.CompletedTask;
     }
+
+    public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
 }

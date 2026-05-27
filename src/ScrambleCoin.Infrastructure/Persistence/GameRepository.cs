@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
@@ -60,6 +61,15 @@ public sealed class GameRepository : IGameRepository
 
         // Clear domain events after successful persistence (they are transient).
         game.ClearDomainEvents();
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
+    {
+        var inProgress = (int)GameStatus.InProgress;
+        return await _context.Games.AnyAsync(
+            g => (g.PlayerOne == playerId || g.PlayerTwo == playerId) && g.Status == inProgress,
+            cancellationToken);
     }
 
     // ── Extraction (Game → GameRecord) ────────────────────────────────────────
