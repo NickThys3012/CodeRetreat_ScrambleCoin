@@ -15,13 +15,13 @@ namespace ScrambleCoin.Application.Tests;
 /// </summary>
 public class PassiveAbilitiesIntegrationTests
 {
-    private const string DefaultLineupName1 = "Scrooge";
+    //private const string DefaultLineupName1 = "Scrooge";
     private const string DefaultLineupName2 = "Flynn";
     private const string DefaultLineupName3 = "Moana";
     private const string DefaultLineupName4 = "Mickey";
     private const string DefaultLineupName5 = "Minnie";
 
-    // ── Helper: Create game in MovePhase with ability pieces ───────────────────
+    // ── Helper: Create a game in MovePhase with ability pieces ───────────────────
 
     private static Game GameWithPassiveAbilityPiece(string abilityName, Position abilityPos, Position otherPlayerPos)
     {
@@ -72,7 +72,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Scrooge", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Scrooge piece is on board
+        // Assert: A Scrooge piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -100,7 +100,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Moana", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Moana piece is on board
+        // Assert: A Moana piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -114,7 +114,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Merlin", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Merlin piece is on board
+        // Assert: A Merlin piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -128,7 +128,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Rapunzel", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Rapunzel piece is on board
+        // Assert: A Rapunzel piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -142,7 +142,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Cinderella", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Cinderella piece is on board
+        // Assert: A Cinderella piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -156,7 +156,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Forky", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Forky piece is on board
+        // Assert: A Forky piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -170,7 +170,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Fairy Godmother", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Fairy Godmother piece is on board
+        // Assert: A Fairy Godmother piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -184,7 +184,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Ursula", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Ursula piece is on board
+        // Assert: An Ursula piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -198,7 +198,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Jafar", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Jafar piece is on board
+        // Assert: A Jafar piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -212,7 +212,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange & Act
         var game = GameWithPassiveAbilityPiece("Mike Wazowski", new Position(0, 0), new Position(7, 7));
 
-        // Assert: Mike Wazowski piece is on board
+        // Assert: A Mike Wazowski piece is on board
         var piecesOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null)
             .Select(t => t.AsPiece!.Name)
@@ -255,7 +255,7 @@ public class PassiveAbilitiesIntegrationTests
     [Fact]
     public void Game_WithMultiplePassiveAbilityTypes_BothExistInLineup()
     {
-        // Arrange: Create game with Scrooge (first player)
+        // Arrange: Create a game with Scrooge (first player)
         var game = GameWithPassiveAbilityPiece("Scrooge", new Position(0, 0), new Position(7, 7));
 
         // Act: Both players have pieces
@@ -298,7 +298,7 @@ public class PassiveAbilitiesIntegrationTests
             .FirstOrDefault(t => t.AsPiece?.Name == "Scrooge")?
             .AsPiece;
 
-        // Assert: Scrooge is a valid piece with proper entry type
+        // Assert: Scrooge is a valid piece with a proper entry type
         Assert.NotNull(scrooge);
         Assert.Equal(EntryPointType.Borders, scrooge.EntryPointType);
     }
@@ -314,7 +314,7 @@ public class PassiveAbilitiesIntegrationTests
             .FirstOrDefault(t => t.AsPiece?.Name == "Moana")?
             .AsPiece;
 
-        // Assert: Moana is a valid piece with proper movement type
+        // Assert: Moana is a valid piece with a proper movement type
         Assert.NotNull(moana);
         Assert.Equal(MovementType.Orthogonal, moana.MovementType);
     }
@@ -344,7 +344,7 @@ public class PassiveAbilitiesIntegrationTests
         // Arrange
         var game = GameWithPassiveAbilityPiece("Scrooge", new Position(0, 0), new Position(7, 7));
         var gameRepo = Substitute.For<IGameRepository>();
-        gameRepo.GetByIdAsync(game.Id).Returns(Task.FromResult(game as Game)!);
+        gameRepo.GetByIdAsync(game.Id).Returns(Task.FromResult(game));
 
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
         var logger = Substitute.For<ILogger<GetBoardStateQueryHandler>>();

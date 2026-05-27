@@ -1,0 +1,292 @@
+@using ScrambleCoin.Application.VillainTree
+@using System.Globalization
+
+@* Renders the villain DAG as a top-down path the player "walks".
+   Branches split left/right; multiple branches can converge back to one node.
+   Pass Interactive=true to allow click-to-select (SoloMode).
+   Pass Interactive=false for read-only admin views. *@
+
+<div style="overflow: auto; border-radius: 12px; background: #0a0a1a;
+            padding: 1.5rem; box-shadow: inset 0 0 40px rgba(0,0,0,0.6);">
+    @{
+        if (!AllNodes.Any()) { <div style="color:#666;text-align:center;padding:2rem;">No villains yet.</div> return; }
+
+        var positioned = ComputePositions(AllNodes);
+        const double nodeW = 140, nodeH = 76, colStep = 185, rowStep = 140;
+        const double padX = 30, padY = 30;
+
+        var maxCol = positioned.Max(n => n.Col);
+        var    maxRow = positioned.Max(n => n.Row);
+
+        var svgW = (maxCol + 1) * colStep + nodeW + padX * 2;
+        var svgH = (maxRow + 1) * rowStep + nodeH + padY * 2;
+
+        var byId = positioned.ToDictionary(n => n.Node.VillainId);
+    }
+
+    <div style="position:relative;width:@Px(svgW);height:@Px(svgH);min-width:300px;">
+
+        @* ── SVG layer: path connectors ─────────────────────────── *@
+        <svg style="position:absolute;top:0;left:0;pointer-events:none;"
+             width="@Px(svgW)" height="@Px(svgH)">
+            <defs>
+                <filter id="path-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+
+            @* Draw one edge per (parent → child) relationship *@
+            @foreach (var pos in positioned)
+            {
+                foreach (var parentId in pos.Node.RequiredParentVillainIds)
+                {
+                    if (!byId.TryGetValue(parentId, out var parentPos)) continue;
+
+                    var lit = IsOnSelectedPath(parentId, byId) &&
+                               IsOnSelectedPath(pos.Node.VillainId, byId);
+
+                    var x1   = NodeCx(parentPos.Col, colStep, nodeW, padX);
+                    var y1   = NodeBottom(parentPos.Row, rowStep, nodeH, padY);
+                    var x2   = NodeCx(pos.Col, colStep, nodeW, padX);
+                    var y2   = NodeTop(pos.Row, rowStep, padY);
+                    var midY = (y1 + y2) / 2;
+
+                    @* Multiple-parent merge: draw a small diamond indicator at the midpoint *@
+                    var isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
+
+                    <path d="M @F(x1),@F(y1) C @F(x1),@F(midY) @F(x2),@F(midY) @F(x2),@F(y2)"
+                          stroke="@(lit ? "#f5a623" : isMerge ? "#9c88ff" : "#2a2a4a")"
+                          stroke-width="@(lit ? "4" : "3")"
+                          fill="none"
+                          stroke-linecap="round"
+                          filter="@(lit ? "url(#path-glow)" : "none")"
+                          stroke-dasharray="@(lit ? "none" : "7,4")" />
+                }
+            }
+
+            @* Merge-point markers: small diamond on nodes that have 2+ parents *@
+            @foreach (var pos in positioned.Where(p => p.Node.RequiredParentVillainIds.Count() > 1))
+            {
+                var cx = NodeCx(pos.Col, colStep, nodeW, padX);
+                var cy = NodeTop(pos.Row, rowStep, padY) - 10;
+                <polygon points="@F(cx),@F(cy-8) @F(cx+8),@F(cy) @F(cx),@F(cy+8) @F(cx-8),@F(cy)"
+                         fill="#9c88ff" opacity="0.8" />
+            }
+        </svg>
+
+        @* ── Start markers ───────────────────────────────────────── *@
+        @foreach (var root in positioned.Where(n => n.Row == 0))
+        {
+            var markerX = NodeLeft(root.Col, colStep, nodeW, padX) + nodeW / 2 - 18;
+            const double markerY = padY - 24;
+            <div style="position:absolute;left:@Px(markerX);top:@Px(markerY);
+                        font-size:0.65rem;color:#555;text-align:center;width:36px;">
+                🚶 START
+            </div>
+        }
+
+        @* ── Villain node cards ──────────────────────────────────── *@
+        @foreach (var pos in positioned)
+        {
+            var sel    = pos.Node.VillainId == SelectedVillainId;
+            var onPath = IsOnSelectedPath(pos.Node.VillainId, byId);
+            var isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
+
+            var left = NodeLeft(pos.Col, colStep, nodeW, padX);
+            var top  = pos.Row * rowStep + padY;
+
+            var border = sel    ? "2px solid #f5a623"
+                          : onPath ? "2px solid #7b6eff"
+                          : isMerge ? "2px solid #9c88ff"
+                                    : "2px solid #222";
+            var bg     = sel    ? "rgba(245,166,35,0.12)"
+                          : onPath ? "rgba(123,110,255,0.1)"
+                                   : "rgba(18,18,36,0.97)";
+            var shadow = sel    ? "0 0 20px rgba(245,166,35,0.55)"
+                          : onPath ? "0 0 10px rgba(123,110,255,0.3)"
+                                   : "0 2px 10px rgba(0,0,0,0.6)";
+            var scale  = sel ? "scale(1.07)" : "scale(1)";
+            var cursor = Interactive ? "pointer" : "default";
+
+            <div style="position:absolute;left:@Px(left);top:@Px(top);width:@Px(nodeW);
+                        cursor:@cursor;transition:transform 0.18s,box-shadow 0.18s;
+                        transform:@scale;z-index:2;"
+                 @onclick="@(Interactive ? EventCallback.Factory.Create(this, () => HandleClick(pos.Node.VillainId)) : default)">
+
+                <div style="background:@bg;border:@border;border-radius:10px;
+                            padding:8px 10px;text-align:center;box-shadow:@shadow;">
+
+                    <div style="font-size:1.7rem;line-height:1.1;">@GetEmoji(pos.Node.VillainName)</div>
+
+                    <div style="font-size:0.78rem;font-weight:700;margin-top:3px;
+                                color:@(sel ? "#f5a623" : "#ddd");">
+                        @pos.Node.VillainName
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(pos.Node.UnlockedPieceId))
+                    {
+                        <div style="font-size:0.62rem;color:#9c88ff;margin-top:3px;">
+                            🎁 @pos.Node.UnlockedPieceId
+                        </div>
+                    }
+
+                    @if (isMerge)
+                    {
+                        <div style="font-size:0.58rem;color:#9c88ff;margin-top:3px;">
+                            ⬡ complete any @pos.Node.RequiredParentVillainIds.Count() paths
+                        </div>
+                    }
+                    else if (Interactive && pos.Node.Children.Count() > 1)
+                    {
+                        <div style="font-size:0.58rem;color:#555;margin-top:4px;">← CHOOSE →</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>All villain nodes (flat list). Roots and parent relationships are derived internally.</summary>
+    [Parameter] public List<VillainNodeDto> AllNodes { get; set; } = [];
+    [Parameter] public string? SelectedVillainId { get; set; }
+    [Parameter] public EventCallback<string?> SelectedVillainIdChanged { get; set; }
+    [Parameter] public bool Interactive { get; set; } = true;
+
+    // ── Position model ────────────────────────────────────────────────────────
+
+    private record PositionedNode(VillainNodeDto Node, double Col, int Row);
+
+    /// <summary>
+    /// DAG layout: row = BFS depth from any root; col = derived bottom-up from leaf positions.
+    /// After the initial assignment, same-row nodes are de-conflicted, so no two share a column.
+    /// </summary>
+    private static List<PositionedNode> ComputePositions(List<VillainNodeDto> all)
+    {
+        if (!all.Any()) return [];
+
+        // Step 1: compute row (= max BFS depth from any root)
+        var rowMap = new Dictionary<string, int>();
+        var queue  = new Queue<VillainNodeDto>();
+
+        foreach (var root in all.Where(n => !n.RequiredParentVillainIds.Any()))
+        {
+            rowMap[root.VillainId] = 0;
+            queue.Enqueue(root);
+        }
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            foreach (var child in all.Where(n => n.RequiredParentVillainIds.Contains(node.VillainId)))
+            {
+                var proposed = rowMap[node.VillainId] + 1;
+                if (rowMap.TryGetValue(child.VillainId, out var existing) && proposed <= existing)
+                    continue;
+                rowMap[child.VillainId] = proposed;
+                queue.Enqueue(child);
+            }
+        }
+        // Any node not reached (disconnected) gets row 0
+        foreach (var n in all.Where(n => !rowMap.ContainsKey(n.VillainId)))
+            rowMap[n.VillainId] = 0;
+
+        // Step 2: assign columns bottom-up (leaves first)
+        var colMap    = new Dictionary<string, double>();
+        double nextLeaf = 0;
+
+        var rowOrder = all.GroupBy(n => rowMap[n.VillainId])
+                          .OrderByDescending(g => g.Key);   // deepest first
+
+        foreach (var rowGroup in rowOrder)
+        {
+            foreach (var node in rowGroup.OrderBy(n => n.DisplayOrder))
+            {
+                var childCols = all
+                    .Where(c => c.RequiredParentVillainIds.Contains(node.VillainId) && colMap.ContainsKey(c.VillainId))
+                    .Select(c => colMap[c.VillainId])
+                    .ToList();
+
+                colMap[node.VillainId] = childCols.Any() ? childCols.Average() : nextLeaf++;
+            }
+        }
+
+        // Step 3: de-conflict — nodes in the same row must be ≥ 1 unit apart
+        foreach (var rowGroup in all.GroupBy(n => rowMap[n.VillainId]))
+        {
+            var sorted = rowGroup.OrderBy(n => colMap[n.VillainId]).ToList();
+            for (var i = 1; i < sorted.Count; i++)
+            {
+                if (colMap[sorted[i].VillainId] - colMap[sorted[i - 1].VillainId] < 1.0)
+                    colMap[sorted[i].VillainId] = colMap[sorted[i - 1].VillainId] + 1.0;
+            }
+        }
+
+        return all.Select(n => new PositionedNode(n, colMap[n.VillainId], rowMap[n.VillainId])).ToList();
+    }
+
+    // ── Path highlighting ─────────────────────────────────────────────────────
+
+    private bool IsOnSelectedPath(string villainId, Dictionary<string, PositionedNode> byId)
+    {
+        if (SelectedVillainId is null) return false;
+        if (villainId == SelectedVillainId) return true;
+
+        // Walk ancestors of SelectedVillainId looking for villainId
+        var visited = new HashSet<string>();
+        var stack   = new Stack<string>();
+        stack.Push(SelectedVillainId);
+        while (stack.Count > 0)
+        {
+            var cur = stack.Pop();
+            if (!visited.Add(cur)) continue;
+            if (!byId.TryGetValue(cur, out var pos)) continue;
+            foreach (var pid in pos.Node.RequiredParentVillainIds)
+            {
+                if (pid == villainId) return true;
+                stack.Push(pid);
+            }
+        }
+        return false;
+    }
+
+    // ── Interaction ───────────────────────────────────────────────────────────
+
+    private async Task HandleClick(string villainId)
+    {
+        SelectedVillainId = SelectedVillainId == villainId ? null : villainId;
+        await SelectedVillainIdChanged.InvokeAsync(SelectedVillainId);
+    }
+
+    // ── Coordinate helpers ────────────────────────────────────────────────────
+
+    private static double NodeLeft(double col, double colStep, double nodeW, double padX)  => col * colStep + padX;
+    private static double NodeCx(double col, double colStep, double nodeW, double padX)    => col * colStep + nodeW / 2 + padX;
+    private static double NodeBottom(int row, double rowStep, double nodeH, double padY)   => row * rowStep + nodeH + padY;
+    private static double NodeTop(int row, double rowStep, double padY)                    => row * rowStep + padY;
+
+    private static string Px(double v) => v.ToString("F1", CultureInfo.InvariantCulture) + "px";
+    private static string F(double v)  => v.ToString("F1", CultureInfo.InvariantCulture);
+
+    // ── Emoji map ─────────────────────────────────────────────────────────────
+
+    private static string GetEmoji(string name) => name.ToLowerInvariant() switch
+    {
+        "stitch"        => "👽",
+        "jafar"         => "🧞",
+        "elsa"          => "❄️",
+        "ursula"        => "🐙",
+        "maleficent"    => "🦇",
+        "gaston"        => "💪",
+        "scar"          => "🦁",
+        "cruella"       => "🐾",
+        "hades"         => "💀",
+        "hans"          => "🤺",
+        "mother gothel" => "🌹",
+        "yzma"          => "💜",
+        "ratcliffe"     => "⚔️",
+        "tamatoa"       => "🦀",
+        "stromboli"     => "🎭",
+        _               => "👿"
+    };
+}

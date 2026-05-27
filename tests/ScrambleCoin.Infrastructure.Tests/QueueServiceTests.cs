@@ -141,7 +141,7 @@ public class QueueServiceTests
 
         // Assert: polling returns the same waiting entry.
         Assert.NotNull(polled);
-        Assert.Equal("waiting", polled!.Status);
+        Assert.Equal("waiting", polled.Status);
         Assert.Equal(first.QueueId, polled.QueueId);
     }
 
@@ -158,7 +158,7 @@ public class QueueServiceTests
 
         // Assert: the waiting entry has been updated to "matched".
         Assert.NotNull(polled);
-        Assert.Equal("matched", polled!.Status);
+        Assert.Equal("matched", polled.Status);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class QueueServiceTests
 
         // Assert
         Assert.NotNull(polledEntry);
-        Assert.NotNull(polledEntry!.GameId);
+        Assert.NotNull(polledEntry.GameId);
         Assert.NotEqual(Guid.Empty, polledEntry.GameId!.Value);
     }
 
@@ -191,7 +191,7 @@ public class QueueServiceTests
 
         // Assert
         Assert.NotNull(polledEntry);
-        Assert.NotNull(polledEntry!.PlayerId);
+        Assert.NotNull(polledEntry.PlayerId);
         Assert.NotEqual(Guid.Empty, polledEntry.PlayerId!.Value);
     }
 
@@ -208,7 +208,7 @@ public class QueueServiceTests
 
         // Assert
         Assert.NotNull(polledEntry);
-        Assert.NotNull(polledEntry!.Token);
+        Assert.NotNull(polledEntry.Token);
         Assert.NotEqual(Guid.Empty, polledEntry.Token!.Value);
     }
 

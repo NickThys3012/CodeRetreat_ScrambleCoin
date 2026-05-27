@@ -12,10 +12,9 @@ public class VillainStrategyTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Board NewBoard() => new Board();
+    private static Board NewBoard() => new();
 
-    private static Lineup NewLineup(Guid playerId) =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}", playerId)).ToList());
+    private static Lineup NewLineup(Guid playerId) => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}", playerId)).ToList());
 
     /// <summary>
     /// Creates a Game in InProgress state with villain (PlayerTwo) ready for testing.
@@ -63,7 +62,7 @@ public class VillainStrategyTests
         var (game, p1, villainId) = StartedGameWithVillain();
         var strategy = new ElsaStrategy();
 
-        // Advance to move phase and place a piece for villain
+        // Advance to move phase and place a piece for the villain
         AdvanceToMovePhase(game);
 
         // Villain has no pieces on board yet, should skip
@@ -90,11 +89,11 @@ public class VillainStrategyTests
         // Now we should be in MovePhase (or possibly next phase)
         // This test ensures the strategy can handle the game state
         // without crashing when no coins are on board
-        if (game.CurrentPhase == TurnPhase.MovePhase)
-        {
-            var action = strategy.DecideAction(game, villainId);
-            Assert.IsType<SkipMovementAction>(action);
-        }
+        if (game.CurrentPhase != TurnPhase.MovePhase)
+            return;
+        
+        var action = strategy.DecideAction(game, villainId);
+        Assert.IsType<SkipMovementAction>(action);
     }
 
     [Fact]

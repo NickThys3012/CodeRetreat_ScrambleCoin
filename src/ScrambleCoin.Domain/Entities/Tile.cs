@@ -13,7 +13,7 @@ public sealed class Tile
     /// <summary>
     /// The current occupant of this tile. Can be a <see cref="Coin"/>, a <see cref="Piece"/>, or null.
     /// </summary>
-    public object? Occupant { get; private set; }
+    private object? Occupant { get; set; }
 
     public bool IsEmpty => Occupant is null;
 

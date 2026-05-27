@@ -12,8 +12,7 @@ public class CoinSpawningTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Lineup NewLineup() =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
+    private static Lineup NewLineup() => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
 
     /// <summary>
     /// Creates a Game that has been started. After Start() the game is in
@@ -309,7 +308,7 @@ public class CoinSpawningTests
     {
         var board = new Board();
         var piecePosition = new Position(5, 5);
-        board.GetTile(piecePosition).SetOccupant(PieceFactory.Any("TestPiece"));
+        board.GetTile(piecePosition).SetOccupant(PieceFactory.Any());
 
         var freeTiles = board.GetFreeTiles();
 

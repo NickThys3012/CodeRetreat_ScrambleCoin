@@ -13,8 +13,8 @@ namespace ScrambleCoin.Infrastructure.Persistence;
 /// <summary>
 /// EF Core-backed implementation of <see cref="IGameRepository"/>.
 /// Persists the <see cref="Game"/> aggregate by mapping its state to a <see cref="GameRecord"/>
-/// POCO (scalar columns + JSON columns for complex structures) and reconstructing
-/// the domain object on load via reflection where private setters/fields are involved.
+/// POCO (scalar columns and JSON columns for complex structures) and reconstructing
+/// the domain object on a load via reflection where private setters/fields are involved.
 /// </summary>
 public sealed class GameRepository : IGameRepository
 {
@@ -77,6 +77,8 @@ public sealed class GameRepository : IGameRepository
             PlayerOne = game.PlayerOne,
             PlayerTwo = game.PlayerTwo,
             Status = (int)game.Status,
+            GameMode = (int)game.GameMode,
+            VillainId = game.VillainId,
             TurnNumber = game.TurnNumber,
             CurrentPhase = game.CurrentPhase.HasValue ? (int)game.CurrentPhase.Value : null,
             MovePhaseActivePlayer = game.MovePhaseActivePlayer,
@@ -107,7 +109,7 @@ public sealed class GameRepository : IGameRepository
             ? JsonSerializer.Deserialize<List<PieceDto>>(record.LineupPlayerTwoJson, JsonOptions) ?? []
             : [];
 
-        // 2. Materialise Piece domain objects (Position is applied below).
+        // 2. Materialize Piece domain objects (Position is applied below).
         var piecesOne = pieceDtosOne.Select(ReconstructPiece).ToList();
         var piecesTwo = pieceDtosTwo.Select(ReconstructPiece).ToList();
 
@@ -115,7 +117,7 @@ public sealed class GameRepository : IGameRepository
             .Concat(piecesTwo)
             .ToDictionary(p => p.Id);
 
-        // 3. Reconstruct Board with obstacles.
+        // 3. Reconstruct the Board with obstacles.
         var board = new Board();
         var boardState = JsonSerializer.Deserialize<BoardStateDto>(record.BoardStateJson, JsonOptions);
 
@@ -151,8 +153,8 @@ public sealed class GameRepository : IGameRepository
             }
         }
 
-        // 5. Create Game via the standard constructor.
-        //    The constructor initialises _scores and _piecesOnBoard to zeroes; we override them below.
+        // 5. Create a Game via the standard constructor.
+        //    The constructor initializes _scores and _piecesOnBoard to zeroes; we override them below.
         var game = new Game(record.Id, record.PlayerOne, record.PlayerTwo, board);
 
         var gameType = typeof(Game);
@@ -163,6 +165,10 @@ public sealed class GameRepository : IGameRepository
         SetPrivateProperty(gameType, nameof(Game.CurrentPhase), game,
             record.CurrentPhase.HasValue ? (TurnPhase?)(TurnPhase)record.CurrentPhase.Value : null);
         SetPrivateProperty(gameType, nameof(Game.MovePhaseActivePlayer), game, record.MovePhaseActivePlayer);
+
+        // Restore GameMode and VillainId
+        game.GameMode = (GameMode)record.GameMode;
+        game.VillainId = record.VillainId;
 
         // 7. Restore Lineups (bypasses the WaitingForBots guard in SetLineup).
         if (piecesOne.Count > 0)
@@ -253,7 +259,7 @@ public sealed class GameRepository : IGameRepository
 
     private static string SerializeGuidIntDictionary(IReadOnlyDictionary<Guid, int> dict)
     {
-        // Convert Guid keys to strings for JSON serialisation.
+        // Convert Guid keys to strings for JSON serialization.
         var strDict = dict.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value);
         return JsonSerializer.Serialize(strDict, JsonOptions);
     }

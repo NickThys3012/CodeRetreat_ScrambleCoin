@@ -23,11 +23,6 @@ namespace ScrambleCoin.Web.Tests;
 /// </summary>
 public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestWebApplicationFactory>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TestWebApplicationFactory _factory;
 
     public PlacementEndpointTests(TestWebApplicationFactory factory)
@@ -39,7 +34,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
 
     public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
-        // Unique DB name per factory instance so test classes don't share state.
+        // Unique DB name per factory instance, so test classes don't share a state.
         private readonly string _dbName = $"PlacementTestDb_{Guid.NewGuid()}";
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -220,7 +215,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         game.Start();           // → CoinSpawn Turn 1
         game.AdvancePhase();    // → PlacePhase Turn 1
 
-        // P1 places piece0 at corner (0, 0); P2 skips → auto-advance to MovePhase
+        // P1 places piece0 in a corner (0, 0); P2 skips → auto-advance to MovePhase
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
         game.SkipPlacement(p2); // → MovePhase Turn 1
 
@@ -326,7 +321,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
             action = "replace",
             pieceId = offBoardPieceId,          // new piece (currently off-board)
             replacedPieceId = onBoardPieceId // piece to remove (currently at (0, 0))
-            // position is no longer required for replace — new piece lands at old piece's tile
+            // position is no longer required for replacement — a new piece lands at old piece's tile
         };
 
         // Act
@@ -416,7 +411,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
     [Fact]
     public async Task Place_OnObstacleTile_Returns400()
     {
-        // Arrange: board has a Rock at edge tile (0, 2) — valid entry point but covered
+        // Arrange: board has a Rock at edge tile (0, 2) — a valid entry point but covered
         var (game, tokenP1, _, pieceId) = await SeedGameWithObstacleAtEdgeAsync();
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
@@ -454,7 +449,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ── AC 8 : X-Bot-Token doesn't match any player → 403 ────────────────────
+    // ── AC 8: X-Bot-Token doesn't match any player → 403 ────────────────────
 
     [Fact]
     public async Task Place_WithUnknownToken_Returns403()
@@ -478,19 +473,19 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
     [Fact]
     public async Task Place_WithNonExistentGameId_Returns404()
     {
-        // Arrange: use a valid token from a real game, but target a different (non-existent) gameId
+        // Arrange: use a valid token from a real game but target a different (non-existent) gameId
         var (_, tokenP1, _, _, _) = await SeedGameInPlacePhaseAsync();
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Use the tokenP1 but point to a non-existent game
         // The token lookup checks registration.GameId != gameId, so this returns 403 first.
-        // To get a 404 we need a token registered to the nonExistentGameId — which doesn't exist.
-        // Instead, we call without a registered token so the registration lookup returns null → 403.
-        // For a true 404, we need to reach the game repository. Let's test by using a valid token
+        // To get a 404, we need a token registered to the nonExistentGameId — which doesn't exist.
+        // Instead, we call without a registered token, so the registration lookup returns null → 403.
+        // For a true 404, we need to reach the game repository. Let's test it by using a valid token
         // for another game against a fresh random gameId that was never created.
         // NOTE: The endpoint checks token→gameId match BEFORE loading the game, so a mismatched
-        // gameId returns 403. To trigger 404 we need a token whose GameId points to a deleted game.
+        // gameId returns 403. To trigger 404, we need a token whose GameId points to a deleted game.
         // We simulate by registering a token pointing to a non-existent gameId.
         using var scope = _factory.Services.CreateScope();
         var botRepo = scope.ServiceProvider.GetRequiredService<IBotRegistrationRepository>();
@@ -509,13 +504,13 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // ── AC 10 : same player acts twice in same phase → 409 ───────────────────
+    // ── AC 10: the same player acts twice in the same phase → 409 ───────────────────
 
     [Fact]
     public async Task Place_SamePlayerActsTwice_Returns409()
     {
         // Arrange
-        var (game, tokenP1, _, p1Pieces, _) = await SeedGameInPlacePhaseAsync();
+        var (game, tokenP1, _, _, _) = await SeedGameInPlacePhaseAsync();
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
@@ -532,7 +527,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
-    // ── AC 11 : phase auto-advances to MovePhase when both players act ────────
+    // ── AC 11: phase auto-advances to MovePhase when both players act ────────
 
     [Fact]
     public async Task Place_BothPlayersSkip_PhaseAdvancesToMovePhase()

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -106,10 +107,10 @@ public class MultiStepMovementIntegrationTests
     /// <summary>
     /// Builds a multi-segment move list from individual segment paths.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[][] segments)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[][] segments)
     {
         return segments
-            .Select(s => (IReadOnlyList<Position>)s.ToList().AsReadOnly())
+            .Select(IReadOnlyList<Position> (s) => s.ToList().AsReadOnly())
             .ToList()
             .AsReadOnly();
     }
@@ -518,7 +519,7 @@ public class MultiStepMovementIntegrationTests
                 )),
             CancellationToken.None);
 
-        // Assert: SaveAsync called exactly once with complete game state
+        // Assert: SaveAsync called exactly once with the complete game state
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
         Assert.Equal(new Position(2, 4), cogsworth.Position);
     }

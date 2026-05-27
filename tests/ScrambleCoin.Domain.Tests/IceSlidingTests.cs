@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
@@ -5,7 +6,7 @@ using ScrambleCoin.Domain.ValueObjects;
 namespace ScrambleCoin.Domain.Tests;
 
 /// <summary>
-/// Unit tests for ice patch sliding behavior (Issue #47 - Cycle 2).
+/// Unit tests for ice patch sliding behaviour (Issue #47 - Cycle 2).
 /// Tests that non-Jump pieces slide one extra tile when landing on ice patches.
 /// </summary>
 public class IceSlidingTests
@@ -52,7 +53,7 @@ public class IceSlidingTests
     /// <summary>
     /// Builds a single-segment move list.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
         var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
@@ -67,7 +68,7 @@ public class IceSlidingTests
         var (game, p1, piece) = CreateGameWithPieceInMovePhase(new Position(0, 0));
         game.Board.PlaceIcePatch(new Position(0, 2));
 
-        // Act: move piece to (0,2) — should slide to (0,3)
+        // Act: move a piece to (0,2) — should slide to (0,3)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
         // Assert: piece ends at (0,3) after sliding
@@ -84,7 +85,7 @@ public class IceSlidingTests
 
         var initialScore = game.Scores[p1];
 
-        // Act: move piece to (0,2) — should slide to (0,3) and collect coin
+        // Act: move a piece to (0,2) — should slide to (0,3) and collect coin
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
         // Assert: piece at (0,3), coin collected
@@ -99,10 +100,10 @@ public class IceSlidingTests
         var (game, p1, piece) = CreateGameWithPieceInMovePhase(new Position(0, 5));
         game.Board.PlaceIcePatch(new Position(0, 6));
 
-        // Act: move piece to (0,6) — slide would go to (0,7) which is the edge
+        // Act: move a piece to (0,6) — slide would go to (0,7) which is the edge
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 6)));
 
-        // Assert: piece stops at (0,7) (board edge)
+        // Assert: a piece stops at (0,7) (board edge)
         Assert.Equal(new Position(0, 7), piece.Position);
     }
 
@@ -114,10 +115,10 @@ public class IceSlidingTests
         game.Board.PlaceIcePatch(new Position(0, 2));
         game.Board.AddRock(new Obstacles.Rock(new Position(0, 3)));
 
-        // Act: move piece to (0,2) — try to slide to (0,3) but blocked by rock
+        // Act: move a piece to (0,2) — try to slide to (0,3) but blocked by rock
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
-        // Assert: piece stays at (0,2) (no slide due to obstacle)
+        // Assert: piece stays at (0,2) (no slide due to an obstacle)
         Assert.Equal(new Position(0, 2), piece.Position);
     }
 
@@ -133,7 +134,7 @@ public class IceSlidingTests
         p2.PlaceAt(new Position(0, 3));
         game.Board.GetTile(new Position(0, 3)).SetOccupant(p2);
 
-        // Act: move piece to (0,2) — try to slide to (0,3) but blocked by piece
+        // Act: move a piece to (0,2) — try to slide to (0,3) but blocked by piece
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
         // Assert: piece stays at (0,2) (no slide due to piece)
@@ -148,7 +149,7 @@ public class IceSlidingTests
         game.Board.PlaceIcePatch(new Position(0, 2));
         game.Board.PlaceIcePatch(new Position(0, 3));
 
-        // Act: move piece to (0,2) — should slide to (0,3), then stop (no cascade)
+        // Act: move a piece to (0,2) — should slide to (0,3), then stop (no cascade)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
         // Assert: piece ends at (0,3) after one slide (does not cascade)
@@ -161,7 +162,7 @@ public class IceSlidingTests
         // Arrange: piece at (0,0), no ice patches
         var (game, p1, piece) = CreateGameWithPieceInMovePhase(new Position(0, 0));
 
-        // Act: move piece to (0,2)
+        // Act: move a piece to (0,2)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
         // Assert: piece stays at (0,2) (no slide)
@@ -183,7 +184,7 @@ public class IceSlidingTests
         // Act: move diagonally to (2,2) — should slide to (3,3)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(1, 1), new Position(2, 2)));
 
-        // Assert: piece ends at (3,3)
+        // Assert: a piece ends at (3,3)
         Assert.Equal(new Position(3, 3), piece.Position);
     }
 
@@ -219,7 +220,7 @@ public class IceSlidingTests
         // Act: Jump to (3,3) which has an ice patch
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(3, 3)));
 
-        // Assert: piece ends at (3,3), no slide
+        // Assert: a piece ends at (3,3), no slide
         Assert.Equal(new Position(3, 3), piece.Position);
     }
 
@@ -237,8 +238,8 @@ public class IceSlidingTests
 
         // Act: move 1 → (0,2) slides to (0,3)
         //      move 2 → (0,5) from (0,3)
-        var segment1 = (IReadOnlyList<Position>)new List<Position> { new Position(0, 1), new Position(0, 2) }.AsReadOnly();
-        var segment2 = (IReadOnlyList<Position>)new List<Position> { new Position(0, 4), new Position(0, 5) }.AsReadOnly();
+        var segment1 = (IReadOnlyList<Position>)new List<Position> { new(0, 1), new(0, 2) }.AsReadOnly();
+        var segment2 = (IReadOnlyList<Position>)new List<Position> { new(0, 4), new(0, 5) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment1, segment2 }.AsReadOnly();
 
         game.MovePiece(p1, piece.Id, segments);
@@ -262,7 +263,7 @@ public class IceSlidingTests
         // Act: Ethereal move to (0,2) → slide to (0,3)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
-        // Assert: piece ends at (0,3)
+        // Assert: a piece ends at (0,3)
         Assert.Equal(new Position(0, 3), piece.Position);
     }
 
@@ -295,10 +296,10 @@ public class IceSlidingTests
             movementType: MovementType.Charge);
         game.Board.PlaceIcePatch(new Position(0, 3));
 
-        // Act: Charge right (first step to (0,1)) — charge passes through ice patch and continues to board edge
+        // Act: Charge right (first step to (0,1)) — charge passes through an ice patch and continues to board edge
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1)));
 
-        // Assert: piece charged all the way to board edge (0,7), passing through ice patch
+        // Assert: a piece charged all the way to the board edge (0,7), passing through an ice patch
         Assert.Equal(new Position(0, 7), piece.Position);
     }
 
@@ -316,9 +317,9 @@ public class IceSlidingTests
         // Act: Charge right (first step to (0,1)) → charge stops at (0,4) due to rock
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1)));
 
-        // Assert: piece charged to (0,4) where ice patch is, then tries to slide but... 
+        // Assert: piece charged to (0,4) where an ice patch is, then tries to slide but... 
         // wait, if charge ends at (0,4) with rock at (0,5), then slide would try (0,5) which is blocked
-        // So piece stays at (0,4)
+        // So a piece stays at (0,4)
         Assert.Equal(new Position(0, 4), piece.Position);
     }
 
@@ -348,7 +349,7 @@ public class IceSlidingTests
             movementType: MovementType.Charge);
         game.Board.PlaceIcePatch(new Position(0, 6));
 
-        // Act: Charge right to (0,6), then slide toward edge
+        // Act: Charge right to (0,6), then slide toward the edge
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 6)));
 
         // Assert: piece ends at (0,7) (board edge)
@@ -367,7 +368,7 @@ public class IceSlidingTests
         // Act: move to (0,2), slide to (0,3)
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
-        // Assert: full path includes the slide
+        // Assert: a full path includes the slide
         var evt = game.DomainEvents.OfType<Events.PieceMoved>().Single();
         Assert.Contains(new Position(0, 1), evt.Path);
         Assert.Contains(new Position(0, 2), evt.Path);
@@ -385,7 +386,7 @@ public class IceSlidingTests
         // Act: move to (0,2), slide blocked by rock
         game.MovePiece(p1, piece.Id, BuildSegments(new Position(0, 1), new Position(0, 2)));
 
-        // Assert: full path does not include blocked slide position
+        // Assert: a full path does not include a blocked slide position
         var evt = game.DomainEvents.OfType<Events.PieceMoved>().Single();
         Assert.Contains(new Position(0, 1), evt.Path);
         Assert.Contains(new Position(0, 2), evt.Path);

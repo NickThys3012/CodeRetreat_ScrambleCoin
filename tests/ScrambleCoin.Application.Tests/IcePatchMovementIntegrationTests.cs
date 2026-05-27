@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -257,7 +258,7 @@ public class IcePatchMovementIntegrationTests
     /// <summary>
     /// Builds a segment list for orthogonal movement (one step).
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegment(Position step)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegment(Position step)
         => new List<IReadOnlyList<Position>>
         {
             new List<Position> { step }.AsReadOnly()
@@ -266,7 +267,7 @@ public class IcePatchMovementIntegrationTests
     /// <summary>
     /// Builds a multistep segment for orthogonal movement.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildMultiSegment(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildMultiSegment(params Position[] steps)
         => new List<IReadOnlyList<Position>>
         {
             steps.ToList().AsReadOnly()
@@ -469,10 +470,10 @@ public class IcePatchMovementIntegrationTests
                 BuildMultiSegment(new Position(0, 1), new Position(0, 2), new Position(0, 3))),
             CancellationToken.None);
 
-        var patchCount = game.Board.GetIcePatches().Count();
+        var patchCount = game.Board.GetIcePatches().Count;
 
         Assert.True(game.Board.GetIcePatches().Any());
-        Assert.Equal(patchCount, game.Board.GetIcePatches().Count());
+        Assert.Equal(patchCount, game.Board.GetIcePatches().Count);
     }
 
     [Fact]

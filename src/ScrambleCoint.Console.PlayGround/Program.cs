@@ -59,6 +59,7 @@ Console.WriteLine($"  P1 score : {s1}");
 Console.WriteLine($"  P2 score : {s2}");
 Console.WriteLine($"  Result   : {(s1 > s2 ? "P1 wins 🏆" : s2 > s1 ? "P2 wins 🏆" : "Draw 🤝")}");
 Console.ReadLine();
+return;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ Lineup CreateLineup(Guid playerId, params string[] names)
 void PlaceForPlayer(Game g, Guid playerId, string label)
 {
     var lineup = playerId == p1 ? g.LineupPlayerOne! : g.LineupPlayerTwo!;
-    var onBoard = g.PiecesOnBoard.TryGetValue(playerId, out var cnt) ? cnt : 0;
+    var onBoard = g.PiecesOnBoard.GetValueOrDefault(playerId, 0);
 
     if (onBoard >= Game.MaxPiecesOnBoard)
     {

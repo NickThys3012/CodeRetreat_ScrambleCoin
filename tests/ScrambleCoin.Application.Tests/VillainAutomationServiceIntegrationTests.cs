@@ -18,13 +18,12 @@ namespace ScrambleCoin.Application.Tests;
 /// </summary>
 public class VillainAutomationServiceIntegrationTests
 {
-    private static Board NewBoard() => new Board();
+    private static Board NewBoard() => new();
 
-    private static Lineup NewLineup(Guid playerId) =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}", playerId)).ToList());
+    private static Lineup NewLineup(Guid playerId) => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}", playerId)).ToList());
 
     /// <summary>
-    /// Creates a game with villain in InProgress state, both lineups set.
+    /// Creates a game with a villain in InProgress state, both lineups set.
     /// </summary>
     private static (Game game, Guid botPlayerId, Guid villainPlayerId, string villainId)
         CreateGameWithVillain(string villainId = "elsa")
@@ -108,7 +107,7 @@ public class VillainAutomationServiceIntegrationTests
     [Fact]
     public async Task EnsureVillainActsIfNeeded_MovePhase_CallsStrategyWhenVillainIsActive()
     {
-        // Arrange: Create game in PlacePhase (easier to test than MovePhase via public API)
+        // Arrange: Create a game in PlacePhase (easier to test than MovePhase via public API)
         // and verify the strategy is called. MovePhase testing is harder because
         // MovePhaseActivePlayer starts as PlayerOne, making it hard to test villain's MovePhase turn.
         var (game, botPlayerId, villainPlayerId, villainId) = CreateGameWithVillain();
@@ -124,7 +123,7 @@ public class VillainAutomationServiceIntegrationTests
         // Skip bot's move to allow villain to move
         game.SkipMovement(botPlayerId);
          
-        // Now it's villain's turn in MovePhase
+        // Now it's the villain's turn in MovePhase
         Assert.Equal(villainPlayerId, game.MovePhaseActivePlayer);
          
         var expectedAction = new SkipMovementAction();
@@ -194,7 +193,7 @@ public class VillainAutomationServiceIntegrationTests
         var (game, botPlayerId, villainPlayerId, _) = CreateGameWithVillain();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
-        var piece = game.LineupPlayerTwo!.Pieces.First();
+        var piece = game.LineupPlayerTwo!.Pieces[0];
         var position = new Position(0, 3);
 
         var repo = Substitute.For<IGameRepository>();

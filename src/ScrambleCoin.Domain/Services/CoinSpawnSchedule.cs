@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 
@@ -28,6 +29,6 @@ public static class CoinSpawnSchedule
             _ => throw new DomainException($"No coin spawn schedule defined for turn {turnNumber}. Valid turns are 1–5.")
         };
 
-    private static IReadOnlyList<CoinType> Repeat(CoinType coinType, int count) =>
+    private static ReadOnlyCollection<CoinType> Repeat(CoinType coinType, int count) =>
         Enumerable.Repeat(coinType, count).ToList().AsReadOnly();
 }

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
@@ -83,11 +84,11 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private static IReadOnlyList<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
+    private static ReadOnlyCollection<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
     {
         var lineup = playerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
         if (lineup is null)
-            return [];
+            return Array.Empty<PieceDto>().AsReadOnly();
 
         return lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
     }
@@ -102,7 +103,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             MovesPerTurn: piece.MovesPerTurn,
             IsOnBoard: piece.IsOnBoard);
 
-    private static IReadOnlyList<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
+    private static ReadOnlyCollection<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
     {
         var tiles = new List<TileDto>(Board.Size * Board.Size);
 
@@ -143,7 +144,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
         return null;
     }
 
-    private static IReadOnlyList<string> GetFencedEdges(Position position, IReadOnlyList<Fence> fences)
+    private static ReadOnlyCollection<string> GetFencedEdges(Position position, IReadOnlyList<Fence> fences)
     {
         var edges = new List<string>(4);
 
@@ -182,7 +183,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
         return edges.AsReadOnly();
     }
 
-    private static IReadOnlyList<CoinDto> BuildAvailableCoins(Board board)
+    private static ReadOnlyCollection<CoinDto> BuildAvailableCoins(Board board)
     {
         return board.GetAllCoins()
             .Select(tile => new CoinDto(

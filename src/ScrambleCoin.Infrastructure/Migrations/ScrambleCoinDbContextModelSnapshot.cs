@@ -17,10 +17,89 @@ namespace ScrambleCoin.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.15")
+                .HasAnnotation("ProductVersion", "9.0.16")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.BotUnlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BotId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DefeatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UnlockedPieceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VillainId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VillainId");
+
+                    b.HasIndex("BotId", "VillainId");
+
+                    b.ToTable("BotUnlocks", (string)null);
+                });
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.VillainNodeParent", b =>
+                {
+                    b.Property<string>("ChildVillainId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ParentVillainId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("ChildVillainId", "ParentVillainId");
+
+                    b.ToTable("VillainNodeParents", (string)null);
+                });
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.VillainTreeNode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnlockedPieceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VillainId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VillainName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VillainId")
+                        .IsUnique();
+
+                    b.ToTable("VillainTreeNodes", (string)null);
+                });
 
             modelBuilder.Entity("ScrambleCoin.Infrastructure.Persistence.Records.BotRegistrationRecord", b =>
                 {
@@ -51,6 +130,9 @@ namespace ScrambleCoin.Infrastructure.Migrations
                         .HasColumnName("BoardState");
 
                     b.Property<int?>("CurrentPhase")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameMode")
                         .HasColumnType("int");
 
                     b.Property<string>("LineupPlayerOneJson")
@@ -96,9 +178,37 @@ namespace ScrambleCoin.Infrastructure.Migrations
                     b.Property<int>("TurnNumber")
                         .HasColumnType("int");
 
+                    b.Property<string>("VillainId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.ToTable("Games", (string)null);
+                });
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.BotUnlock", b =>
+                {
+                    b.HasOne("ScrambleCoin.Domain.Entities.VillainTreeNode", null)
+                        .WithMany()
+                        .HasForeignKey("VillainId")
+                        .HasPrincipalKey("VillainId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.VillainNodeParent", b =>
+                {
+                    b.HasOne("ScrambleCoin.Domain.Entities.VillainTreeNode", null)
+                        .WithMany("ParentLinks")
+                        .HasForeignKey("ChildVillainId")
+                        .HasPrincipalKey("VillainId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ScrambleCoin.Domain.Entities.VillainTreeNode", b =>
+                {
+                    b.Navigation("ParentLinks");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,0 +1,195 @@
+@page "/admin/villains"
+@using MediatR
+@using ScrambleCoin.Application.VillainTree
+
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">🎭 Villain Tree Manager</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">
+            Add Villain
+        </MudButton>
+    </div>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_allNodes.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">No villain nodes found. Click "Add Villain" to create one!</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="7">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">🗺️ Villain Path</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Style="overflow:auto;">
+                        <VillainPathView AllNodes="_allNodes" Interactive="false" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">📋 All Nodes (@_allNodes.Count)</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div style="max-height: 500px; overflow-y: auto;">
+                            @foreach (var node in _allNodes.OrderBy(n => n.DisplayOrder))
+                            {
+                                <MudPaper Class="pa-3 mb-2" Elevation="1">
+                                    <div class="d-flex justify-space-between align-center">
+                                        <div>
+                                            <MudText Typo="Typo.body1"><strong>@node.VillainName</strong></MudText>
+                                            <MudText Typo="Typo.caption">@node.VillainId</MudText>
+                                            @if (node.RequiredParentVillainIds.Any())
+                                            {
+                                                <MudText Typo="Typo.caption">
+                                                    ← @string.Join(" + ", node.RequiredParentVillainIds
+                                                        .Select(pid => _allNodes.FirstOrDefault(n => n.VillainId == pid)?.VillainName ?? pid))
+                                                </MudText>
+                                            }
+                                            @if (!string.IsNullOrEmpty(node.UnlockedPieceId))
+                                            {
+                                                <div style="margin-top: 4px;">
+                                                    <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Extension"
+                                                             Color="Color.Secondary" Variant="Variant.Outlined"
+                                                             Style="height:20px; font-size:0.7rem;">
+                                                        🎁 @node.UnlockedPieceId
+                                                    </MudChip>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => OpenEditDialog(node))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => DeleteNode(node.VillainId))" />
+                                        </div>
+                                    </div>
+                                </MudPaper>
+                            }
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<VillainNodeDto> _allNodes = [];
+    private List<VillainNodeDto> @_rootNodes = [];
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadTree();
+
+    private async Task LoadTree()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await Mediator.Send(new GetVillainTreeQuery());
+            _allNodes = result.AllNodes.ToList();
+            _rootNodes = result.RootNodes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load villain tree: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters<VillainNodeDialog>
+        {
+            { x => x.AllNodes, _allNodes },
+            { x => x.IsEdit, false }
+        };
+        var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Add Villain Node", parameters,
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: VillainNodeDialog.Result data })
+        {
+            try
+            {
+                await Mediator.Send(new AddVillainNodeCommand(
+                    data.VillainId, data.VillainName, data.ParentVillainIds, data.UnlockedPieceId, _allNodes.Count + 1));
+                Snackbar.Add("✅ Villain node added", Severity.Success);
+                await LoadTree();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenEditDialog(VillainNodeDto node)
+    {
+        var parameters = new DialogParameters<VillainNodeDialog>
+        {
+            { x => x.VillainId, node.VillainId },
+            { x => x.VillainName, node.VillainName },
+            { x => x.ParentVillainIds, node.RequiredParentVillainIds.ToList() },
+            { x => x.UnlockedPieceId, node.UnlockedPieceId },
+            { x => x.AllNodes, _allNodes },
+            { x => x.IsEdit, true }
+        };
+        var dialog = await DialogService.ShowAsync<VillainNodeDialog>("Edit Villain Node", parameters,
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: VillainNodeDialog.Result data })
+        {
+            try
+            {
+                await Mediator.Send(new UpdateVillainNodeCommand(
+                    data.VillainId, data.VillainName, data.ParentVillainIds, data.UnlockedPieceId, node.DisplayOrder));
+                Snackbar.Add("✅ Villain node updated", Severity.Success);
+                await LoadTree();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteNode(string villainId)
+    {
+        try
+        {
+            await Mediator.Send(new DeleteVillainNodeCommand(villainId));
+            Snackbar.Add("🗑️ Villain node deleted", Severity.Success);
+            await LoadTree();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+}

@@ -13,7 +13,7 @@ public sealed record VillainMovePieceCommand(
     IReadOnlyList<IReadOnlyList<Position>> Segments) : IRequest<VillainMoveResult>;
 
 /// <summary>
-/// Command for the villain to skip movement during MovePhase.
+/// Command for the villain to skip movement during the MovePhase.
 /// </summary>
 public sealed record VillainSkipMovementCommand(
     Guid GameId,

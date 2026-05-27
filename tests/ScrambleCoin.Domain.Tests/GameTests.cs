@@ -11,10 +11,9 @@ public class GameTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Board NewBoard() => new Board();
+    private static Board NewBoard() => new();
 
-    private static Lineup NewLineup() =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
+    private static Lineup NewLineup() => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
 
     /// <summary>
     /// Creates a Game in WaitingForBots state with two distinct, random player IDs.

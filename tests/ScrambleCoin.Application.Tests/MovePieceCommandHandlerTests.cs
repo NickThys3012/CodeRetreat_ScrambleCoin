@@ -112,9 +112,9 @@ public class MovePieceCommandHandlerTests
 
         var handler = BuildHandler(repo, BotRepo(token, p1, game.Id));
 
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(0, 4) }.AsReadOnly()
+            new List<Position> { new(0, 4) }.AsReadOnly()
         }.AsReadOnly();
 
         // Act
@@ -136,9 +136,9 @@ public class MovePieceCommandHandlerTests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(0, 4) }.AsReadOnly()
+            new List<Position> { new(0, 4) }.AsReadOnly()
         }.AsReadOnly();
 
         var ex = await Record.ExceptionAsync(() =>
@@ -191,9 +191,9 @@ public class MovePieceCommandHandlerTests
         var p1Token = Guid.NewGuid();
         var p2Token = Guid.NewGuid();
 
-        var p1Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        IReadOnlyList<IReadOnlyList<Position>> p1Segments = new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(0, 4) }.AsReadOnly()
+            new List<Position> { new(0, 4) }.AsReadOnly()
         }.AsReadOnly();
         game.MovePiece(p1, p1Piece.Id, p1Segments); // → MovePhaseActivePlayer = P2
 
@@ -203,9 +203,9 @@ public class MovePieceCommandHandlerTests
         var publisher = Substitute.For<IPublisher>();
         var handler = BuildHandler(repo, BotRepo(p2Token, p2, game.Id), publisher: publisher);
 
-        var p2Segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        var p2Segments = new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(7, 2) }.AsReadOnly()
+            new List<Position> { new(7, 2) }.AsReadOnly()
         }.AsReadOnly();
 
         // Act
@@ -230,9 +230,9 @@ public class MovePieceCommandHandlerTests
         var publisher = Substitute.For<IPublisher>();
         var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), publisher: publisher);
 
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>>
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>>
         {
-            new List<Position> { new Position(0, 4) }.AsReadOnly()
+            new List<Position> { new(0, 4) }.AsReadOnly()
         }.AsReadOnly();
 
         // Act

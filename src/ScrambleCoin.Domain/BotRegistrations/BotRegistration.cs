@@ -4,7 +4,7 @@ namespace ScrambleCoin.Domain.BotRegistrations;
 /// Represents an authenticated bot player registered to a game session.
 /// </summary>
 /// <remarks>
-/// <see cref="Token"/> is the bearer credential the bot must supply on every subsequent
+/// <see cref="Token"/> is the bearer credential the bot must supply on every later
 /// game-action endpoint.  <see cref="PlayerId"/> is the slot ID returned at join-time
 /// and used for all MediatR commands (PlacePiece, MovePiece, etc.).
 /// </remarks>

@@ -33,7 +33,10 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
         {
             builder.ConfigureTestServices(services =>
             {
-                // Remove every DbContext-related registration added by Program.cs
+                // Remove every DbContext-related registration added by Program.cs.
+                // Using AddScoped factory (instead of AddDbContext) avoids registering
+                // IDbContextOptionsConfiguration<T>, which would conflict with the
+                // SQL Server one already present and cause "two providers" errors in EF Core 9.
                 var descriptorsToRemove = services
                     .Where(d =>
                         d.ServiceType == typeof(DbContextOptions<ScrambleCoinDbContext>) ||
@@ -44,11 +47,15 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
                 foreach (var descriptor in descriptorsToRemove)
                     services.Remove(descriptor);
 
-                // Re-register with an InMemory database so no SQL Server is required
-                services.AddDbContext<ScrambleCoinDbContext>(options =>
-                    options.UseInMemoryDatabase("WebTestDb"));
+                services.AddScoped<ScrambleCoinDbContext>(_ =>
+                {
+                    var opts = new DbContextOptionsBuilder<ScrambleCoinDbContext>()
+                        .UseInMemoryDatabase("DiRegistrationTestDb")
+                        .Options;
+                    return new ScrambleCoinDbContext(opts);
+                });
 
-                // Clear health check registrations — no real DB in test environment
+                // Clear health check registrations — no real DB in the test environment
                 services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(
                     opts => opts.Registrations.Clear());
             });
@@ -83,7 +90,7 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
     public async Task HealthEndpoint_ReturnsOk()
     {
         var client = _factory.CreateClient();
-        var response = await client.GetAsync("/health");
+        var response = await client.GetAsync(new Uri("/health"));
 
         Assert.True(
             response.IsSuccessStatusCode,

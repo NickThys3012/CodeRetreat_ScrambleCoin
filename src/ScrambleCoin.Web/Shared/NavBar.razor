@@ -1,0 +1,22 @@
+<MudAppBar Elevation="2" Color="Color.Primary" Class="mb-4">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center w-100">
+        <MudText Class="font-weight-bold mr-6" style="font-size: 1.1rem;">
+            🎮 ScrambleCoin
+        </MudText>
+        
+        <MudStack Row="true" Spacing="3" Class="flex-grow-1">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home" IconColor="Color.Inherit">
+                Home
+            </MudNavLink>
+            <MudNavLink Href="/solo-mode" Icon="@Icons.Material.Filled.SelfImprovement" IconColor="Color.Inherit">
+                Solo Mode
+            </MudNavLink>
+            <MudNavLink Href="/leaderboard" Icon="@Icons.Material.Filled.EmojiEvents" IconColor="Color.Inherit">
+                Leaderboard
+            </MudNavLink>
+            <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.Settings" IconColor="Color.Inherit">
+                Admin
+            </MudNavLink>
+        </MudStack>
+    </MudContainer>
+</MudAppBar>

@@ -104,7 +104,7 @@ public class PieceFactoryTests
         Assert.Equal(EntryPointType.Corners, piece.EntryPointType);
     }
 
-    // ── Parameterised: all starter pieces return a non-null Piece ────────────
+    // ── Parameterized: all starter pieces return a non-null Piece ────────────
 
     public static IEnumerable<object[]> StarterPieceNames =>
         new List<object[]>
@@ -180,7 +180,7 @@ public class PieceFactoryTests
     [InlineData("Stitch")]
     public void Create_OnStopAbilityPiece_ReturnsValidPiece(string pieceName)
     {
-        // Verify Issue #49 on-stop ability pieces are recognised
+        // Verify Issue #49 on-stop ability pieces are recognized
         var piece = PieceFactory.Create(pieceName, AnyPlayerId);
         Assert.NotNull(piece);
     }

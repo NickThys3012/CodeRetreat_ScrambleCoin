@@ -4,7 +4,7 @@ namespace ScrambleCoin.Application.Games.GetBoardState;
 /// Top-level DTO returned by <see cref="GetBoardStateQuery"/>.
 /// All fields are relative to the requesting bot (yourScore, yourPieces, etc.).
 /// </summary>
-/// <param name="Turn">Current turn number (1–5); 0 before game starts.</param>
+/// <param name="Turn">Current turn number (1–5); 0 before the game starts.</param>
 /// <param name="Phase">Current phase name ("CoinSpawn", "PlacePhase", "MovePhase"), or null if not started.</param>
 /// <param name="YourScore">The requesting bot's current score.</param>
 /// <param name="OpponentScore">The opponent's current score.</param>
@@ -57,7 +57,7 @@ public sealed record TileOccupantDto(
 
 /// <summary>A piece in a player's lineup.</summary>
 /// <param name="PieceId">Unique identifier of the piece.</param>
-/// <param name="Name">Display name of the piece (e.g. "Mickey").</param>
+/// <param name="Name">Display the name of the piece (e.g. "Mickey").</param>
 /// <param name="Position">Current board position, or null if not yet placed.</param>
 /// <param name="MovementType">Allowed movement directions ("Orthogonal", "Diagonal", "AnyDirection").</param>
 /// <param name="MaxDistance">Maximum tiles per move action.</param>

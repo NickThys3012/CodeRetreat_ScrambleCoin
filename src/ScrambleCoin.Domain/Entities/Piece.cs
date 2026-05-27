@@ -46,14 +46,14 @@ public sealed class Piece
     public int MovesPerTurn { get; private set; }
 
     /// <summary>
-    /// When a piece has multi-step movement sequences (MovesPerTurn > 1),
+    /// When a piece has multistep movement sequences (MovesPerTurn > 1),
     /// this list specifies the movement type constraint for each segment.
     /// If null or has fewer entries than MovesPerTurn, segments use the primary <see cref="MovementType"/>.
     /// </summary>
     public IReadOnlyList<MovementType>? SegmentMovementTypes { get; private set; }
 
     /// <summary>
-    /// When a piece has multi-step movement sequences (MovesPerTurn > 1),
+    /// When a piece has multistep movement sequences (MovesPerTurn > 1),
     /// this list specifies the maximum distance for each segment.
     /// If null or has fewer entries than MovesPerTurn, segments use the primary <see cref="MaxDistance"/>.
     /// </summary>
@@ -118,7 +118,7 @@ public sealed class Piece
     public void RemoveFromBoard() => Position = null;
 
     /// <summary>
-    /// Sets the per-segment movement type constraints for multi-step pieces.
+    /// Sets the per-segment movement type constraints for multistep pieces.
     /// If null, all segments use the primary <see cref="MovementType"/>.
     /// </summary>
     public void SetSegmentMovementTypes(params MovementType[] types)
@@ -128,7 +128,7 @@ public sealed class Piece
     }
 
     /// <summary>
-    /// Sets the per-segment maximum distance constraints for multi-step pieces.
+    /// Sets the per-segment maximum distance constraints for multistep pieces.
     /// If null, all segments use the primary <see cref="MaxDistance"/>.
     /// </summary>
     public void SetSegmentMaxDistances(params int[] distances)
@@ -169,7 +169,7 @@ public sealed class Piece
 
     /// <summary>
     /// For Forky: tracks whether this piece has moved on its first turn.
-    /// Used to determine if auto-removal should happen at end of first move.
+    /// Used to determine if auto-removal should happen at the end of the first move.
     /// </summary>
     public bool HasMovedOnFirstTurn { get; private set; }
 
@@ -189,7 +189,7 @@ public sealed class Piece
 
     /// <summary>
     /// Increments <see cref="MaxDistance"/> by 1 (used by Moana ability).
-    /// No upper limit enforced in domain; application layer may cap if needed.
+    /// No upper limit is enforced in the domain; application layer may cap if needed.
     /// </summary>
     public void IncreaseMaxDistance()
     {
@@ -198,7 +198,7 @@ public sealed class Piece
 
     /// <summary>
     /// Increments <see cref="MovesPerTurn"/> by 1 (used by Jafar ability).
-    /// No upper limit enforced in domain; application layer may cap if needed.
+    /// No upper limit is enforced in the domain; application layer may cap if needed.
     /// </summary>
     public void IncreaseMovesPerTurn()
     {
@@ -222,7 +222,7 @@ public sealed class Piece
     }
 
     /// <summary>
-    /// Resets coin buff after collection.
+    /// Resets coin buff after a collection.
     /// </summary>
     public void ResetCoinBuff()
     {

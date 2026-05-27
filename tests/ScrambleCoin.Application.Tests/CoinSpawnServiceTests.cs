@@ -53,7 +53,7 @@ public class CoinSpawnServiceTests
     }
 
     private static CoinSpawnService BuildService(IGameRepository repo, Random? random = null) =>
-        new CoinSpawnService(
+        new(
             repo,
             random ?? new Random(42),
             Substitute.For<ILogger<CoinSpawnService>>());
@@ -157,7 +157,7 @@ public class CoinSpawnServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenFewerFreeTilesThanScheduled_SpawnsOnlyAsManyAsFit()
     {
-        // Arrange: start at turn 1 CoinSpawn, then manually fill the board leaving only 2 free tiles.
+        // Arrange: start at turn 1 CoinSpawn, then manually fill the board, leaving only 2 free tiles.
         // Turn 1 schedule spawns 7–9 coins, but only 2 tiles are free — no exception should be thrown.
         var (game, _, _) = GameAtTurnCoinSpawnPhase(1);
 

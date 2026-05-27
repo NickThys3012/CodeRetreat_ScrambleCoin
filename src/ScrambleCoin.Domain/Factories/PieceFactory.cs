@@ -64,6 +64,10 @@ public static class PieceFactory
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>All known piece names in the catalogue (sorted alphabetically).</summary>
+    public static IReadOnlyList<string> AllPieceNames =>
+        Catalogue.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
+
     /// <summary>
     /// Creates a <see cref="Piece"/> for <paramref name="playerId"/> using the named piece's stats.
     /// </summary>
@@ -99,6 +103,43 @@ public static class PieceFactory
 
         return piece;
     }
+
+    /// <summary>
+    /// Attempts to get a piece by name, returning null if the piece is unknown.
+    /// </summary>
+    /// <param name="pieceName">The canonical piece name (case-insensitive).</param>
+    /// <returns>A <see cref="Piece"/> with a null owner, or null if the piece is unknown.</returns>
+    public static Piece? TryCreate(string? pieceName)
+    {
+        if (string.IsNullOrEmpty(pieceName) || !Catalogue.TryGetValue(pieceName, out var template))
+            return null;
+
+        var piece = new Piece(
+            pieceName,
+            Guid.Empty,
+            template.EntryPointType,
+            template.MovementType,
+            template.MaxDistance,
+            template.MovesPerTurn);
+
+        // If the template specifies per-segment movement types, set them
+        if (template.SegmentTypes is { Length: > 0 })
+        {
+            piece.SetSegmentMovementTypes(template.SegmentTypes);
+        }
+
+        // If the template specifies per-segment max distances, set them
+        if (template.SegmentMaxDistances is { Length: > 0 })
+        {
+            piece.SetSegmentMaxDistances(template.SegmentMaxDistances);
+        }
+
+        return piece;
+    }
+
+    /// <summary>Gets the default starter pieces available to all bots.</summary>
+    public static IReadOnlyList<string> GetStarterPieces() =>
+        ["Mickey", "Minnie", "Donald", "Goofy"];
 
     // ── Template ──────────────────────────────────────────────────────────────
 
