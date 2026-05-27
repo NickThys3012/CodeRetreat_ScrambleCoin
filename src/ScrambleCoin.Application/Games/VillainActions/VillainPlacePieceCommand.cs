@@ -14,7 +14,7 @@ public sealed record VillainPlacePieceCommand(
     Position Position) : IRequest<VillainPlacementResult>;
 
 /// <summary>
-/// Command for the villain to skip placement during PlacePhase.
+/// Command for the villain to skip placement during the PlacePhase.
 /// </summary>
 public sealed record VillainSkipPlacementCommand(
     Guid GameId,

@@ -154,8 +154,10 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         var nextPos = MoveTowardTarget(piece.Position, nearestCoinPos, game, piece);
 
         return nextPos is null ?
-            new List<Position>() : 
-            new List<Position> { nextPos };
+            [] :
+            [
+                nextPos
+            ];
     }
 
     /// <summary>

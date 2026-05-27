@@ -139,7 +139,7 @@ public static class PieceFactory
 
     /// <summary>Gets the default starter pieces available to all bots.</summary>
     public static IReadOnlyList<string> GetStarterPieces() =>
-        new[] { "Mickey", "Minnie", "Donald", "Goofy" };
+        ["Mickey", "Minnie", "Donald", "Goofy"];
 
     // ── Template ──────────────────────────────────────────────────────────────
 

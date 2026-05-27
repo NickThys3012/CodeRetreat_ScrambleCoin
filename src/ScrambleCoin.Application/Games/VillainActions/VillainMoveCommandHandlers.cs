@@ -27,7 +27,7 @@ public sealed class VillainMovePieceCommandHandler : IRequestHandler<VillainMove
         if (game.VillainId is null)
             throw new DomainException("This game does not have a villain.");
 
-        // Verify it's the villain's turn (should be in MovePhase and villain is active player)
+        // Verify it's the villain's turn (should be in MovePhase and villain is an active player)
         if (game.MovePhaseActivePlayer != request.VillainPlayerId)
             throw new UnauthorizedGameAccessException();
 
@@ -64,7 +64,7 @@ public sealed class VillainSkipMovementCommandHandler : IRequestHandler<VillainS
         if (game.VillainId is null)
             throw new DomainException("This game does not have a villain.");
 
-        // Verify it's the villain's turn (should be in MovePhase and villain is active player)
+        // Verify it's the villain's turn (should be in MovePhase and villain is an active player)
         if (game.MovePhaseActivePlayer != request.VillainPlayerId)
             throw new UnauthorizedGameAccessException();
 

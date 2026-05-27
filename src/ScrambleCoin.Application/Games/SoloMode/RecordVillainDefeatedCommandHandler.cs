@@ -30,14 +30,14 @@ public sealed class RecordVillainDefeatedCommandHandler : IRequestHandler<Record
             throw new DomainException($"Villain '{request.VillainId}' not found.");
         }
 
-        // Record the defeat (UPSERT: allows re-challenging same villain)
+        // Record the defeat (UPSERT: allows re-challenging the same villain)
         await _botUnlocksRepository.RecordDefeatAsync(
             request.BotId,
             request.VillainId,
             request.UnlockedPieceId,
             cancellationToken);
 
-        // Return the result with a generated unlock ID
+        // Return the result with a generated unlocked ID
         return new RecordVillainDefeatedResult(
             Guid.NewGuid(),
             request.VillainId,

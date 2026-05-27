@@ -6,10 +6,10 @@ namespace ScrambleCoin.Domain.Entities;
 /// </summary>
 public sealed class BotUnlock
 {
-    /// <summary>Unique identifier for this unlock record.</summary>
+    /// <summary>Unique identifier for this unlocked record.</summary>
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    /// <summary>The ID of the bot that achieved this unlock.</summary>
+    /// <summary>The ID of the bot that achieved this unlocking.</summary>
     public Guid BotId { get; set; }
 
     /// <summary>The ID of the villain that was defeated.</summary>

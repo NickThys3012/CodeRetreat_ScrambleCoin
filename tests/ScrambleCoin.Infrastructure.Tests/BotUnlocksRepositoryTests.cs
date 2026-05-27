@@ -75,15 +75,13 @@ public class BotUnlocksRepositoryTests
         var options = BuildInMemoryOptions(nameof(GetDefeatedVillainsAsync_ReturnsEmptyForBotWithNoDefeats));
 
         // Act
-        await using (var context = new ScrambleCoinDbContext(options))
-        {
-            var repository = new BotUnlocksRepository(context);
-            var result = await repository.GetDefeatedVillainsAsync(botId);
+        await using var context = new ScrambleCoinDbContext(options);
+        var repository = new BotUnlocksRepository(context);
+        var result = await repository.GetDefeatedVillainsAsync(botId);
 
-            // Assert
-            Assert.NotNull(result);
-            Assert.Empty(result);
-        }
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result);
     }
 
     [Fact]
@@ -352,14 +350,12 @@ public class BotUnlocksRepositoryTests
         var options = BuildInMemoryOptions(nameof(HasDefeatedVillainAsync_ReturnsFalseWhenNotDefeated));
 
         // Act
-        await using (var context = new ScrambleCoinDbContext(options))
-        {
-            var repository = new BotUnlocksRepository(context);
-            var result = await repository.HasDefeatedVillainAsync(botId, "nonexistent");
+        await using var context = new ScrambleCoinDbContext(options);
+        var repository = new BotUnlocksRepository(context);
+        var result = await repository.HasDefeatedVillainAsync(botId, "nonexistent");
 
-            // Assert
-            Assert.False(result);
-        }
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
@@ -399,14 +395,14 @@ public class BotUnlocksRepositoryTests
         var botId = Guid.NewGuid();
         var options = BuildInMemoryOptions(nameof(RecordDefeatAsync_PreservesPieceOnSecondDefeat));
 
-        // Act: First defeat with piece
+        // Act: First defeat with a piece
         await using (var context = new ScrambleCoinDbContext(options))
         {
             var repository = new BotUnlocksRepository(context);
             await repository.RecordDefeatAsync(botId, "jafar", "Goofy");
         }
 
-        // Second defeat without piece specified
+        // Second defeat without a piece specified
         await using (var context = new ScrambleCoinDbContext(options))
         {
             var repository = new BotUnlocksRepository(context);

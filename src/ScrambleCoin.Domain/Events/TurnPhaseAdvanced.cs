@@ -3,7 +3,7 @@ using ScrambleCoin.Domain.Enums;
 namespace ScrambleCoin.Domain.Events;
 
 /// <summary>
-/// Raised each time the active phase within a turn changes.
+/// Rose each time the active phase within a turn changes.
 /// </summary>
 /// <param name="GameId">The identifier of the game in which the phase advanced.</param>
 /// <param name="TurnNumber">The turn number (1–5) during which the phase advanced.</param>

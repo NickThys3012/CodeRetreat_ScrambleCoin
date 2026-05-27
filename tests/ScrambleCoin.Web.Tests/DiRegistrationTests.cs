@@ -55,7 +55,7 @@ public class DiRegistrationTests : IClassFixture<DiRegistrationTests.TestWebAppl
                     return new ScrambleCoinDbContext(opts);
                 });
 
-                // Clear health check registrations — no real DB in test environment
+                // Clear health check registrations — no real DB in the test environment
                 services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(
                     opts => opts.Registrations.Clear());
             });

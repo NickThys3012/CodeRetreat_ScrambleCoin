@@ -7,7 +7,7 @@ namespace ScrambleCoin.Infrastructure.Persistence;
 /// <summary>
 /// EF Core DbContext for ScrambleCoin.
 /// Maps the <see cref="GameRecord"/> persistence POCO to the <c>Games</c> table.
-/// Complex domain types are stored as JSON columns to minimise table count.
+/// Complex domain types are stored as JSON columns to minimize table count.
 /// </summary>
 public class ScrambleCoinDbContext : DbContext
 {
@@ -57,7 +57,7 @@ public class ScrambleCoinDbContext : DbContext
             entity.Property(g => g.CurrentPhase);
             entity.Property(g => g.MovePhaseActivePlayer);
 
-            // JSON columns: stored as unicode text; EF Core provider picks the right column type.
+            // JSON columns: stored as Unicode text; EF Core provider picks the right column type.
             entity.Property(g => g.ScoresJson).IsRequired().HasColumnName("Scores");
             entity.Property(g => g.PiecesOnBoardJson).IsRequired().HasColumnName("PiecesOnBoard");
             entity.Property(g => g.PlacePhaseDoneJson).IsRequired().HasColumnName("PlacePhaseDone");

@@ -1,7 +1,7 @@
 namespace ScrambleCoin.Domain.Enums;
 
 /// <summary>
-/// Represents the mode/type of a <see cref="Entities.Game"/>.
+/// Represents the mode/type of <see cref="Entities.Game"/>.
 /// </summary>
 public enum GameMode
 {

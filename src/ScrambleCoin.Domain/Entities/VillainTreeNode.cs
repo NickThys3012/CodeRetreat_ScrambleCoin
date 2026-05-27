@@ -1,7 +1,7 @@
 namespace ScrambleCoin.Domain.Entities;
 
 /// <summary>
-/// Represents a node in the villain unlock DAG (Directed Acyclic Graph).
+/// Represents a node in the villain unlocked DAG (Directed Acyclic Graph).
 /// A node can have zero, one, or multiple parent villains that must be defeated first.
 /// </summary>
 public sealed class VillainTreeNode
@@ -12,7 +12,7 @@ public sealed class VillainTreeNode
     /// <summary>Unique villain identifier (e.g., "stitch", "elsa"). Used in APIs.</summary>
     public string VillainId { get; set; } = null!;
 
-    /// <summary>Display name for the villain (e.g., "Stitch", "Elsa").</summary>
+    /// <summary>Display the name for the villain (e.g. "Stitch", "Elsa").</summary>
     public string VillainName { get; set; } = null!;
 
     /// <summary>

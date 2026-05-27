@@ -6,7 +6,7 @@ namespace ScrambleCoin.Application.Games.SoloMode;
 
 /// <summary>
 /// Handles <see cref="GetUnlockedPiecesQuery"/>.
-/// Returns all pieces available to a bot: starter pieces + pieces unlocked from defeats.
+/// Returns all pieces available to a bot: starter pieces and pieces unlocked from defeats.
 /// </summary>
 public sealed class GetUnlockedPiecesQueryHandler : IRequestHandler<GetUnlockedPiecesQuery, GetUnlockedPiecesQueryResult>
 {

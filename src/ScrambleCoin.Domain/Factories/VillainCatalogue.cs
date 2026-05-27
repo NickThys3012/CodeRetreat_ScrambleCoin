@@ -5,7 +5,9 @@ namespace ScrambleCoin.Domain.Factories;
 /// </summary>
 public static class VillainCatalogue
 {
-    private static readonly IReadOnlyList<string> Names =
+
+    /// <summary>All known villain display names, sorted alphabetically.</summary>
+    public static IReadOnlyList<string> AllVillainNames { get; } =
     [
         "Cruella",
         "Elsa",
@@ -23,9 +25,6 @@ public static class VillainCatalogue
         "Ursula",
         "Yzma"
     ];
-
-    /// <summary>All known villain display names, sorted alphabetically.</summary>
-    public static IReadOnlyList<string> AllVillainNames => Names;
 
     /// <summary>Converts a villain display name to a URL-safe ID slug (e.g. "Mother Gothel" → "mother-gothel").</summary>
     public static string ToId(string villainName) =>

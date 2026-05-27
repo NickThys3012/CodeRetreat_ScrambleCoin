@@ -12,15 +12,14 @@ namespace ScrambleCoin.E2E.Tests;
 ///   
 /// Test scenarios:
 /// - Full game flow with Scrooge (coin gain)
-/// - Multiple ability pieces in same game
-/// - Stat growth visualization (Moana, Jafar)
+/// - Multiple ability pieces in the same game-Stat growth visualization (Moana, Jafar)
 /// - Piece auto-removal (Cinderella, Forky)
 /// </summary>
 public class PassiveAbilitiesE2ETests : IAsyncLifetime
 {
     private IPlaywright? _playwright;
     private IBrowser? _browser;
-    private const string AppUrl = "http://localhost:5173"; // Adjust based on actual dev server port
+    private const string AppUrl = "http://localhost:5173"; // Adjust based on the actual dev server port
 
     public async Task InitializeAsync()
     {
@@ -54,7 +53,7 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // 3. Navigate to spectator view
         // 4. Verify UI updates as moves are made
 
-        // Act: Navigate to app spectator view
+        // Act: Navigate to the app spectator view
         await page.GotoAsync($"{AppUrl}/spectator", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
         // Assert: Page loads
@@ -70,10 +69,10 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // Arrange: Open spectator view
         var page = await _browser!.NewPageAsync();
 
-        // Act: Navigate to game board
+        // Act: Navigate to the game board
         await page.GotoAsync($"{AppUrl}/spectator", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
-        // Simulate game progression (in real scenario, game is running in background)
+        // Simulate game progression (in a real scenario, the game is running in the background)
         // Verify Moana's stat increases are visible in the UI
 
         // Assert: Page content is accessible
@@ -89,13 +88,13 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // Arrange
         var page = await _browser!.NewPageAsync();
 
-        // Act: Navigate to spectator view
+        // Act: Navigate to the spectator view
         await page.GotoAsync($"{AppUrl}/spectator", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
         // In a real E2E test, you would:
         // 1. Wait for turn 5 to start
-        // 2. Verify Cinderella piece disappears from board
-        // 3. Check that player lineup is updated
+        // 2. Verify a Cinderella piece disappears from board
+        // 3. Check that a player lineup is updated
 
         // Assert: Page loads successfully
         var isVisible = await page.IsVisibleAsync("text=/board/i");
@@ -110,10 +109,10 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // Arrange: Game with multiple ability pieces
         var page = await _browser!.NewPageAsync();
 
-        // Act: Navigate to spectator view
+        // Act: Navigate to the spectator view
         await page.GotoAsync($"{AppUrl}/spectator", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
-        // Verify all ability triggers fire in correct phase
+        // Verify all abilities triggers fire in the correct phase
         // Check:
         // - Scrooge coin gain
         // - Moana/Jafar stat growth
@@ -200,11 +199,11 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // Arrange
         var page = await _browser!.NewPageAsync();
 
-        // Act: Navigate to leaderboard
+        // Act: Navigate to the leaderboard
         await page.GotoAsync($"{AppUrl}/leaderboard", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
-        // Verify game with Scrooge shows updated score
-        // After Scrooge gains coins, leaderboard should reflect new score
+        // Verify game with Scrooge shows an updated score After Scrooge gains coins, the leaderboard should reflect the
+        //  new score
 
         // Assert: Leaderboard page loads
         var bodyText = await page.TextContentAsync("body");
@@ -259,7 +258,7 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
                                            
                                    """);
 
-        // Act: Wait for element
+        // Act: Wait for an element
         await page.WaitForSelectorAsync("#target");
 
         // Assert: Element found
@@ -355,7 +354,7 @@ public class PassiveAbilitiesE2EIntegrationTests : IAsyncLifetime
                                            
                                    """);
 
-        // Act: Click button to trigger Scrooge ability (simulated)
+        // Act: Click the button to trigger Scrooge ability (simulated)
         var scoreBeforeClick = await page.TextContentAsync("#player1-score");
         Assert.Equal("100", scoreBeforeClick);
 
@@ -432,7 +431,7 @@ public class PassiveAbilitiesE2EIntegrationTests : IAsyncLifetime
                                            
                                    """);
 
-        // Act: Verify piece exists, then simulate turn 5 start (auto-removal)
+        // Act: Verify a piece exists, then simulate turn 5 start (auto-removal)
         var cinderellaVisible = await page.IsVisibleAsync("#piece-cinderella");
         Assert.True(cinderellaVisible);
 
@@ -475,7 +474,7 @@ public class PassiveAbilitiesE2EIntegrationTests : IAsyncLifetime
                                            
                                    """);
 
-        // Act: Verify piece exists, then simulate first move (triggers removal)
+        // Act: Verify a piece exists, then simulate the first move (triggers removal)
         var forkyVisible = await page.IsVisibleAsync("#piece-forky");
         Assert.True(forkyVisible);
 

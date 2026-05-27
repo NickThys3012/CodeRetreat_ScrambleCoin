@@ -510,7 +510,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
     public async Task Place_SamePlayerActsTwice_Returns409()
     {
         // Arrange
-        var (game, tokenP1, _, p1Pieces, _) = await SeedGameInPlacePhaseAsync();
+        var (game, tokenP1, _, _, _) = await SeedGameInPlacePhaseAsync();
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 

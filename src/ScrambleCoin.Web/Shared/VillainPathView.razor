@@ -160,7 +160,7 @@
 
     /// <summary>
     /// DAG layout: row = BFS depth from any root; col = derived bottom-up from leaf positions.
-    /// After the initial assignment, same-row nodes are de-conflicted so no two share a column.
+    /// After the initial assignment, same-row nodes are de-conflicted, so no two share a column.
     /// </summary>
     private static List<PositionedNode> ComputePositions(List<VillainNodeDto> all)
     {

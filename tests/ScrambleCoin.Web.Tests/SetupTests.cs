@@ -10,7 +10,7 @@ public class SetupTests
     public void Setup_IsValid()
     {
         // This test exists to confirm the Web.Tests project is correctly wired up.
-        // Replace with real bUnit and WebApplicationFactory tests as components/endpoints are introduced.
+        // Replace it with real bUnit and WebApplicationFactory tests as components/endpoints are introduced.
         Assert.True(true);
     }
 }
