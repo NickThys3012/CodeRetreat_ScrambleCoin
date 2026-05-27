@@ -24,7 +24,7 @@ public class OnStopAbilitiesIntegrationTests
     private static (Game game, Guid p1, Guid p2, Piece testPiece, Piece p2Piece) GameWithPiecesInMovePhase(
         string p1PieceName,
         Position p1Position,
-        Position p2Position = null)
+        Position? p2Position = null)
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -56,9 +56,10 @@ public class OnStopAbilitiesIntegrationTests
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         // Place both pieces to auto-advance to MovePhase
+        var actualP2Pos = p2Position ?? new Position(7, 3); // Valid Border entry point
         game.PlacePiece(p1, testPiece.Id, p1Position);
-        game.PlacePiece(p2, p2Piece.Id, p2Position);
-
+        game.PlacePiece(p2, p2Piece.Id, actualP2Pos);
+        
         return (game, p1, p2, testPiece, p2Piece);
     }
 

@@ -240,7 +240,7 @@ public static class GameEndpoints
     /// </summary>
     /// <param name="PieceId">The piece to move.</param>
     /// <param name="Segments">One segment per MovesPerTurn; each segment is an ordered list of positions.</param>
-    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>> Segments);
+    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>>? Segments);
 
     /// <summary>
     /// Request body for <c>POST /api/games/{gameId}/place</c>.
@@ -268,6 +268,9 @@ public static class GameEndpoints
 
         try
         {
+            if (body.Segments is null)
+                return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
+            
             IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
                 .Select(IReadOnlyList<Position> (seg) => seg
                     .Select(p => new Position(p.Row, p.Col))

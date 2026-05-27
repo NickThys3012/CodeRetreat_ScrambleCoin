@@ -105,7 +105,7 @@
         }
     }
 
-    public abstract record ChangelogEntry(
+    private sealed record ChangelogEntry(
         string Version,
         string Date,
         string Title,
