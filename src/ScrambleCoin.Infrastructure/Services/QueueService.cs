@@ -169,20 +169,13 @@ public sealed class QueueService : IQueueService
         }
 
         // ── No match yet — park this bot and return 202 ───────────────────
-        var entry = new QueueEntry(queueId, Status: "waiting");
-        _entries[queueId] = entry;
-        _enqueuedAt[queueId] = DateTimeOffset.UtcNow;
-        _waitingQueue.Enqueue(new WaitingBot(queueId, lineupPieceNames, botToken));
-
-        // Atomically track the token (TryAdd prevents concurrent duplicate-enqueue races — Fix 3).
-        // Also record the reverse mapping so PollAsync can evict from _waitingTokens on timeout (Fix 2).
+        // Check token uniqueness FIRST (atomically), before touching any shared state.
+        // This prevents the orphaned-WaitingBot bug: if TryAdd fails, nothing has been
+        // written to the queue or dictionaries, so there is nothing to undo.
         if (botToken.HasValue)
         {
             if (!_waitingTokens.TryAdd(botToken.Value, true))
             {
-                // A concurrent request with the same token just beat us — undo staging and report conflict.
-                _entries.TryRemove(queueId, out _);
-                _enqueuedAt.TryRemove(queueId, out _);
                 _logger.LogWarning(
                     "Conflict: bot token {Token} is already waiting in the queue (detected atomically).", botToken.Value);
                 return new QueueEntry(Guid.NewGuid(), Status: "conflict");
@@ -190,6 +183,11 @@ public sealed class QueueService : IQueueService
             // Record the reverse mapping so PollAsync can clean up _waitingTokens on timeout.
             _queueIdToToken[queueId] = botToken.Value;
         }
+
+        var entry = new QueueEntry(queueId, Status: "waiting");
+        _entries[queueId] = entry;
+        _enqueuedAt[queueId] = DateTimeOffset.UtcNow;
+        _waitingQueue.Enqueue(new WaitingBot(queueId, lineupPieceNames, botToken));
 
         _logger.LogInformation("Bot queued, waiting for opponent: QueueId={QueueId}", queueId);
 
@@ -208,9 +206,9 @@ public sealed class QueueService : IQueueService
             DateTimeOffset.UtcNow - enqueuedAt > _timeout)
         {
             _entries.TryRemove(queueId, out _);
-            _enqueuedAt.TryRemove(queueId, out _);
-
-            // Fix 2: clean up _waitingTokens so the bot can re-enqueue after timeout.
+            // Do NOT remove _enqueuedAt here. The WaitingBot is still in _waitingQueue and cannot
+            // be removed from it directly. Leaving _enqueuedAt intact lets the lazy-eviction loop
+            // in EnqueueAsync call IsExpired correctly and discard the orphan instead of matching it.
             if (_queueIdToToken.TryRemove(queueId, out var timedOutToken))
                 _waitingTokens.TryRemove(timedOutToken, out _);
 
