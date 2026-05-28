@@ -306,8 +306,15 @@ public static class TournamentEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        var result = await sender.Send(new GetLeaderboardQuery(), ct);
-        return Results.Ok(result);
+        try
+        {
+            var result = await sender.Send(new GetLeaderboardQuery(), ct);
+            return Results.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(detail: ex.Message, statusCode: 500, title: "Internal Server Error");
+        }
     }
 
     // ── Request bodies ────────────────────────────────────────────────────────

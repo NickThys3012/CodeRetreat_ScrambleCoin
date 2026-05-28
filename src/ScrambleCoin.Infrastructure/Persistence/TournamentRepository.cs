@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
@@ -60,6 +61,58 @@ public sealed class TournamentRepository : ITournamentRepository
         }
 
         // No SaveChangesAsync — the caller is responsible for committing via IUnitOfWork.SaveChangesAsync.
+    }
+
+    /// <inheritdoc/>
+    public async Task<TournamentBotInfo?> GetBotInfoByGameIdAsync(Guid gameId, CancellationToken cancellationToken = default)
+    {
+        // Load all tournament records and scan JSON columns for the matching game ID.
+        // Tournament data is small enough (one row per tournament) that a full scan is acceptable.
+        var records = await _context.Tournaments.ToListAsync(cancellationToken);
+
+        foreach (var record in records)
+        {
+            var participants = JsonSerializer.Deserialize<List<TournamentParticipantDto>>(
+                record.ParticipantsJson, JsonOptions) ?? [];
+
+            // ── Search group matches ───────────────────────────────────────────
+            var groupMatches = JsonSerializer.Deserialize<List<GroupMatchDto>>(
+                record.GroupMatchesJson, JsonOptions) ?? [];
+
+            var gm = groupMatches.FirstOrDefault(m => m.GameId == gameId);
+            if (gm is not null)
+            {
+                return new TournamentBotInfo(
+                    BotOneId:       gm.BotOne,
+                    BotOneName:     participants.FirstOrDefault(p => p.BotId == gm.BotOne)?.BotName
+                                        ?? $"Bot-{gm.BotOne:N}"[..13],
+                    BotOnePlayerId: gm.BotOnePlayerId,
+                    BotTwoId:       gm.BotTwo,
+                    BotTwoName:     participants.FirstOrDefault(p => p.BotId == gm.BotTwo)?.BotName
+                                        ?? $"Bot-{gm.BotTwo:N}"[..13],
+                    BotTwoPlayerId: gm.BotTwoPlayerId);
+            }
+
+            // ── Search knockout matches ────────────────────────────────────────
+            var knockoutMatches = JsonSerializer.Deserialize<List<KnockoutMatchDto>>(
+                record.KnockoutMatchesJson, JsonOptions) ?? [];
+
+            var km = knockoutMatches.FirstOrDefault(m => m.GameId == gameId);
+            if (km is not null && km.BotOne.HasValue && km.BotTwo.HasValue)
+            {
+                return new TournamentBotInfo(
+                    BotOneId:       km.BotOne.Value,
+                    BotOneName:     participants.FirstOrDefault(p => p.BotId == km.BotOne)?.BotName
+                                        ?? $"Bot-{km.BotOne.Value:N}"[..13],
+                    BotOnePlayerId: km.BotOnePlayerId,
+                    BotTwoId:       km.BotTwo.Value,
+                    BotTwoName:     participants.FirstOrDefault(p => p.BotId == km.BotTwo)?.BotName
+                                        ?? $"Bot-{km.BotTwo.Value:N}"[..13],
+                    BotTwoPlayerId: km.BotTwoPlayerId);
+            }
+        }
+
+        return null;
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────

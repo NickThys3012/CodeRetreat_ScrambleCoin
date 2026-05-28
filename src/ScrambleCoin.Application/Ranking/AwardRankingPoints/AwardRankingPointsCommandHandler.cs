@@ -8,7 +8,7 @@ namespace ScrambleCoin.Application.Ranking.AwardRankingPoints;
 /// <summary>
 /// Handles <see cref="AwardRankingPointsCommand"/>:
 /// <list type="bullet">
-///   <item>Loads or creates a <see cref="RankingTrack"/> for each player.</item>
+///   <item>Loads or creates a <see cref="RankingTrack"/> for each bot using their stable bot ID.</item>
 ///   <item>Calls <c>RecordWin</c>, <c>RecordDraw</c>, or <c>RecordLoss</c> on each track.</item>
 ///   <item>Persists both tracks via <see cref="IRankingRepository"/>.</item>
 /// </list>
@@ -28,50 +28,46 @@ public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRank
 
     public async Task Handle(AwardRankingPointsCommand command, CancellationToken cancellationToken)
     {
-        var playerOneTrack = await LoadOrCreate(command.PlayerOneId, cancellationToken);
-        var playerTwoTrack = await LoadOrCreate(command.PlayerTwoId, cancellationToken);
+        var botOneTrack = await LoadOrCreate(command.BotOneId, command.BotOneName, cancellationToken);
+        var botTwoTrack = await LoadOrCreate(command.BotTwoId, command.BotTwoName, cancellationToken);
 
         if (command.IsDraw)
         {
-            playerOneTrack.RecordDraw();
-            playerTwoTrack.RecordDraw();
+            botOneTrack.RecordDraw();
+            botTwoTrack.RecordDraw();
 
             _logger.LogInformation(
-                "Game {GameId} ended in draw. Awarded draw points to {P1} and {P2}. " +
-                "P1 now {P1Pts} pts, P2 now {P2Pts} pts.",
-                command.GameId,
-                command.PlayerOneId, command.PlayerTwoId,
-                playerOneTrack.Points, playerTwoTrack.Points);
+                "Game {GameId} (turn {TurnNumber}) ended in draw. " +
+                "Awarded draw points to {BotOneId} and {BotTwoId}. " +
+                "Bot1 now {Bot1Pts} pts, Bot2 now {Bot2Pts} pts.",
+                command.GameId, command.TurnNumber,
+                command.BotOneId, command.BotTwoId,
+                botOneTrack.Points, botTwoTrack.Points);
         }
         else
         {
-            // Determine winner vs loser
-            var winnerTrack = command.WinnerId == command.PlayerOneId ? playerOneTrack : playerTwoTrack;
-            var loserTrack  = command.WinnerId == command.PlayerOneId ? playerTwoTrack : playerOneTrack;
+            // Determine winner vs loser by matching stable bot IDs
+            var winnerTrack = command.WinnerId == command.BotOneId ? botOneTrack : botTwoTrack;
+            var loserTrack  = command.WinnerId == command.BotOneId ? botTwoTrack : botOneTrack;
 
             winnerTrack.RecordWin();
             loserTrack.RecordLoss();
 
             _logger.LogInformation(
-                "Game {GameId} ended. Winner {WinnerId} now {WinPts} pts. " +
-                "Loser {LoserId} now {LosePts} pts.",
-                command.GameId,
+                "Game {GameId} (turn {TurnNumber}) ended. " +
+                "Winner {WinnerId} now {WinPts} pts. Loser {LoserId} now {LosePts} pts.",
+                command.GameId, command.TurnNumber,
                 winnerTrack.BotId, winnerTrack.Points,
                 loserTrack.BotId, loserTrack.Points);
         }
 
-        await _rankingRepository.SaveAsync(playerOneTrack, cancellationToken);
-        await _rankingRepository.SaveAsync(playerTwoTrack, cancellationToken);
+        await _rankingRepository.SaveAsync(botOneTrack, cancellationToken);
+        await _rankingRepository.SaveAsync(botTwoTrack, cancellationToken);
     }
 
-    private async Task<RankingTrack> LoadOrCreate(Guid botId, CancellationToken ct)
+    private async Task<RankingTrack> LoadOrCreate(Guid botId, string botName, CancellationToken ct)
     {
         var track = await _rankingRepository.GetByBotIdAsync(botId, ct);
-        if (track is not null)
-            return track;
-
-        // No existing track — create a new one with a generated display name
-        var botName = $"Bot-{botId.ToString("N")[..8]}";
-        return new RankingTrack(botId, botName);
+        return track ?? new RankingTrack(botId, botName);
     }
 }
