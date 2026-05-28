@@ -35,6 +35,9 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
     /// <summary>The Tournaments table — one row per tournament aggregate.</summary>
     public DbSet<TournamentRecord> Tournaments => Set<TournamentRecord>();
 
+    /// <summary>The RankingTracks table — one row per bot's cumulative ranking record.</summary>
+    public DbSet<RankingTrackRecord> RankingTracks => Set<RankingTrackRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -137,6 +140,20 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
             entity.Property(t => t.ParticipantsJson).IsRequired().HasColumnName("Participants");
             entity.Property(t => t.GroupMatchesJson).IsRequired().HasColumnName("GroupMatches");
             entity.Property(t => t.KnockoutMatchesJson).IsRequired().HasColumnName("KnockoutMatches");
+        });
+
+        modelBuilder.Entity<RankingTrackRecord>(entity =>
+        {
+            entity.ToTable("RankingTracks");
+            entity.HasKey(r => r.BotId);
+
+            entity.Property(r => r.BotName).IsRequired().HasMaxLength(200);
+            entity.Property(r => r.Points).IsRequired();
+            entity.Property(r => r.Wins).IsRequired();
+            entity.Property(r => r.Draws).IsRequired();
+            entity.Property(r => r.Losses).IsRequired();
+            entity.Property(r => r.GamesPlayed).IsRequired();
+            entity.Property(r => r.MilestonesHitJson).IsRequired().HasColumnName("MilestonesHit");
         });
     }
 

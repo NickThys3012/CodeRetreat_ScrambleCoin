@@ -61,6 +61,8 @@ try
         BotRegistrationRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Tournament.ITournamentRepository,
         ScrambleCoin.Infrastructure.Persistence.TournamentRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IRankingRepository,
+        ScrambleCoin.Infrastructure.Persistence.RankingRepository>();
 
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
