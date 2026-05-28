@@ -34,6 +34,9 @@ public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRank
         var botOneTrack = await LoadOrCreate(command.BotOneId, command.BotOneName, cancellationToken);
         var botTwoTrack = await LoadOrCreate(command.BotTwoId, command.BotTwoName, cancellationToken);
 
+        // Intentional simplification for a single-day event: every game between any two bots
+        // counts toward the global ranking, regardless of how many times the same pair has played.
+        // Per-day/per-opponent caps described in the original issue spec are not applied here.
         if (command.IsDraw)
         {
             botOneTrack.RecordDraw();

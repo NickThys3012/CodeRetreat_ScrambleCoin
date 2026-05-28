@@ -87,16 +87,30 @@
     private bool _isLoading = true;
     private string? _error;
     private DateTime _lastRefreshed = DateTime.Now;
-    private Timer? _timer;
+    private CancellationTokenSource? _cts;
 
     protected override async Task OnInitializedAsync()
     {
+        _cts = new CancellationTokenSource();
         await LoadLeaderboard();
-        _timer = new Timer(async _ =>
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        try
         {
-            await LoadLeaderboard();
-            await InvokeAsync(StateHasChanged);
-        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await LoadLeaderboard();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — exit cleanly.
+        }
     }
 
     private async Task LoadLeaderboard()
@@ -129,6 +143,7 @@
 
     public void Dispose()
     {
-        _timer?.Dispose();
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 }

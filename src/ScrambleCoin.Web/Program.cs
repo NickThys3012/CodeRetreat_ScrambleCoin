@@ -63,6 +63,8 @@ try
         ScrambleCoin.Infrastructure.Persistence.TournamentRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IRankingRepository,
         ScrambleCoin.Infrastructure.Persistence.RankingRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IUnitOfWork>(
+        sp => sp.GetRequiredService<ScrambleCoin.Infrastructure.Persistence.ScrambleCoinDbContext>());
 
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,

@@ -18,8 +18,8 @@ public sealed class RankingTrack
     /// </summary>
     public static readonly IReadOnlyList<int> Milestones = new[]
     {
-        3, 9, 15, 24, 33, 45, 57, 72, 87, 105, 123, 144, 165, 189, 213,
-        240, 267, 297, 327, 360, 393, 429, 465, 504, 543, 550
+        3, 9, 15, 24, 33, 45, 57, 69, 84, 99, 114, 129, 147, 165, 183,
+        201, 219, 237, 258, 279, 300, 350, 400, 450, 500, 550
     };
 
     private readonly List<int> _milestonesHit = [];
