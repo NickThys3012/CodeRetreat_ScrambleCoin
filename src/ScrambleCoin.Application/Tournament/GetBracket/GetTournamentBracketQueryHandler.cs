@@ -232,8 +232,6 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             BotOne: m.BotOne,
             BotTwo: m.BotTwo,
             GameId: m.GameId,
-            BotOneToken: m.BotOneToken,
-            BotTwoToken: m.BotTwoToken,
             IsCompleted: m.IsCompleted,
             WinnerId: m.WinnerId,
             IsDraw: m.IsDraw,
@@ -252,8 +250,6 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                     BotOne: m.BotOne,
                     BotTwo: m.BotTwo,
                     GameId: m.GameId,
-                    BotOneToken: m.BotOneToken,
-                    BotTwoToken: m.BotTwoToken,
                     IsBye: m.IsBye,
                     IsCompleted: m.IsCompleted,
                     WinnerId: m.WinnerId)).ToList().AsReadOnly()))

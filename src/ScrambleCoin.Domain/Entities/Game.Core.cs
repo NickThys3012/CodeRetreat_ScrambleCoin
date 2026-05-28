@@ -326,7 +326,7 @@ public partial class Game
     /// </exception>
     public void ForceCancel()
     {
-        if (Status is GameStatus.Finished or GameStatus.Cancelled)
+        if (Status is not (GameStatus.WaitingForBots or GameStatus.InProgress))
             throw new DomainException(
                 $"Game can only be cancelled from {GameStatus.WaitingForBots} or {GameStatus.InProgress} state. Current status: {Status}.");
 

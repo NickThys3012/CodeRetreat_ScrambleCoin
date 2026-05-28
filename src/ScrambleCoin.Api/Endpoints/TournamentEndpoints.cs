@@ -2,6 +2,7 @@ using MediatR;
 using ScrambleCoin.Application.Tournament.AddParticipant;
 using ScrambleCoin.Application.Tournament.CancelTournament;
 using ScrambleCoin.Application.Tournament.CreateTournament;
+using ScrambleCoin.Application.Tournament.GetBotGames;
 using ScrambleCoin.Application.Tournament.GetBracket;
 using ScrambleCoin.Application.Tournament.GetStandings;
 using ScrambleCoin.Application.Tournament.StartTournament;
@@ -55,7 +56,8 @@ public static class TournamentEndpoints
             .WithSummary("Get group stage standings")
             .WithDescription(
                 "Returns the current group stage standings. " +
-                "Lazily syncs game results and advances to knockout when all group games complete.")
+                "Lazily syncs completed game results into the standings. " +
+                "Does not advance the tournament to the knockout stage.")
             .WithTags("Tournament");
 
         // GET /api/tournament/{id}/bracket — full bracket
@@ -65,7 +67,17 @@ public static class TournamentEndpoints
             .WithDescription(
                 "Returns the full bracket including group matches and knockout rounds. " +
                 "Lazily syncs game results and creates next-round games when a round completes (idempotent). " +
-                "Note: bots use this endpoint to discover their knockout-stage game IDs and tokens.")
+                "Bot tokens are not included here; use GET /api/tournament/{id}/bots/{botId}/games instead.")
+            .WithTags("Tournament");
+
+        // GET /api/tournament/{id}/bots/{botId}/games — per-bot token discovery
+        app.MapGet("/api/tournament/{id:guid}/bots/{botId:guid}/games", GetBotGames)
+            .WithName("GetBotTournamentGames")
+            .WithSummary("Get a bot's tournament games and tokens")
+            .WithDescription(
+                "Returns game IDs and authentication tokens for a specific bot across all stages. " +
+                "Only the requesting bot's own tokens are returned. " +
+                "Bots should call this after the tournament starts to discover their current game.")
             .WithTags("Tournament");
     }
 
@@ -232,7 +244,7 @@ public static class TournamentEndpoints
         }
     }
 
-    /// <summary>Returns the full tournament bracket with game IDs and bot tokens.</summary>
+    /// <summary>Returns the full tournament bracket with game IDs (without bot tokens).</summary>
     private static async Task<IResult> GetBracket(
         Guid id,
         ISender sender,
@@ -241,6 +253,32 @@ public static class TournamentEndpoints
         try
         {
             var result = await sender.Send(new GetTournamentBracketQuery(id), ct);
+            return Results.Ok(result);
+        }
+        catch (TournamentNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+    }
+
+    // ── Request bodies ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns game IDs and tokens for a specific bot across all tournament stages.
+    /// Only that bot's own tokens are returned.
+    /// </summary>
+    private static async Task<IResult> GetBotGames(
+        Guid id,
+        Guid botId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await sender.Send(new GetBotGamesQuery(id, botId), ct);
             return Results.Ok(result);
         }
         catch (TournamentNotFoundException ex)

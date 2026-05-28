@@ -204,22 +204,13 @@ public sealed class Tournament
         _knockoutMatches.AddRange(GenerateKnockoutBracket(ranked));
         Status = TournamentStatus.KnockoutStage;
 
-        // Resolve any first-round byes immediately and propagate winners to next-round slots
+        // Resolve any first-round byes immediately and propagate winners upward
         var firstRound = _knockoutMatches.Where(m => m.Round == 1).ToList();
         int maxRound = _knockoutMatches.Max(m => m.Round);
         foreach (var match in firstRound.Where(m => m.IsBye))
         {
             match.ResolveBye();
-
-            // Propagate the bye winner into the appropriate slot of the next-round match
-            if (match.Round < maxRound && match.WinnerId.HasValue)
-            {
-                int nextRound    = match.Round + 1;
-                int nextPosition = match.Position / 2;
-                int nextSlot     = (match.Position % 2 == 0) ? 1 : 2;
-                var nextMatch    = _knockoutMatches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
-                nextMatch?.SetParticipant(nextSlot, match.WinnerId.Value);
-            }
+            PropagateByeWinner(match, maxRound);
         }
 
         return firstRound.AsReadOnly();
@@ -228,7 +219,34 @@ public sealed class Tournament
     // ── Knockout result recording ─────────────────────────────────────────────
 
     /// <summary>
-    /// Records the result of a completed knockout match and populates the next round's slot.
+    /// Propagates a resolved bye's winner into the appropriate slot of the next-round match.
+    /// If the propagated value is <see cref="Guid.Empty"/> (double-bye), the next match also
+    /// becomes a bye and is resolved immediately, cascading upward as needed.
+    /// </summary>
+    private void PropagateByeWinner(KnockoutMatch match, int maxRound)
+    {
+        if (match.Round >= maxRound || !match.WinnerId.HasValue)
+            return;
+
+        int nextRound    = match.Round + 1;
+        int nextPosition = match.Position / 2;
+        int nextSlot     = (match.Position % 2 == 0) ? 1 : 2;
+        var nextMatch    = _knockoutMatches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
+        if (nextMatch is null)
+            return;
+
+        nextMatch.SetParticipant(nextSlot, match.WinnerId.Value);
+
+        // If propagating a double-bye created another bye in the next round (both slots known,
+        // at least one is Guid.Empty), resolve it immediately and keep propagating.
+        if (nextMatch.IsBye && nextMatch.BotOne.HasValue && nextMatch.BotTwo.HasValue && !nextMatch.IsCompleted)
+        {
+            nextMatch.ResolveBye();
+            PropagateByeWinner(nextMatch, maxRound);
+        }
+    }
+
+
     /// If this is the final match, transitions to <see cref="TournamentStatus.Completed"/>.
     /// </summary>
     /// <returns>

@@ -20,8 +20,6 @@ public sealed record TournamentBracketDto(
 /// <param name="BotOne">Bot ID of the first participant.</param>
 /// <param name="BotTwo">Bot ID of the second participant.</param>
 /// <param name="GameId">The game assigned to this match; <c>null</c> if not yet assigned.</param>
-/// <param name="BotOneToken">Auth token for BotOne; <c>null</c> if not yet assigned.</param>
-/// <param name="BotTwoToken">Auth token for BotTwo; <c>null</c> if not yet assigned.</param>
 /// <param name="IsCompleted">Whether this match has a recorded result.</param>
 /// <param name="WinnerId">Bot ID of the winner; <c>null</c> if not complete or drawn.</param>
 /// <param name="IsDraw">Whether the match ended in a draw.</param>
@@ -32,8 +30,6 @@ public sealed record GroupMatchDto(
     Guid BotOne,
     Guid BotTwo,
     Guid? GameId,
-    Guid? BotOneToken,
-    Guid? BotTwoToken,
     bool IsCompleted,
     Guid? WinnerId,
     bool IsDraw,
@@ -54,8 +50,6 @@ public sealed record KnockoutRoundDto(
 /// <param name="BotOne">Bot ID of participant 1; <c>null</c> if TBD.</param>
 /// <param name="BotTwo">Bot ID of participant 2; <c>null</c> if TBD.</param>
 /// <param name="GameId">The game assigned to this match; <c>null</c> if not yet assigned.</param>
-/// <param name="BotOneToken">Auth token for BotOne; <c>null</c> if not yet assigned.</param>
-/// <param name="BotTwoToken">Auth token for BotTwo; <c>null</c> if not yet assigned.</param>
 /// <param name="IsBye">True when one slot is a bye; the other bot advances automatically.</param>
 /// <param name="IsCompleted">Whether this match has a recorded result.</param>
 /// <param name="WinnerId">Bot ID of the winner; <c>null</c> if not complete.</param>
@@ -66,8 +60,6 @@ public sealed record KnockoutMatchDto(
     Guid? BotOne,
     Guid? BotTwo,
     Guid? GameId,
-    Guid? BotOneToken,
-    Guid? BotTwoToken,
     bool IsBye,
     bool IsCompleted,
     Guid? WinnerId);
