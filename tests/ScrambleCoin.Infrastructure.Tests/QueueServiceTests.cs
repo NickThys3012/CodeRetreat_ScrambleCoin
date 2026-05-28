@@ -21,24 +21,15 @@ public class QueueServiceTests
 
     /// <summary>
     /// Builds a <see cref="QueueService"/> whose scope factory resolves real
-    /// NSubstitute stubs for the two required repositories, and whose ISender
-    /// stub returns a valid <see cref="StartMatchResult"/> for any StartMatchCommand.
+    /// NSubstitute stubs for the two required repositories and for <see cref="ISender"/>.
+    /// The singleton no longer accepts ISender directly — it resolves it per-match
+    /// via the scope factory to avoid captive-dependency issues.
     /// </summary>
     private static (QueueService service, IGameRepository gameRepo, IBotRegistrationRepository botRegRepo, ISender sender)
         BuildQueueService()
     {
         var gameRepo   = Substitute.For<IGameRepository>();
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
-
-        var serviceProvider = Substitute.For<IServiceProvider>();
-        serviceProvider.GetService(typeof(IGameRepository)).Returns(gameRepo);
-        serviceProvider.GetService(typeof(IBotRegistrationRepository)).Returns(botRegRepo);
-
-        var scope = Substitute.For<IServiceScope>();
-        scope.ServiceProvider.Returns(serviceProvider);
-
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        scopeFactory.CreateScope().Returns(scope);
 
         // ISender stub: for any StartMatchCommand, return a valid StartMatchResult.
         var sender = Substitute.For<ISender>();
@@ -51,8 +42,21 @@ public class QueueServiceTests
                 Guid.NewGuid(),
                 Guid.NewGuid()));
 
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IGameRepository)).Returns(gameRepo);
+        serviceProvider.GetService(typeof(IBotRegistrationRepository)).Returns(botRegRepo);
+        // ISender is now resolved via scope (Fix 1: remove captive dependency).
+        serviceProvider.GetService(typeof(ISender)).Returns(sender);
+
+        var scope = Substitute.For<IServiceScope>();
+        scope.ServiceProvider.Returns(serviceProvider);
+
+        var scopeFactory = Substitute.For<IServiceScopeFactory>();
+        scopeFactory.CreateScope().Returns(scope);
+
         var logger = Substitute.For<ILogger<QueueService>>();
-        var service = new QueueService(scopeFactory, sender, logger);
+        // Constructor no longer accepts ISender (resolved via scope instead).
+        var service = new QueueService(scopeFactory, logger);
 
         return (service, gameRepo, botRegRepo, sender);
     }

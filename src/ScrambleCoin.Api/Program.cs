@@ -49,6 +49,7 @@ builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository
 builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
 builder.Services.AddScoped<IBotUnlocksRepository, BotUnlocksRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));
 builder.Services.AddSingleton<IQueueService, QueueService>();
 

@@ -45,6 +45,16 @@ public sealed class GameRepository : IGameRepository
     /// <inheritdoc/>
     public async Task SaveAsync(Game game, CancellationToken cancellationToken = default)
     {
+        await StageAsync(game, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Clear domain events after successful persistence (they are transient).
+        game.ClearDomainEvents();
+    }
+
+    /// <inheritdoc/>
+    public async Task StageAsync(Game game, CancellationToken cancellationToken = default)
+    {
         var record = ExtractRecord(game);
 
         var existing = await _context.Games.FindAsync([game.Id], cancellationToken);
@@ -56,11 +66,7 @@ public sealed class GameRepository : IGameRepository
         {
             _context.Entry(existing).CurrentValues.SetValues(record);
         }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Clear domain events after successful persistence (they are transient).
-        game.ClearDomainEvents();
+        // No SaveChangesAsync — caller commits via IUnitOfWork.SaveChangesAsync.
     }
 
     /// <inheritdoc/>

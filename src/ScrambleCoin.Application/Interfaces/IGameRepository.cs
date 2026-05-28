@@ -14,6 +14,13 @@ public interface IGameRepository
     public Task SaveAsync(Game game, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Stages the game for persistence without committing to the store.
+    /// The caller is responsible for calling <see cref="IUnitOfWork.SaveChangesAsync"/>
+    /// to flush all staged changes in a single transaction.
+    /// </summary>
+    public Task StageAsync(Game game, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns <c>true</c> when the given player has an active (InProgress) game.
     /// </summary>
     /// <param name="playerId">The player-slot identifier to check.</param>

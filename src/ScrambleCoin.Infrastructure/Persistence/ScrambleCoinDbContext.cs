@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Infrastructure.Persistence.Records;
 using ScrambleCoin.Domain.Entities;
 
@@ -9,7 +10,7 @@ namespace ScrambleCoin.Infrastructure.Persistence;
 /// Maps the <see cref="GameRecord"/> persistence POCO to the <c>Games</c> table.
 /// Complex domain types are stored as JSON columns to minimize table count.
 /// </summary>
-public class ScrambleCoinDbContext : DbContext
+public class ScrambleCoinDbContext : DbContext, IUnitOfWork
 {
     public ScrambleCoinDbContext(DbContextOptions<ScrambleCoinDbContext> options)
         : base(options)

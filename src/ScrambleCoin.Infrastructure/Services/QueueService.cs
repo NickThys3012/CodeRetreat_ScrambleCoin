@@ -34,6 +34,9 @@ public sealed class QueueService : IQueueService
     /// <summary>Tracks bot tokens currently in the waiting queue to detect duplicate enqueues.</summary>
     private readonly ConcurrentDictionary<Guid, bool> _waitingTokens = new();
 
+    /// <summary>Reverse index: QueueId → BotToken. Used to clean up <see cref="_waitingTokens"/> on timeout eviction.</summary>
+    private readonly ConcurrentDictionary<Guid, Guid> _queueIdToToken = new();
+
     /// <summary>Timestamp when each queue entry was created, keyed by QueueId.</summary>
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _enqueuedAt = new();
 
@@ -44,11 +47,13 @@ public sealed class QueueService : IQueueService
     // ── DI ────────────────────────────────────────────────────────────────────
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ISender _sender;
     private readonly ILogger<QueueService> _logger;
 
-    /// <param name="scopeFactory">Used to create scoped repository instances for conflict checks.</param>
-    /// <param name="sender">MediatR sender used to dispatch <see cref="StartMatchCommand"/>.</param>
+    /// <param name="scopeFactory">
+    /// Used to create scoped repository instances for conflict checks and to resolve
+    /// <see cref="ISender"/> per-match (avoids captive-dependency when the singleton
+    /// captures a scoped MediatR sender).
+    /// </param>
     /// <param name="logger">Logger.</param>
     /// <param name="options">
     /// Queue configuration (timeout etc.).  May be <c>null</c> in unit-test contexts;
@@ -56,12 +61,10 @@ public sealed class QueueService : IQueueService
     /// </param>
     public QueueService(
         IServiceScopeFactory scopeFactory,
-        ISender sender,
         ILogger<QueueService> logger,
         IOptions<QueueOptions>? options = null)
     {
         _scopeFactory = scopeFactory;
-        _sender = sender;
         _logger = logger;
         _timeout = TimeSpan.FromMinutes(options?.Value.TimeoutMinutes ?? 5);
     }
@@ -78,15 +81,7 @@ public sealed class QueueService : IQueueService
 
         if (botToken.HasValue)
         {
-            // 1. Already waiting in the queue?
-            if (_waitingTokens.ContainsKey(botToken.Value))
-            {
-                _logger.LogWarning(
-                    "Conflict: bot token {Token} is already waiting in the queue.", botToken.Value);
-                return new QueueEntry(Guid.NewGuid(), Status: "conflict");
-            }
-
-            // 2. Already in an active game?
+            // Already in an active game?
             using var conflictScope = _scopeFactory.CreateScope();
             var botRegRepo = conflictScope.ServiceProvider.GetRequiredService<IBotRegistrationRepository>();
             var gameRepo = conflictScope.ServiceProvider.GetRequiredService<IGameRepository>();
@@ -124,6 +119,7 @@ public sealed class QueueService : IQueueService
             _enqueuedAt.TryRemove(candidate.QueueId, out _);
             if (candidate.BotToken.HasValue)
                 _waitingTokens.TryRemove(candidate.BotToken.Value, out _);
+            _queueIdToToken.TryRemove(candidate.QueueId, out _);
             _logger.LogInformation("Queue entry expired and evicted: QueueId={QueueId}", candidate.QueueId);
         }
 
@@ -131,12 +127,19 @@ public sealed class QueueService : IQueueService
         {
             // Remove the matched waiting bot's token from the tracking set.
             if (waitingBot.BotToken.HasValue)
+            {
                 _waitingTokens.TryRemove(waitingBot.BotToken.Value, out _);
+                _queueIdToToken.TryRemove(waitingBot.QueueId, out _);
+            }
 
             _enqueuedAt.TryRemove(waitingBot.QueueId, out _);
 
             // ── Match found — delegate game creation to StartMatchCommand ─────
-            var result = await _sender.Send(
+            // Resolve ISender per-match via a fresh scope to avoid captive-dependency
+            // issues (ISender is scoped; QueueService is a singleton).
+            using var matchScope = _scopeFactory.CreateScope();
+            var sender = matchScope.ServiceProvider.GetRequiredService<ISender>();
+            var result = await sender.Send(
                 new StartMatchCommand(waitingBot.LineupPieceNames, lineupPieceNames),
                 cancellationToken);
 
@@ -171,9 +174,22 @@ public sealed class QueueService : IQueueService
         _enqueuedAt[queueId] = DateTimeOffset.UtcNow;
         _waitingQueue.Enqueue(new WaitingBot(queueId, lineupPieceNames, botToken));
 
-        // Track the token in the waiting set (for duplicate-enqueue detection).
+        // Atomically track the token (TryAdd prevents concurrent duplicate-enqueue races — Fix 3).
+        // Also record the reverse mapping so PollAsync can evict from _waitingTokens on timeout (Fix 2).
         if (botToken.HasValue)
-            _waitingTokens[botToken.Value] = true;
+        {
+            if (!_waitingTokens.TryAdd(botToken.Value, true))
+            {
+                // A concurrent request with the same token just beat us — undo staging and report conflict.
+                _entries.TryRemove(queueId, out _);
+                _enqueuedAt.TryRemove(queueId, out _);
+                _logger.LogWarning(
+                    "Conflict: bot token {Token} is already waiting in the queue (detected atomically).", botToken.Value);
+                return new QueueEntry(Guid.NewGuid(), Status: "conflict");
+            }
+            // Record the reverse mapping so PollAsync can clean up _waitingTokens on timeout.
+            _queueIdToToken[queueId] = botToken.Value;
+        }
 
         _logger.LogInformation("Bot queued, waiting for opponent: QueueId={QueueId}", queueId);
 
@@ -193,6 +209,10 @@ public sealed class QueueService : IQueueService
         {
             _entries.TryRemove(queueId, out _);
             _enqueuedAt.TryRemove(queueId, out _);
+
+            // Fix 2: clean up _waitingTokens so the bot can re-enqueue after timeout.
+            if (_queueIdToToken.TryRemove(queueId, out var timedOutToken))
+                _waitingTokens.TryRemove(timedOutToken, out _);
 
             _logger.LogInformation("Queue entry timed out: QueueId={QueueId}", queueId);
 
