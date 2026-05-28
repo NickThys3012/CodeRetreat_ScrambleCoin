@@ -580,19 +580,76 @@ public class QueueServiceTests
     [Fact]
     public async Task Enqueue_WhenExpiredBotEvictedAndFreshBotArrives_TheyCanMatch()
     {
-        // After Bot A is evicted: Bot B waits, Bot C arrives and matches with Bot B normally.
+        // Arrange: zero-timeout service — every entry expires after any positive elapsed time.
         var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
 
-        await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire)
-        await Task.Delay(1);
+        await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire immediately)
+        await Task.Delay(1);                        // ensure Bot A's timeout elapses
 
-        await service.EnqueueAsync(DefaultLineup); // Bot B: evicts A, parks itself (timeout = 0 again!)
-        // Note: Bot B also expires immediately with timeout=0.
-        // Build a NEW service instance with a normal timeout to validate the match after eviction.
+        // Act on original service: Bot B triggers lazy eviction of Bot A and parks itself.
+        // Because the service has a zero timeout, Bot B also expires after this call.
+        var botBResult = await service.EnqueueAsync(DefaultLineup);
+
+        // Assert (original service): Bot B is "waiting" — not matched with stale Bot A.
+        Assert.Equal("waiting", botBResult.Status);
+
+        // Post-eviction matching is validated on a freshly configured service (5-minute timeout).
+        // The zero-timeout instance cannot pair new bots usefully because every entry expires
+        // before a second bot can arrive. Using a correctly-configured instance proves the
+        // service architecture supports normal matching once timeout is set appropriately.
         var (svc2, _, _, _) = BuildQueueService(); // 5-minute timeout
         await svc2.EnqueueAsync(DefaultLineup);    // Bot C parks
         var botD = await svc2.EnqueueAsync(DefaultLineup); // Bot D matches with Bot C
 
         Assert.Equal("matched", botD.Status);
+    }
+
+    // ── Issue #51: Token cleanup — PollAsync timeout frees token for re-enqueue ──
+
+    /// <summary>
+    /// When <see cref="QueueService.PollAsync"/> detects a timed-out entry, it removes the
+    /// bot's token from <c>_waitingTokens</c> via <c>_queueIdToToken</c>.  This test
+    /// verifies that the freed token allows the same bot to re-enqueue without a conflict.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_AfterTokenTimedOutViaPoll_SameBotCanRequeue()
+    {
+        // Arrange: zero-timeout so any elapsed time triggers expiry.
+        var (svc, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var token = Guid.NewGuid();
+        var entry = await svc.EnqueueAsync(DefaultLineup, token);
+        await Task.Delay(1); // ensure timeout elapses
+
+        // Act: PollAsync triggers timeout + removes token from _waitingTokens.
+        await svc.PollAsync(entry.QueueId);
+
+        // Assert: same token can re-enqueue without conflict.
+        var requeue = await svc.EnqueueAsync(DefaultLineup, token);
+        Assert.NotEqual("conflict", requeue.Status);
+    }
+
+    // ── Issue #51: Token cleanup — lazy eviction frees token for re-enqueue ────
+
+    /// <summary>
+    /// The lazy-eviction loop in <see cref="QueueService.EnqueueAsync"/> calls
+    /// <c>_waitingTokens.TryRemove</c> for each expired bot it discards.  This test
+    /// verifies that the freed token allows the same bot to re-enqueue without a conflict.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_AfterLazyEviction_SameBotTokenCanRequeue()
+    {
+        // Arrange: Bot A enqueues with a specific token on a zero-timeout service.
+        var (svc, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var botAToken = Guid.NewGuid();
+        await svc.EnqueueAsync(DefaultLineup, botAToken);
+        await Task.Delay(1); // ensure Bot A expires
+
+        // Bot B triggers lazy eviction of Bot A (and its token).
+        var botBToken = Guid.NewGuid();
+        await svc.EnqueueAsync(DefaultLineup, botBToken);
+
+        // Assert: Bot A's token was freed by the eviction — re-enqueue must not return conflict.
+        var requeue = await svc.EnqueueAsync(DefaultLineup, botAToken);
+        Assert.NotEqual("conflict", requeue.Status);
     }
 }
