@@ -9,4 +9,6 @@ namespace ScrambleCoin.Application.Games.Matchmaking;
 /// </summary>
 public sealed record StartMatchCommand(
     IReadOnlyList<string> LineupOne,
-    IReadOnlyList<string> LineupTwo) : IRequest<StartMatchResult>;
+    Guid? BotTokenOne,
+    IReadOnlyList<string> LineupTwo,
+    Guid? BotTokenTwo) : IRequest<StartMatchResult>;

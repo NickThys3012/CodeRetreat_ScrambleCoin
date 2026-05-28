@@ -7,6 +7,7 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.Matchmaking;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
+using ScrambleCoin.Domain.Factories;
 
 namespace ScrambleCoin.Infrastructure.Services;
 
@@ -100,6 +101,16 @@ public sealed class QueueService : IQueueService
             }
         }
 
+        // ── Validate incoming lineup eagerly — before touching any queue state ─
+        // If the incoming lineup is invalid (unknown piece names), throw immediately.
+        // This prevents a valid waiting bot from being dequeued and losing its place
+        // because the incoming bot supplied a bad request.
+        foreach (var pieceName in lineupPieceNames)
+        {
+            if (PieceFactory.TryCreate(pieceName) is null)
+                throw new ScrambleCoin.Domain.Exceptions.DomainException($"Unknown piece name: '{pieceName}'.");
+        }
+
         // ── Clean up timed-out waiting bots before attempting to pair ──────────
         // Uses lazy eviction: skip expired candidates while searching for a match.
 
@@ -110,13 +121,25 @@ public sealed class QueueService : IQueueService
         while (_waitingQueue.TryDequeue(out var candidate))
         {
             // Reject self-match: a bot re-enqueueing with the same token must not be
-            // paired with its own waiting entry. Put it back and treat as a conflict.
+            // paired with its own waiting entry. However, if PollAsync already evicted
+            // the token (timeout), the WaitingBot is an orphan — discard it and continue.
             if (botToken.HasValue && candidate.BotToken == botToken)
             {
-                _waitingQueue.Enqueue(candidate);
-                _logger.LogWarning(
-                    "Conflict: bot token {Token} attempted to match against itself.", botToken.Value);
-                return new QueueEntry(Guid.NewGuid(), Status: "conflict");
+                if (_waitingTokens.ContainsKey(botToken.Value))
+                {
+                    // Token still active — genuine duplicate enqueue, put it back and conflict.
+                    _waitingQueue.Enqueue(candidate);
+                    _logger.LogWarning(
+                        "Conflict: bot token {Token} attempted to match against itself.", botToken.Value);
+                    return new QueueEntry(Guid.NewGuid(), Status: "conflict");
+                }
+                // Token already evicted (PollAsync timeout) — orphaned entry, discard and keep searching.
+                _entries.TryRemove(candidate.QueueId, out _);
+                _enqueuedAt.TryRemove(candidate.QueueId, out _);
+                _queueIdToToken.TryRemove(candidate.QueueId, out _);
+                _logger.LogInformation(
+                    "Discarded orphaned queue entry after timeout eviction: QueueId={QueueId}", candidate.QueueId);
+                continue;
             }
 
             if (!IsExpired(candidate.QueueId))
@@ -153,7 +176,9 @@ public sealed class QueueService : IQueueService
             try
             {
                 result = await sender.Send(
-                    new StartMatchCommand(waitingBot.LineupPieceNames, lineupPieceNames),
+                    new StartMatchCommand(
+                        waitingBot.LineupPieceNames, waitingBot.BotToken,
+                        lineupPieceNames, botToken),
                     cancellationToken);
             }
             catch

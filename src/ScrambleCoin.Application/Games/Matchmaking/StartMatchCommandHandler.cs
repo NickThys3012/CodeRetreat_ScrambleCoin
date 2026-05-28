@@ -38,12 +38,13 @@ public sealed class StartMatchCommandHandler : IRequestHandler<StartMatchCommand
         var game = Game.CreateShell(board);
 
         // Assign waiting bot → PlayerOne slot.
-        var tokenOne = Guid.NewGuid();
+        // Use the original queue token so the bot can use it for subsequent API calls.
+        var tokenOne = request.BotTokenOne ?? Guid.NewGuid();
         var lineupOne = BuildLineup(game.PlayerOne, request.LineupOne);
         game.SetLineup(game.PlayerOne, lineupOne);
 
         // Assign incoming bot → PlayerTwo slot.
-        var tokenTwo = Guid.NewGuid();
+        var tokenTwo = request.BotTokenTwo ?? Guid.NewGuid();
         var lineupTwo = BuildLineup(game.PlayerTwo, request.LineupTwo);
         game.SetLineup(game.PlayerTwo, lineupTwo);
 

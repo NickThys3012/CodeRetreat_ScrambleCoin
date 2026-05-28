@@ -118,13 +118,9 @@ public static class GameEndpoints
         IQueueService queueService,
         CancellationToken ct)
     {
-        // Optionally extract bot token for conflict detection (AC 6).
-        Guid? botToken = null;
-        if (httpRequest.Headers.TryGetValue("X-Bot-Token", out var tokenHeader) &&
-            Guid.TryParse(tokenHeader, out var parsedToken))
-        {
-            botToken = parsedToken;
-        }
+        // Bot identity is required to enforce duplicate-queue and active-game conflict checks.
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
 
         QueueEntry entry;
         try
