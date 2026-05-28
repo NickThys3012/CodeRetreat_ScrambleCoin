@@ -315,6 +315,25 @@ public partial class Game
         _piecesOnBoard[playerId]--;
     }
 
+    // ── Force cancel ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Force-cancels the game, transitioning to <see cref="GameStatus.Cancelled"/>.
+    /// Allowed from <see cref="GameStatus.WaitingForBots"/> or <see cref="GameStatus.InProgress"/>.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the game is already <see cref="GameStatus.Finished"/> or <see cref="GameStatus.Cancelled"/>.
+    /// </exception>
+    public void ForceCancel()
+    {
+        if (Status is GameStatus.Finished or GameStatus.Cancelled)
+            throw new DomainException(
+                $"Game can only be cancelled from {GameStatus.WaitingForBots} or {GameStatus.InProgress} state. Current status: {Status}.");
+
+        Status = GameStatus.Cancelled;
+        CurrentPhase = null;
+    }
+
     // ── Turn advancement ──────────────────────────────────────────────────────
 
     /// <summary>

@@ -402,8 +402,9 @@ public sealed class Tournament
             int matchCount = roundBots.Count / 2;
             for (int i = 0; i < matchCount; i++)
             {
-                Guid? botOne = roundBots[i] == Guid.Empty ? (Guid?)null : roundBots[i];
-                Guid? botTwo = roundBots[slots - 1 - i] == Guid.Empty ? (Guid?)null : roundBots[slots - 1 - i];
+                // Preserve Guid.Empty as-is so KnockoutMatch.IsBye (which checks == Guid.Empty) works correctly.
+                Guid? botOne = roundBots[i];
+                Guid? botTwo = roundBots[slots - 1 - i];
 
                 // For round 1, use standard seeding pairing (top vs bottom)
                 // For later rounds, participants are TBD (null)

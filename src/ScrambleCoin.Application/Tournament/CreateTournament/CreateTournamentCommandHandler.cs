@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using ScrambleCoin.Application.Interfaces;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tournament.CreateTournament;
@@ -10,13 +11,16 @@ namespace ScrambleCoin.Application.Tournament.CreateTournament;
 public sealed class CreateTournamentCommandHandler : IRequestHandler<CreateTournamentCommand, CreateTournamentResult>
 {
     private readonly ITournamentRepository _tournamentRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateTournamentCommandHandler> _logger;
 
     public CreateTournamentCommandHandler(
         ITournamentRepository tournamentRepository,
+        IUnitOfWork unitOfWork,
         ILogger<CreateTournamentCommandHandler> logger)
     {
         _tournamentRepository = tournamentRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -30,6 +34,7 @@ public sealed class CreateTournamentCommandHandler : IRequestHandler<CreateTourn
             createdAtUtc: DateTimeOffset.UtcNow);
 
         await _tournamentRepository.SaveAsync(tournament, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Tournament created: {TournamentId} Name={Name} MaxParticipants={MaxParticipants} TopN={TopN}",

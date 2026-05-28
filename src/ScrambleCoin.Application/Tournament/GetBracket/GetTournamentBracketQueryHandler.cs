@@ -70,7 +70,10 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         }
 
         if (dirty)
+        {
             await _tournamentRepository.SaveAsync(tournament, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         return BuildDto(tournament);
     }
@@ -203,8 +206,6 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                 "Tournament {TournamentId}: knockout R{Round} match {MatchId} game {GameId} created.",
                 tournament.Id, round, match.Id, gameId);
         }
-
-        await _unitOfWork.SaveChangesAsync(ct);
     }
 
     private static Domain.ValueObjects.Lineup BuildLineup(Guid playerId, IReadOnlyList<string> pieceNames)

@@ -59,7 +59,7 @@ public sealed class TournamentRepository : ITournamentRepository
             existing.KnockoutMatchesJson = record.KnockoutMatchesJson;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        // No SaveChangesAsync — the caller is responsible for committing via IUnitOfWork.SaveChangesAsync.
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────

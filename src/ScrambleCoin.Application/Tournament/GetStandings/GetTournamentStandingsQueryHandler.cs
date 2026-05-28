@@ -41,20 +41,13 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
         if (tournament.Status == Domain.Enums.TournamentStatus.GroupStage)
         {
             dirty = await SyncGroupResultsAsync(tournament, cancellationToken);
-
-            if (tournament.IsGroupStageComplete())
-            {
-                _logger.LogInformation(
-                    "Tournament {TournamentId}: all group games complete. Advancing to knockout.",
-                    tournament.Id);
-
-                tournament.AdvanceToKnockout();
-                dirty = true;
-            }
         }
 
         if (dirty)
+        {
             await _tournamentRepository.SaveAsync(tournament, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         var standings = tournament.ComputeStandings();
 

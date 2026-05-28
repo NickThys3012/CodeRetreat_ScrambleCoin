@@ -12,5 +12,8 @@ public enum GameStatus
     InProgress,
 
     /// <summary>All 5 turns have been completed, and a winner (or draw) has been determined.</summary>
-    Finished
+    Finished,
+
+    /// <summary>The game was force-cancelled before completion (e.g. because the hosting tournament was cancelled).</summary>
+    Cancelled
 }
