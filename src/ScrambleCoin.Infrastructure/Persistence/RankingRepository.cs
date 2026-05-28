@@ -47,7 +47,7 @@ public sealed class RankingRepository : IRankingRepository
             _db.Entry(existing).CurrentValues.SetValues(record);
         }
 
-        await _db.SaveChangesAsync(ct);
+        // Caller is responsible for committing via IUnitOfWork.SaveChangesAsync
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

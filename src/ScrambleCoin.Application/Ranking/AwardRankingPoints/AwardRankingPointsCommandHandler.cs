@@ -16,13 +16,16 @@ namespace ScrambleCoin.Application.Ranking.AwardRankingPoints;
 public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRankingPointsCommand>
 {
     private readonly IRankingRepository _rankingRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AwardRankingPointsCommandHandler> _logger;
 
     public AwardRankingPointsCommandHandler(
         IRankingRepository rankingRepository,
+        IUnitOfWork unitOfWork,
         ILogger<AwardRankingPointsCommandHandler> logger)
     {
         _rankingRepository = rankingRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -46,7 +49,16 @@ public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRank
         }
         else
         {
-            // Determine winner vs loser by matching stable bot IDs
+            // Guard: winner must be one of the two known bots
+            if (command.WinnerId != command.BotOneId && command.WinnerId != command.BotTwoId)
+            {
+                _logger.LogWarning(
+                    "Game {GameId}: winner ID {WinnerId} does not match BotOne {BotOneId} or BotTwo {BotTwoId}. " +
+                    "Ranking points will not be awarded.",
+                    command.GameId, command.WinnerId, command.BotOneId, command.BotTwoId);
+                return;
+            }
+
             var winnerTrack = command.WinnerId == command.BotOneId ? botOneTrack : botTwoTrack;
             var loserTrack  = command.WinnerId == command.BotOneId ? botTwoTrack : botOneTrack;
 
@@ -63,6 +75,7 @@ public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRank
 
         await _rankingRepository.SaveAsync(botOneTrack, cancellationToken);
         await _rankingRepository.SaveAsync(botTwoTrack, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<RankingTrack> LoadOrCreate(Guid botId, string botName, CancellationToken ct)
