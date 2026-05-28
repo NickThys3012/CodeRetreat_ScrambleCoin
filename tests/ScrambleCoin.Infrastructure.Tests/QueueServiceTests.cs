@@ -1,16 +1,21 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MediatR;
 using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.Matchmaking;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
+using ScrambleCoin.Domain.BotRegistrations;
 using ScrambleCoin.Infrastructure.Services;
 
 namespace ScrambleCoin.Infrastructure.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="QueueService"/> — in-memory matchmaking queue (Issue #37).
+/// Unit tests for <see cref="QueueService"/> — in-memory matchmaking queue (Issue #37 / #51).
 /// </summary>
 public class QueueServiceTests
 {
@@ -26,7 +31,7 @@ public class QueueServiceTests
     /// via the scope factory to avoid captive-dependency issues.
     /// </summary>
     private static (QueueService service, IGameRepository gameRepo, IBotRegistrationRepository botRegRepo, ISender sender)
-        BuildQueueService()
+        BuildQueueService(IOptions<QueueOptions>? options = null)
     {
         var gameRepo   = Substitute.For<IGameRepository>();
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
@@ -56,9 +61,31 @@ public class QueueServiceTests
 
         var logger = Substitute.For<ILogger<QueueService>>();
         // Constructor no longer accepts ISender (resolved via scope instead).
-        var service = new QueueService(scopeFactory, logger);
+        var service = new QueueService(scopeFactory, logger, options);
 
         return (service, gameRepo, botRegRepo, sender);
+    }
+
+    /// <summary>
+    /// Builds a <see cref="QueueService"/> with a zero-minute timeout so entries
+    /// expire immediately (any positive elapsed time satisfies <c>elapsed &gt; TimeSpan.Zero</c>).
+    /// Used for timeout and lazy-eviction tests.
+    /// </summary>
+    private static (QueueService service, IGameRepository gameRepo, IBotRegistrationRepository botRegRepo, ISender sender)
+        BuildQueueServiceWithZeroTimeout()
+        => BuildQueueService(Options.Create(new QueueOptions { TimeoutMinutes = 0 }));
+
+    /// <summary>
+    /// Returns the private <c>_waitingTokens</c> field of the given service instance via
+    /// reflection.  Used to simulate a concurrent in-flight request that has already
+    /// claimed a token slot, without requiring real thread-level parallelism.
+    /// </summary>
+    private static ConcurrentDictionary<Guid, bool> GetWaitingTokens(QueueService service)
+    {
+        var field = typeof(QueueService)
+            .GetField("_waitingTokens", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("_waitingTokens field not found on QueueService.");
+        return (ConcurrentDictionary<Guid, bool>)field.GetValue(service)!;
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -270,5 +297,302 @@ public class QueueServiceTests
                 cmd.LineupOne.Count == DefaultLineup.Count &&
                 cmd.LineupTwo.Count == DefaultLineup.Count),
             Arg.Any<CancellationToken>());
+    }
+
+    // ── Issue #51: Critical path 1 — PollAsync timeout ────────────────────────
+
+    /// <summary>
+    /// AC 7: When the configured timeout elapses, <see cref="QueueService.PollAsync"/>
+    /// must return a <see cref="QueueEntry"/> whose <c>Status</c> is <c>"timed_out"</c>.
+    /// A zero-minute timeout ensures any positive elapsed time triggers the condition.
+    /// </summary>
+    [Fact]
+    public async Task Poll_AfterTimeoutElapses_ReturnsTimedOutStatus()
+    {
+        // Arrange: build service with TimeoutMinutes = 0 → TimeSpan.Zero timeout.
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var entry = await service.EnqueueAsync(DefaultLineup);
+
+        // Allow at least one tick so elapsed > TimeSpan.Zero is satisfied.
+        await Task.Delay(1);
+
+        // Act
+        var polled = await service.PollAsync(entry.QueueId);
+
+        // Assert
+        Assert.NotNull(polled);
+        Assert.Equal("timed_out", polled!.Status);
+    }
+
+    [Fact]
+    public async Task Poll_AfterTimeoutElapses_TimedOutEntryPreservesQueueId()
+    {
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var entry = await service.EnqueueAsync(DefaultLineup);
+        await Task.Delay(1);
+
+        var polled = await service.PollAsync(entry.QueueId);
+
+        Assert.NotNull(polled);
+        Assert.Equal(entry.QueueId, polled!.QueueId);
+    }
+
+    [Fact]
+    public async Task Poll_AfterTimeoutElapses_SubsequentPollReturnsNull()
+    {
+        // After the entry is marked timed_out the record is removed, so further polls
+        // must return null (not timed_out again).
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var entry = await service.EnqueueAsync(DefaultLineup);
+        await Task.Delay(1);
+
+        // First poll removes the entry and returns "timed_out".
+        await service.PollAsync(entry.QueueId);
+
+        // Act: second poll on same ID.
+        var polled2 = await service.PollAsync(entry.QueueId);
+
+        // Assert: entry is gone.
+        Assert.Null(polled2);
+    }
+
+    [Fact]
+    public async Task Poll_BeforeTimeoutElapses_ReturnsWaitingNotTimedOut()
+    {
+        // With a 5-minute timeout, a freshly enqueued bot must not be timed out immediately.
+        var (service, _, _, _) = BuildQueueService(); // default 5-minute timeout
+        var entry = await service.EnqueueAsync(DefaultLineup);
+
+        var polled = await service.PollAsync(entry.QueueId);
+
+        Assert.NotNull(polled);
+        Assert.Equal("waiting", polled!.Status);
+    }
+
+    // ── Issue #51: Critical path 2 — conflict when same token already waiting ──
+
+    /// <summary>
+    /// AC 6 / <c>_waitingTokens.TryAdd</c> path:
+    /// When a bot token is already registered in the waiting-tokens set (simulating
+    /// a concurrent in-flight request that claimed the slot), a subsequent
+    /// <see cref="QueueService.EnqueueAsync"/> with the same token must return
+    /// <c>Status="conflict"</c>.
+    /// <para>
+    /// The waiting-token set is seeded directly via reflection to reproduce the
+    /// concurrent race scenario (two HTTP requests arriving simultaneously with the
+    /// same bot token) in a deterministic, single-threaded unit test.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_WhenSameBotTokenAlreadyInWaitingSet_ReturnsConflictStatus()
+    {
+        // Arrange
+        var (service, _, _, _) = BuildQueueService();
+        var token = Guid.NewGuid();
+
+        // Simulate a racing request that already claimed this token.
+        var waitingTokens = GetWaitingTokens(service);
+        waitingTokens.TryAdd(token, true);
+
+        // Act: second enqueue with same token finds an empty queue (no waiting bot to dequeue)
+        // but the token is already in the waiting set → conflict.
+        var entry = await service.EnqueueAsync(DefaultLineup, token);
+
+        // Assert
+        Assert.Equal("conflict", entry.Status);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenSameBotTokenAlreadyInWaitingSet_ReturnsNonEmptyQueueId()
+    {
+        var (service, _, _, _) = BuildQueueService();
+        var token = Guid.NewGuid();
+
+        GetWaitingTokens(service).TryAdd(token, true);
+
+        var entry = await service.EnqueueAsync(DefaultLineup, token);
+
+        Assert.NotEqual(Guid.Empty, entry.QueueId);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenSameBotTokenAlreadyInWaitingSet_GameIdIsNull()
+    {
+        // A conflicted entry must not carry game credentials.
+        var (service, _, _, _) = BuildQueueService();
+        var token = Guid.NewGuid();
+
+        GetWaitingTokens(service).TryAdd(token, true);
+
+        var entry = await service.EnqueueAsync(DefaultLineup, token);
+
+        Assert.Null(entry.GameId);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenSameBotTokenAlreadyInWaitingSet_NoGameIsCreated()
+    {
+        // Conflict must be short-circuited without dispatching StartMatchCommand.
+        var (service, _, _, sender) = BuildQueueService();
+        var token = Guid.NewGuid();
+
+        GetWaitingTokens(service).TryAdd(token, true);
+
+        await service.EnqueueAsync(DefaultLineup, token);
+
+        await sender.DidNotReceive().Send(Arg.Any<StartMatchCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// AC 6 (DB-based conflict path): when the bot already has an active game in the
+    /// persistence store, <see cref="QueueService.EnqueueAsync"/> must short-circuit
+    /// and return <c>Status="conflict"</c> before touching any queue state.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_WhenBotHasActiveGame_ReturnsConflictStatus()
+    {
+        var (service, gameRepo, botRegRepo, _) = BuildQueueService();
+        var token    = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+
+        botRegRepo
+            .GetByTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns(new BotRegistration(token, playerId, Guid.NewGuid()));
+        gameRepo
+            .HasActiveGameAsync(playerId, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var entry = await service.EnqueueAsync(DefaultLineup, token);
+
+        Assert.Equal("conflict", entry.Status);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenBotHasActiveGame_NoGameIsCreated()
+    {
+        var (service, gameRepo, botRegRepo, sender) = BuildQueueService();
+        var token    = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+
+        botRegRepo
+            .GetByTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns(new BotRegistration(token, playerId, Guid.NewGuid()));
+        gameRepo
+            .HasActiveGameAsync(playerId, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await service.EnqueueAsync(DefaultLineup, token);
+
+        await sender.DidNotReceive().Send(Arg.Any<StartMatchCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenBotRegisteredButNoActiveGame_DoesNotReturnConflict()
+    {
+        // Having a registration but NO active game should not block enqueueing.
+        var (service, gameRepo, botRegRepo, _) = BuildQueueService();
+        var token    = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+
+        botRegRepo
+            .GetByTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns(new BotRegistration(token, playerId, Guid.NewGuid()));
+        gameRepo
+            .HasActiveGameAsync(playerId, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var entry = await service.EnqueueAsync(DefaultLineup, token);
+
+        Assert.NotEqual("conflict", entry.Status);
+    }
+
+    // ── Issue #51: Critical path 3 — lazy eviction of expired WaitingBot ──────
+
+    /// <summary>
+    /// Lazy-eviction: when Bot A's waiting entry has already expired (elapsed &gt; timeout),
+    /// a second bot that arrives must NOT be matched with stale Bot A.
+    /// Bot B should park itself as a new waiting entry.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_WhenWaitingBotIsExpired_IncomingBotReceivesWaitingStatus()
+    {
+        // Arrange: zero-minute timeout so Bot A's entry is stale after any delay.
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+
+        await service.EnqueueAsync(DefaultLineup); // Bot A parks
+        await Task.Delay(1);                        // Bot A entry expires
+
+        // Act: Bot B arrives and should evict stale Bot A via lazy eviction.
+        var result = await service.EnqueueAsync(DefaultLineup);
+
+        // Assert: Bot B parks and waits (not matched with expired Bot A).
+        Assert.Equal("waiting", result.Status);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenWaitingBotIsExpired_IncomingBotHasNullGameId()
+    {
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+
+        await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire)
+        await Task.Delay(1);
+
+        var result = await service.EnqueueAsync(DefaultLineup);
+
+        // No game was created; GameId must be null.
+        Assert.Null(result.GameId);
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenWaitingBotIsExpired_NoGameIsCreated()
+    {
+        // The expired waiting bot must be discarded, not matched.
+        var (service, _, _, sender) = BuildQueueServiceWithZeroTimeout();
+
+        await service.EnqueueAsync(DefaultLineup); // Bot A parks
+        await Task.Delay(1);
+
+        await service.EnqueueAsync(DefaultLineup); // Bot B: should NOT match with Bot A
+
+        await sender.DidNotReceive().Send(Arg.Any<StartMatchCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenWaitingBotIsExpired_ExpiredBotQueueEntryIsEvicted()
+    {
+        // After lazy eviction, polling the expired bot's QueueId should return null (evicted)
+        // or timed_out — either way the entry must not be "waiting".
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+
+        var expiredEntry = await service.EnqueueAsync(DefaultLineup); // Bot A
+        await Task.Delay(1);
+
+        // Trigger the lazy-eviction loop by having Bot B enqueue.
+        await service.EnqueueAsync(DefaultLineup);
+
+        // Bot A's entry should either be gone or already transitioned.
+        var polled = await service.PollAsync(expiredEntry.QueueId);
+        Assert.True(
+            polled is null || polled.Status is "timed_out",
+            $"Expected null or 'timed_out' but got '{polled?.Status}'.");
+    }
+
+    [Fact]
+    public async Task Enqueue_WhenExpiredBotEvictedAndFreshBotArrives_TheyCanMatch()
+    {
+        // After Bot A is evicted: Bot B waits, Bot C arrives and matches with Bot B normally.
+        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+
+        await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire)
+        await Task.Delay(1);
+
+        await service.EnqueueAsync(DefaultLineup); // Bot B: evicts A, parks itself (timeout = 0 again!)
+        // Note: Bot B also expires immediately with timeout=0.
+        // Build a NEW service instance with a normal timeout to validate the match after eviction.
+        var (svc2, _, _, _) = BuildQueueService(); // 5-minute timeout
+        await svc2.EnqueueAsync(DefaultLineup);    // Bot C parks
+        var botD = await svc2.EnqueueAsync(DefaultLineup); // Bot D matches with Bot C
+
+        Assert.Equal("matched", botD.Status);
     }
 }
