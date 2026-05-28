@@ -32,6 +32,9 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
     /// <summary>The VillainNodeParents join table — DAG edges (parent→child).</summary>
     public DbSet<VillainNodeParent> VillainNodeParents => Set<VillainNodeParent>();
 
+    /// <summary>The Tournaments table — one row per tournament aggregate.</summary>
+    public DbSet<TournamentRecord> Tournaments => Set<TournamentRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -115,6 +118,24 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
 
             // Index on (BotId, VillainId): non-unique to allow re-challenges
             entity.HasIndex(bu => new { bu.BotId, bu.VillainId }).IsUnique(false);
+        });
+
+        modelBuilder.Entity<TournamentRecord>(entity =>
+        {
+            entity.ToTable("Tournaments");
+            entity.HasKey(t => t.Id);
+
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
+            entity.Property(t => t.MaxParticipants).IsRequired();
+            entity.Property(t => t.TopN).IsRequired();
+            entity.Property(t => t.Status).IsRequired();
+            entity.Property(t => t.WinnerId);
+            entity.Property(t => t.CreatedAtUtc).IsRequired();
+
+            // JSON columns — stored as Unicode text
+            entity.Property(t => t.ParticipantsJson).IsRequired().HasColumnName("Participants");
+            entity.Property(t => t.GroupMatchesJson).IsRequired().HasColumnName("GroupMatches");
+            entity.Property(t => t.KnockoutMatchesJson).IsRequired().HasColumnName("KnockoutMatches");
         });
     }
 }

@@ -1,0 +1,199 @@
+using System.Reflection;
+using System.Text.Json;
+using ScrambleCoin.Application.Tournament;
+using ScrambleCoin.Domain.Enums;
+using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.Tournaments;
+using ScrambleCoin.Infrastructure.Persistence.Records;
+
+namespace ScrambleCoin.Infrastructure.Persistence;
+
+/// <summary>
+/// EF Core-backed implementation of <see cref="ITournamentRepository"/>.
+/// Serializes the <see cref="Tournament"/> aggregate to/from <see cref="TournamentRecord"/>.
+/// Complex nested data is stored as JSON columns. Reflection is used to restore private fields
+/// on hydration (same pattern as <see cref="GameRepository"/>).
+/// </summary>
+public sealed class TournamentRepository : ITournamentRepository
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private readonly ScrambleCoinDbContext _context;
+
+    public TournamentRepository(ScrambleCoinDbContext context)
+    {
+        _context = context;
+    }
+
+    /// <inheritdoc/>
+    public async Task<Tournament> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var record = await _context.Tournaments.FindAsync([id], cancellationToken)
+            ?? throw new TournamentNotFoundException(id);
+
+        return Hydrate(record);
+    }
+
+    /// <inheritdoc/>
+    public async Task SaveAsync(Tournament tournament, CancellationToken cancellationToken = default)
+    {
+        var record = Dehydrate(tournament);
+
+        var existing = await _context.Tournaments.FindAsync([tournament.Id], cancellationToken);
+        if (existing is null)
+        {
+            _context.Tournaments.Add(record);
+        }
+        else
+        {
+            existing.Name = record.Name;
+            existing.MaxParticipants = record.MaxParticipants;
+            existing.TopN = record.TopN;
+            existing.Status = record.Status;
+            existing.WinnerId = record.WinnerId;
+            existing.ParticipantsJson = record.ParticipantsJson;
+            existing.GroupMatchesJson = record.GroupMatchesJson;
+            existing.KnockoutMatchesJson = record.KnockoutMatchesJson;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    // ── Serialization ─────────────────────────────────────────────────────────
+
+    private static TournamentRecord Dehydrate(Tournament tournament)
+    {
+        var participants = tournament.Participants.Select(p => new TournamentParticipantDto(
+            p.BotId,
+            p.BotName,
+            p.Lineup.ToList())).ToList();
+
+        var groupMatches = tournament.GroupMatches.Select(m => new Records.GroupMatchDto(
+            m.Id,
+            m.BotOne,
+            m.BotTwo,
+            m.GameId,
+            m.BotOnePlayerId,
+            m.BotOneToken,
+            m.BotTwoPlayerId,
+            m.BotTwoToken,
+            m.IsCompleted,
+            m.WinnerId,
+            m.IsDraw,
+            m.BotOneScore,
+            m.BotTwoScore)).ToList();
+
+        var knockoutMatches = tournament.KnockoutMatches.Select(m => new Records.KnockoutMatchDto(
+            m.Id,
+            m.Round,
+            m.Position,
+            m.BotOne,
+            m.BotTwo,
+            m.GameId,
+            m.BotOnePlayerId,
+            m.BotOneToken,
+            m.BotTwoPlayerId,
+            m.BotTwoToken,
+            m.IsCompleted,
+            m.WinnerId,
+            m.IsDraw)).ToList();
+
+        return new TournamentRecord
+        {
+            Id = tournament.Id,
+            Name = tournament.Name,
+            MaxParticipants = tournament.MaxParticipants,
+            TopN = tournament.TopN,
+            Status = (int)tournament.Status,
+            WinnerId = tournament.WinnerId,
+            CreatedAtUtc = tournament.CreatedAtUtc,
+            ParticipantsJson = JsonSerializer.Serialize(participants, JsonOptions),
+            GroupMatchesJson = JsonSerializer.Serialize(groupMatches, JsonOptions),
+            KnockoutMatchesJson = JsonSerializer.Serialize(knockoutMatches, JsonOptions)
+        };
+    }
+
+    private static Tournament Hydrate(TournamentRecord record)
+    {
+        // Create the aggregate via its public constructor (Status will be Pending initially)
+        var tournament = new Tournament(
+            id: record.Id,
+            name: record.Name,
+            maxParticipants: record.MaxParticipants,
+            topN: record.TopN,
+            createdAtUtc: record.CreatedAtUtc);
+
+        // ── Restore private backing fields via reflection ──────────────────────
+
+        var type = typeof(Tournament);
+        const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
+
+        // Status
+        type.GetProperty(nameof(Tournament.Status))!
+            .SetValue(tournament, (TournamentStatus)record.Status);
+
+        // WinnerId
+        type.GetProperty(nameof(Tournament.WinnerId))!
+            .SetValue(tournament, record.WinnerId);
+
+        // Participants list
+        var participantsField = type.GetField("_participants", flags)!;
+        var participantsList = (List<TournamentParticipant>)participantsField.GetValue(tournament)!;
+        var participantDtos = JsonSerializer.Deserialize<List<TournamentParticipantDto>>(
+            record.ParticipantsJson, JsonOptions) ?? [];
+
+        foreach (var p in participantDtos)
+            participantsList.Add(new TournamentParticipant(p.BotId, p.BotName, p.Lineup));
+
+        // Group matches list
+        var groupMatchesField = type.GetField("_groupMatches", flags)!;
+        var groupMatchesList = (List<GroupMatch>)groupMatchesField.GetValue(tournament)!;
+        var groupMatchDtos = JsonSerializer.Deserialize<List<Records.GroupMatchDto>>(
+            record.GroupMatchesJson, JsonOptions) ?? [];
+
+        foreach (var dto in groupMatchDtos)
+        {
+            var match = new GroupMatch(dto.Id, dto.BotOne, dto.BotTwo);
+
+            if (dto.GameId.HasValue && dto.BotOnePlayerId.HasValue && dto.BotOneToken.HasValue
+                && dto.BotTwoPlayerId.HasValue && dto.BotTwoToken.HasValue)
+            {
+                match.AssignGame(dto.GameId.Value, dto.BotOnePlayerId.Value, dto.BotOneToken.Value,
+                                 dto.BotTwoPlayerId.Value, dto.BotTwoToken.Value);
+            }
+
+            if (dto.IsCompleted)
+                match.RecordResult(dto.WinnerId, dto.IsDraw, dto.BotOneScore, dto.BotTwoScore);
+
+            groupMatchesList.Add(match);
+        }
+
+        // Knockout matches list
+        var knockoutMatchesField = type.GetField("_knockoutMatches", flags)!;
+        var knockoutMatchesList = (List<KnockoutMatch>)knockoutMatchesField.GetValue(tournament)!;
+        var knockoutMatchDtos = JsonSerializer.Deserialize<List<Records.KnockoutMatchDto>>(
+            record.KnockoutMatchesJson, JsonOptions) ?? [];
+
+        foreach (var dto in knockoutMatchDtos)
+        {
+            var match = new KnockoutMatch(dto.Id, dto.Round, dto.Position, dto.BotOne, dto.BotTwo);
+
+            if (dto.GameId.HasValue && dto.BotOnePlayerId.HasValue && dto.BotOneToken.HasValue
+                && dto.BotTwoPlayerId.HasValue && dto.BotTwoToken.HasValue)
+            {
+                match.AssignGame(dto.GameId.Value, dto.BotOnePlayerId.Value, dto.BotOneToken.Value,
+                                 dto.BotTwoPlayerId.Value, dto.BotTwoToken.Value);
+            }
+
+            if (dto.IsCompleted)
+                match.RecordResult(dto.WinnerId, dto.IsDraw);
+
+            knockoutMatchesList.Add(match);
+        }
+
+        return tournament;
+    }
+}
