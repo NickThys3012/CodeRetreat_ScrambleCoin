@@ -28,7 +28,6 @@ public sealed class RankingTrackRecord
 
     /// <summary>
     /// JSON-serialised list of milestone point thresholds already hit by this bot.
-    /// Stored as a comma-separated integers string, e.g. "3,9,15".
     /// </summary>
     public string MilestonesHitJson { get; set; } = "[]";
 }
