@@ -16,7 +16,6 @@ namespace ScrambleCoin.Api.Endpoints;
 /// </summary>
 public static class GameEndpoints
 {
-    private const string AdminKey = "scramblecoin-admin";
 
     public static void MapGameEndpoints(this WebApplication app)
     {
@@ -70,12 +69,9 @@ public static class GameEndpoints
         CancellationToken ct)
     {
         if (!httpRequest.Headers.TryGetValue("X-Admin-Key", out var adminKey) ||
-            adminKey != AdminKey)
+            adminKey != AdminAuth.Key)
         {
-            return Results.Problem(
-                detail: "Missing or invalid X-Admin-Key header.",
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized");
+            return AdminAuth.Unauthorized();
         }
 
         var result = await sender.Send(new CreateGameCommand(), ct);
