@@ -100,7 +100,7 @@ public sealed class QueueService : IQueueService
             }
         }
 
-        // ── Cleanup timed-out waiting bots before attempting to pair ──────────
+        // ── Clean up timed-out waiting bots before attempting to pair ──────────
         // Uses lazy eviction: skip expired candidates while searching for a match.
 
         var queueId = Guid.NewGuid();
@@ -109,6 +109,16 @@ public sealed class QueueService : IQueueService
         WaitingBot? waitingBot = null;
         while (_waitingQueue.TryDequeue(out var candidate))
         {
+            // Reject self-match: a bot re-enqueueing with the same token must not be
+            // paired with its own waiting entry. Put it back and treat as a conflict.
+            if (botToken.HasValue && candidate.BotToken == botToken)
+            {
+                _waitingQueue.Enqueue(candidate);
+                _logger.LogWarning(
+                    "Conflict: bot token {Token} attempted to match against itself.", botToken.Value);
+                return new QueueEntry(Guid.NewGuid(), Status: "conflict");
+            }
+
             if (!IsExpired(candidate.QueueId))
             {
                 waitingBot = candidate;
