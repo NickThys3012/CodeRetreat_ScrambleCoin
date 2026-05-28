@@ -1,6 +1,7 @@
 using MediatR;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
+using ScrambleCoin.Application.Games.GetGameResult;
 using ScrambleCoin.Application.Games.JoinGame;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Games.SubmitPlacement;
@@ -37,6 +38,11 @@ public static class GameEndpoints
         // GET /api/games/queue/{queueId} — poll matchmaking status
         app.MapGet("/api/games/queue/{queueId:guid}", PollQueue)
             .WithName("PollQueue")
+            .WithTags("Games");
+
+        // GET /api/games/{gameId}/result — retrieve the final result of a finished game
+        app.MapGet("/api/games/{gameId:guid}/result", GetGameResult)
+            .WithName("GetGameResult")
             .WithTags("Games");
 
         // GET /api/games/{gameId}/state — bot reads current board state
@@ -108,10 +114,34 @@ public static class GameEndpoints
     /// <summary>Bot joins the matchmaking queue with a lineup.</summary>
     private static async Task<IResult> QueueBot(
         QueueRequest body,
+        HttpRequest httpRequest,
         IQueueService queueService,
         CancellationToken ct)
     {
-        var entry = await queueService.EnqueueAsync(body.Lineup, ct);
+        // Bot identity is required to enforce duplicate-queue and active-game conflict checks.
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        QueueEntry entry;
+        try
+        {
+            entry = await queueService.EnqueueAsync(body.Lineup, botToken, ct);
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid Lineup");
+        }
+
+        if (entry.Status == "conflict")
+        {
+            return Results.Problem(
+                detail: "Bot is already waiting in the queue or has an active game in progress.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
 
         if (entry.Status == "matched")
         {
@@ -143,6 +173,14 @@ public static class GameEndpoints
                 detail: $"Queue entry '{queueId}' was not found.",
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Not Found");
+        }
+
+        if (entry.Status == "timed_out")
+        {
+            return Results.Problem(
+                detail: "No opponent was found before the queue entry expired. Please re-enqueue.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Queue Timed Out");
         }
 
         if (entry.Status == "waiting")
@@ -215,6 +253,44 @@ public static class GameEndpoints
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────────
+
+    /// <summary>Retrieves the final result of a finished game. Requires <c>X-Bot-Token</c> header.</summary>
+    private static async Task<IResult> GetGameResult(
+        Guid gameId,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            var result = await sender.Send(new GetGameResultQuery(gameId, botToken), ct);
+            return Results.Ok(result);
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+        catch (GameNotFinishedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Game Not Finished");
+        }
+    }
 
     private static bool TryExtractBotToken(HttpRequest request, out Guid token)
     {

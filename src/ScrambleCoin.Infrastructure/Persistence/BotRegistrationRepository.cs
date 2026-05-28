@@ -28,6 +28,13 @@ public sealed class BotRegistrationRepository : IBotRegistrationRepository
     /// <inheritdoc/>
     public async Task SaveAsync(BotRegistration botRegistration, CancellationToken cancellationToken = default)
     {
+        await StageAsync(botRegistration, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task StageAsync(BotRegistration botRegistration, CancellationToken cancellationToken = default)
+    {
         var record = new BotRegistrationRecord
         {
             Token = botRegistration.Token,
@@ -44,7 +51,6 @@ public sealed class BotRegistrationRepository : IBotRegistrationRepository
         {
             _context.Entry(existing).CurrentValues.SetValues(record);
         }
-
-        await _context.SaveChangesAsync(cancellationToken);
+        // No SaveChangesAsync — caller commits via IUnitOfWork.SaveChangesAsync.
     }
 }
