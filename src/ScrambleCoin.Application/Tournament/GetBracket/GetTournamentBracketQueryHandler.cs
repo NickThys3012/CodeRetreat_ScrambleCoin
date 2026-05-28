@@ -123,8 +123,6 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                 .Where(m => m.Round == round)
                 .ToList();
 
-            bool anyUpdated = false;
-
             foreach (var match in roundMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
             {
                 Game game;
@@ -146,12 +144,11 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                     tournament.Id, match.Id, round, gameWinnerId?.ToString() ?? "draw");
 
                 dirty = true;
-                anyUpdated = true;
             }
 
             // If all matches in this round are now complete, create games for the next round
             bool roundComplete = roundMatches.All(m => m.IsCompleted);
-            if (roundComplete && round < maxRound && anyUpdated)
+            if (roundComplete && round < maxRound)
             {
                 await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, ct);
                 dirty = true;

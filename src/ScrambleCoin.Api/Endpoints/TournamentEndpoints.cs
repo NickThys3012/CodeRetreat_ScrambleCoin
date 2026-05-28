@@ -64,7 +64,8 @@ public static class TournamentEndpoints
             .WithSummary("Get tournament bracket")
             .WithDescription(
                 "Returns the full bracket including group matches and knockout rounds. " +
-                "Bots discover their game IDs and tokens here. Lazily syncs game results.")
+                "Lazily syncs game results and creates next-round games when a round completes (idempotent). " +
+                "Note: bots use this endpoint to discover their knockout-stage game IDs and tokens.")
             .WithTags("Tournament");
     }
 

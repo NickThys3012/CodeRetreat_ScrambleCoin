@@ -74,6 +74,9 @@ public sealed class Tournament
         if (topN < 2)
             throw new DomainException("TopN (bots advancing to knockout) must be at least 2.");
 
+        if (topN > maxParticipants)
+            throw new DomainException($"TopN ({topN}) cannot exceed MaxParticipants ({maxParticipants}).");
+
         Id = id;
         Name = name;
         MaxParticipants = maxParticipants;
@@ -246,13 +249,17 @@ public sealed class Tournament
             botWinnerId = match.BotOnePlayerId == gameWinnerPlayerId ? match.BotOne
                         : match.BotTwoPlayerId == gameWinnerPlayerId ? match.BotTwo
                         : null;
+
+            if (botWinnerId is null)
+                throw new DomainException(
+                    $"Winner player ID {gameWinnerPlayerId} does not belong to knockout match {matchId}.");
         }
 
-        // Deterministic tie-break for knockout draws: the bot assigned to the BotOne slot
+        // Deterministic tie-break for genuine draws: the bot assigned to the BotOne slot
         // advances. BotOne == higher seed only in round 1 (by bracket construction); in
         // later rounds BotOne is whichever bot won the even-positioned upstream match.
         // This is intentional — seed rank is not propagated through the bracket.
-        if (isDraw || botWinnerId is null)
+        if (isDraw)
             botWinnerId = match.BotOne;
 
         match.RecordResult(botWinnerId, isDraw);

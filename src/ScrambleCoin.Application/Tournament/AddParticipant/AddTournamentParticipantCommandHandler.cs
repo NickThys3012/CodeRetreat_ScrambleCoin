@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Domain.Exceptions;
+using ScrambleCoin.Domain.Factories;
 
 namespace ScrambleCoin.Application.Tournament.AddParticipant;
 
@@ -26,6 +28,12 @@ public sealed class AddTournamentParticipantCommandHandler : IRequestHandler<Add
     public async Task Handle(AddTournamentParticipantCommand request, CancellationToken cancellationToken)
     {
         var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
+
+        foreach (var pieceName in request.Lineup)
+        {
+            if (PieceFactory.TryCreate(pieceName) is null)
+                throw new DomainException($"Unknown piece name: '{pieceName}'.");
+        }
 
         tournament.AddParticipant(request.BotId, request.BotName, request.Lineup);
 

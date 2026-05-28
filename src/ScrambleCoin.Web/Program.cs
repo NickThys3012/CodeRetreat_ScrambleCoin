@@ -59,6 +59,8 @@ try
         VillainTreeRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
         BotRegistrationRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Tournament.ITournamentRepository,
+        ScrambleCoin.Infrastructure.Persistence.TournamentRepository>();
 
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
