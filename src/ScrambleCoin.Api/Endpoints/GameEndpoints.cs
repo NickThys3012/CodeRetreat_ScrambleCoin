@@ -126,7 +126,18 @@ public static class GameEndpoints
             botToken = parsedToken;
         }
 
-        var entry = await queueService.EnqueueAsync(body.Lineup, botToken, ct);
+        QueueEntry entry;
+        try
+        {
+            entry = await queueService.EnqueueAsync(body.Lineup, botToken, ct);
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid Lineup");
+        }
 
         if (entry.Status == "conflict")
         {
@@ -170,7 +181,10 @@ public static class GameEndpoints
 
         if (entry.Status == "timed_out")
         {
-            return Results.Ok(new { status = "timed_out" });
+            return Results.Problem(
+                detail: "No opponent was found before the queue entry expired. Please re-enqueue.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Queue Timed Out");
         }
 
         if (entry.Status == "waiting")

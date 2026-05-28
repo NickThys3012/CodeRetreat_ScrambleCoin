@@ -139,9 +139,23 @@ public sealed class QueueService : IQueueService
             // issues (ISender is scoped; QueueService is a singleton).
             using var matchScope = _scopeFactory.CreateScope();
             var sender = matchScope.ServiceProvider.GetRequiredService<ISender>();
-            var result = await sender.Send(
-                new StartMatchCommand(waitingBot.LineupPieceNames, lineupPieceNames),
-                cancellationToken);
+            StartMatchResult result;
+            try
+            {
+                result = await sender.Send(
+                    new StartMatchCommand(waitingBot.LineupPieceNames, lineupPieceNames),
+                    cancellationToken);
+            }
+            catch
+            {
+                // Game creation failed — restore Bot 1's entry so it can poll and learn
+                // the match attempt failed, rather than being silently stranded as "waiting".
+                _entries[waitingBot.QueueId] = new QueueEntry(waitingBot.QueueId, Status: "timed_out");
+                _logger.LogError(
+                    "StartMatchCommand failed for QueueId={QueueId} — Bot 1 entry marked timed_out.",
+                    waitingBot.QueueId);
+                throw;
+            }
 
             // Update the waiting bot's entry so polling returns "matched".
             var matchedOne = new QueueEntry(
