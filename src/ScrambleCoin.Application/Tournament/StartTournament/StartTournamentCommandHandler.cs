@@ -58,7 +58,7 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
             var partTwo = participantMap[match.BotTwo];
 
             (Guid gameId, Guid botOnePlayerId, Guid botOneToken, Guid botTwoPlayerId, Guid botTwoToken) =
-                CreateGame(partOne, partTwo);
+                CreateGame();
 
             match.AssignGame(gameId, botOnePlayerId, botOneToken, botTwoPlayerId, botTwoToken);
 
@@ -85,11 +85,8 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
 
     /// <summary>Generates stable IDs and tokens for a new tournament game.</summary>
     private static (Guid gameId, Guid botOnePlayerId, Guid botOneToken, Guid botTwoPlayerId, Guid botTwoToken)
-        CreateGame(TournamentParticipant partOne, TournamentParticipant partTwo)
+        CreateGame()
     {
-        _ = partOne; // used by caller for lineup
-        _ = partTwo;
-
         return (
             Guid.NewGuid(),
             Guid.NewGuid(), // player slot for botOne

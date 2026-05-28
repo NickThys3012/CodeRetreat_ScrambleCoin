@@ -14,7 +14,6 @@ namespace ScrambleCoin.Api.Endpoints;
 /// </summary>
 public static class TournamentEndpoints
 {
-    private const string AdminKey = "scramblecoin-admin";
 
     public static void MapTournamentEndpoints(this WebApplication app)
     {
@@ -78,8 +77,8 @@ public static class TournamentEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        if (!IsAdminKeyValid(httpRequest))
-            return ForbiddenAdminKey();
+        if (!AdminAuth.IsValid(httpRequest))
+            return AdminAuth.Unauthorized();
 
         try
         {
@@ -109,8 +108,8 @@ public static class TournamentEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        if (!IsAdminKeyValid(httpRequest))
-            return ForbiddenAdminKey();
+        if (!AdminAuth.IsValid(httpRequest))
+            return AdminAuth.Unauthorized();
 
         try
         {
@@ -150,8 +149,8 @@ public static class TournamentEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        if (!IsAdminKeyValid(httpRequest))
-            return ForbiddenAdminKey();
+        if (!AdminAuth.IsValid(httpRequest))
+            return AdminAuth.Unauthorized();
 
         try
         {
@@ -188,8 +187,8 @@ public static class TournamentEndpoints
         ISender sender,
         CancellationToken ct)
     {
-        if (!IsAdminKeyValid(httpRequest))
-            return ForbiddenAdminKey();
+        if (!AdminAuth.IsValid(httpRequest))
+            return AdminAuth.Unauthorized();
 
         try
         {
@@ -251,17 +250,6 @@ public static class TournamentEndpoints
                 title: "Not Found");
         }
     }
-
-    // ── Shared helpers ────────────────────────────────────────────────────────
-
-    private static bool IsAdminKeyValid(HttpRequest request) =>
-        request.Headers.TryGetValue("X-Admin-Key", out var key) && key == AdminKey;
-
-    private static IResult ForbiddenAdminKey() =>
-        Results.Problem(
-            detail: "Missing or invalid X-Admin-Key header.",
-            statusCode: StatusCodes.Status401Unauthorized,
-            title: "Unauthorized");
 
     // ── Request bodies ────────────────────────────────────────────────────────
 

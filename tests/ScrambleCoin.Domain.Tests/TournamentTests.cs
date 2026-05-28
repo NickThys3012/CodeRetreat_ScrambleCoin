@@ -22,7 +22,7 @@ public class TournamentTests
         var t = new Tournament(
             Guid.NewGuid(),
             "Test Cup",
-            Math.Max(participantCount, maxParticipants),
+            maxParticipants,
             topN,
             DateTimeOffset.UtcNow);
 

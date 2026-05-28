@@ -248,8 +248,10 @@ public sealed class Tournament
                         : null;
         }
 
-        // For a draw in knockout, the higher-seeded bot (BotOne = higher seed) advances.
-        // Assumption: BotOne is always the higher seed.
+        // Deterministic tie-break for knockout draws: the bot assigned to the BotOne slot
+        // advances. BotOne == higher seed only in round 1 (by bracket construction); in
+        // later rounds BotOne is whichever bot won the even-positioned upstream match.
+        // This is intentional — seed rank is not propagated through the bracket.
         if (isDraw || botWinnerId is null)
             botWinnerId = match.BotOne;
 
