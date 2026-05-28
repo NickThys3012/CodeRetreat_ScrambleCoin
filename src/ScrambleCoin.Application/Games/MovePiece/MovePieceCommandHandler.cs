@@ -17,6 +17,9 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 /// <c>NewPhase == CoinSpawn</c>. This handler translates that signal into a
 /// <see cref="TurnRolledOver"/> MediatR notification, which <see cref="TurnRolledOverHandler"/>
 /// reacts to — keeping coin-spawn logic out of this handler entirely.
+/// When the game ends the domain raises <see cref="GameEnded"/>; this handler translates that
+/// into a <see cref="GameFinished"/> notification so ranking points and other side-effects
+/// can be applied.
 /// After execution, triggers villain automation if needed.
 /// </summary>
 public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, MoveResult>
@@ -58,10 +61,14 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
 
         game.MovePiece(playerId, request.PieceId, request.Segments);
 
-        // Capture whether the turn rolled over BEFORE SaveAsync clears domain events.
+        // Capture events BEFORE SaveAsync clears them.
         var turnRolledOver = game.DomainEvents
             .OfType<TurnPhaseAdvanced>()
             .Any(e => e.NewPhase == TurnPhase.CoinSpawn);
+
+        var gameEndedEvent = game.DomainEvents
+            .OfType<GameEnded>()
+            .FirstOrDefault();
 
         await _gameRepository.SaveAsync(game, cancellationToken);
 
@@ -71,6 +78,11 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
 
         if (turnRolledOver)
             await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);
+
+        if (gameEndedEvent is not null)
+            await _publisher.Publish(
+                new GameFinished(game.Id, gameEndedEvent.WinnerId, gameEndedEvent.IsDraw),
+                cancellationToken);
 
         // Trigger villain automation if it's now the villain's turn
         await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);

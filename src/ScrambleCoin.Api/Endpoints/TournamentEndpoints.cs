@@ -6,6 +6,7 @@ using ScrambleCoin.Application.Tournament.GetBotGames;
 using ScrambleCoin.Application.Tournament.GetBracket;
 using ScrambleCoin.Application.Tournament.GetStandings;
 using ScrambleCoin.Application.Tournament.StartTournament;
+using ScrambleCoin.Application.Ranking.GetLeaderboard;
 using ScrambleCoin.Domain.Exceptions;
 
 namespace ScrambleCoin.Api.Endpoints;
@@ -78,6 +79,16 @@ public static class TournamentEndpoints
                 "Returns game IDs and authentication tokens for a specific bot across all stages. " +
                 "Only the requesting bot's own tokens are returned. " +
                 "Bots should call this after the tournament starts to discover their current game.")
+            .WithTags("Tournament");
+
+        // GET /api/tournament/leaderboard — global ranking leaderboard
+        app.MapGet("/api/tournament/leaderboard", GetLeaderboard)
+            .WithName("GetLeaderboard")
+            .WithSummary("Get ranking leaderboard")
+            .WithDescription(
+                "Returns all bots sorted by ranking points descending. " +
+                "Points are awarded automatically after each game: +3 win / +2 draw / +1 loss. " +
+                "Maximum is 550 points.")
             .WithTags("Tournament");
     }
 
@@ -288,6 +299,15 @@ public static class TournamentEndpoints
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Not Found");
         }
+    }
+
+    /// <summary>Returns the global ranking leaderboard, sorted by points descending.</summary>
+    private static async Task<IResult> GetLeaderboard(
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(new GetLeaderboardQuery(), ct);
+        return Results.Ok(result);
     }
 
     // ── Request bodies ────────────────────────────────────────────────────────

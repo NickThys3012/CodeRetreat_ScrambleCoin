@@ -1,0 +1,89 @@
+using MediatR;
+using Microsoft.Extensions.Logging;
+using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Domain.Entities;
+
+namespace ScrambleCoin.Application.Ranking.AwardRankingPoints;
+
+/// <summary>
+/// Handles <see cref="AwardRankingPointsCommand"/>:
+/// <list type="bullet">
+///   <item>Loads or creates a <see cref="RankingTrack"/> for each bot using their stable bot ID.</item>
+///   <item>Calls <c>RecordWin</c>, <c>RecordDraw</c>, or <c>RecordLoss</c> on each track.</item>
+///   <item>Persists both tracks via <see cref="IRankingRepository"/>.</item>
+/// </list>
+/// </summary>
+public sealed class AwardRankingPointsCommandHandler : IRequestHandler<AwardRankingPointsCommand>
+{
+    private readonly IRankingRepository _rankingRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AwardRankingPointsCommandHandler> _logger;
+
+    public AwardRankingPointsCommandHandler(
+        IRankingRepository rankingRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<AwardRankingPointsCommandHandler> logger)
+    {
+        _rankingRepository = rankingRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task Handle(AwardRankingPointsCommand command, CancellationToken cancellationToken)
+    {
+        var botOneTrack = await LoadOrCreate(command.BotOneId, command.BotOneName, cancellationToken);
+        var botTwoTrack = await LoadOrCreate(command.BotTwoId, command.BotTwoName, cancellationToken);
+
+        // Intentional simplification for a single-day event: every game between any two bots
+        // counts toward the global ranking, regardless of how many times the same pair has played.
+        // Per-day/per-opponent caps described in the original issue spec are not applied here.
+        if (command.IsDraw)
+        {
+            botOneTrack.RecordDraw();
+            botTwoTrack.RecordDraw();
+
+            _logger.LogInformation(
+                "Game {GameId} (turn {TurnNumber}) ended in draw. " +
+                "Awarded draw points to {BotOneId} and {BotTwoId}. " +
+                "Bot1 now {Bot1Pts} pts, Bot2 now {Bot2Pts} pts.",
+                command.GameId, command.TurnNumber,
+                command.BotOneId, command.BotTwoId,
+                botOneTrack.Points, botTwoTrack.Points);
+        }
+        else
+        {
+            // Guard: winner must be one of the two known bots
+            if (command.WinnerId != command.BotOneId && command.WinnerId != command.BotTwoId)
+            {
+                _logger.LogWarning(
+                    "Game {GameId}: winner ID {WinnerId} does not match BotOne {BotOneId} or BotTwo {BotTwoId}. " +
+                    "Ranking points will not be awarded.",
+                    command.GameId, command.WinnerId, command.BotOneId, command.BotTwoId);
+                return;
+            }
+
+            var winnerTrack = command.WinnerId == command.BotOneId ? botOneTrack : botTwoTrack;
+            var loserTrack  = command.WinnerId == command.BotOneId ? botTwoTrack : botOneTrack;
+
+            winnerTrack.RecordWin();
+            loserTrack.RecordLoss();
+
+            _logger.LogInformation(
+                "Game {GameId} (turn {TurnNumber}) ended. " +
+                "Winner {WinnerId} now {WinPts} pts. Loser {LoserId} now {LosePts} pts.",
+                command.GameId, command.TurnNumber,
+                winnerTrack.BotId, winnerTrack.Points,
+                loserTrack.BotId, loserTrack.Points);
+        }
+
+        await _rankingRepository.SaveAsync(botOneTrack, cancellationToken);
+        await _rankingRepository.SaveAsync(botTwoTrack, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<RankingTrack> LoadOrCreate(Guid botId, string botName, CancellationToken ct)
+    {
+        var track = await _rankingRepository.GetByBotIdAsync(botId, ct);
+        return track ?? new RankingTrack(botId, botName);
+    }
+}
