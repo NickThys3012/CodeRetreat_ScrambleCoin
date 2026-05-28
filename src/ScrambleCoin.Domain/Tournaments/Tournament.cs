@@ -201,10 +201,23 @@ public sealed class Tournament
         _knockoutMatches.AddRange(GenerateKnockoutBracket(ranked));
         Status = TournamentStatus.KnockoutStage;
 
-        // Resolve any first-round byes immediately
+        // Resolve any first-round byes immediately and propagate winners to next-round slots
         var firstRound = _knockoutMatches.Where(m => m.Round == 1).ToList();
+        int maxRound = _knockoutMatches.Max(m => m.Round);
         foreach (var match in firstRound.Where(m => m.IsBye))
+        {
             match.ResolveBye();
+
+            // Propagate the bye winner into the appropriate slot of the next-round match
+            if (match.Round < maxRound && match.WinnerId.HasValue)
+            {
+                int nextRound    = match.Round + 1;
+                int nextPosition = match.Position / 2;
+                int nextSlot     = (match.Position % 2 == 0) ? 1 : 2;
+                var nextMatch    = _knockoutMatches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
+                nextMatch?.SetParticipant(nextSlot, match.WinnerId.Value);
+            }
+        }
 
         return firstRound.AsReadOnly();
     }
