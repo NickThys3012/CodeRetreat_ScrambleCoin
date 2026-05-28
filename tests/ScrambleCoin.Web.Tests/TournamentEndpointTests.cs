@@ -218,6 +218,22 @@ public class TournamentEndpointTests : IClassFixture<TournamentEndpointTests.Tes
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostParticipants_AfterTournamentStarted_Returns409()
+    {
+        var client = CreateAdminClient();
+        var tournamentId = await CreateTournamentAsync(client);
+        await AddParticipantAsync(client, tournamentId, Guid.NewGuid(), "Bot1");
+        await AddParticipantAsync(client, tournamentId, Guid.NewGuid(), "Bot2");
+        await PostEmptyAsync(client, $"/api/tournament/{tournamentId}/start");
+
+        // Try to add a participant to an already-started tournament → 409
+        var body = new { BotId = Guid.NewGuid(), BotName = "LateBot", Lineup = DefaultLineup };
+        var response = await client.PostAsJsonAsync($"/api/tournament/{tournamentId}/participants", body);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // POST /api/tournament/{id}/start
     // ══════════════════════════════════════════════════════════════════════════
@@ -434,5 +450,20 @@ public class TournamentEndpointTests : IClassFixture<TournamentEndpointTests.Tes
         var response = await PostEmptyAsync(publicClient, $"/api/tournament/{tournamentId}/cancel");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostCancel_AlreadyCancelledTournament_Returns409()
+    {
+        var client = CreateAdminClient();
+        var tournamentId = await CreateTournamentAsync(client);
+
+        // Cancel once → should succeed
+        await PostEmptyAsync(client, $"/api/tournament/{tournamentId}/cancel");
+
+        // Cancel again → 409 Conflict (TournamentInvalidStateException)
+        var response = await PostEmptyAsync(client, $"/api/tournament/{tournamentId}/cancel");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 }

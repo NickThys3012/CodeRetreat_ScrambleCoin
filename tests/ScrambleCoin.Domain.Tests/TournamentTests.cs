@@ -72,6 +72,13 @@ public class TournamentTests
             new Tournament(Guid.NewGuid(), "Cup", 1, 2, DateTimeOffset.UtcNow));
     }
 
+    [Fact]
+    public void Constructor_TopNLessThanTwo_ThrowsDomainException()
+    {
+        Assert.Throws<DomainException>(() =>
+            new Tournament(Guid.NewGuid(), "Cup", 4, 1, DateTimeOffset.UtcNow));
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // AddParticipant
     // ══════════════════════════════════════════════════════════════════════════
@@ -157,6 +164,15 @@ public class TournamentTests
     {
         var t = NewTournament(2);
         t.Start();
+
+        Assert.Throws<TournamentInvalidStateException>(() => t.Start());
+    }
+
+    [Fact]
+    public void Start_WithFewerThanTwoParticipants_ThrowsTournamentInvalidStateException()
+    {
+        // Create a tournament with 0 participants (NewTournament with 0 bots)
+        var t = NewTournament(0);
 
         Assert.Throws<TournamentInvalidStateException>(() => t.Start());
     }
@@ -416,6 +432,19 @@ public class TournamentTests
     }
 
     [Fact]
+    public void Cancel_FromKnockoutStage_SetsCancelledStatus()
+    {
+        var t = NewTournament(4, topN: 2);
+        t.Start();
+        CompleteAllGroupMatches(t);
+        t.AdvanceToKnockout();
+
+        t.Cancel();
+
+        Assert.Equal(TournamentStatus.Cancelled, t.Status);
+    }
+
+    [Fact]
     public void Cancel_WhenCompleted_ThrowsTournamentInvalidStateException()
     {
         var t = NewTournament(2, topN: 2);
@@ -435,5 +464,39 @@ public class TournamentTests
         t.Cancel();
 
         Assert.Throws<TournamentInvalidStateException>(() => t.Cancel());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // RecordGroupResult (aggregate-level translation)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void RecordGroupResult_WinnerTranslatedFromGamePlayerId_CorrectlyAttributesPoints()
+    {
+        var t = NewTournament(2);
+        t.Start();
+        var match = t.GroupMatches[0];
+
+        // Assign a game with known player slot IDs
+        var gameId = Guid.NewGuid();
+        var botOnePlayerId = Guid.NewGuid();
+        match.AssignGame(gameId, botOnePlayerId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        // Record result passing the game player ID (not the bot ID)
+        t.RecordGroupResult(match.Id, botOnePlayerId, isDraw: false, botOneScore: 10, botTwoScore: 3);
+
+        var standings = t.ComputeStandings();
+        var winnerStanding = standings.Single(s => s.BotId == match.BotOne);
+        Assert.Equal(3, winnerStanding.Points);
+    }
+
+    [Fact]
+    public void RecordGroupResult_UnknownMatchId_ThrowsDomainException()
+    {
+        var t = NewTournament(2);
+        t.Start();
+
+        Assert.Throws<DomainException>(() =>
+            t.RecordGroupResult(Guid.NewGuid(), null, isDraw: true, botOneScore: 5, botTwoScore: 5));
     }
 }

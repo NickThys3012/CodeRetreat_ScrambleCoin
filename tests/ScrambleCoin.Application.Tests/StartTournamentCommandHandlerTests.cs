@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Tournament;
@@ -139,5 +140,45 @@ public class StartTournamentCommandHandlerTests
         await handler.Handle(new StartTournamentCommand(tournamentId), CancellationToken.None);
 
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_UnknownTournament_PropagatesTournamentNotFoundException()
+    {
+        var unknownId = Guid.NewGuid();
+
+        var tournamentRepo = Substitute.For<ITournamentRepository>();
+        tournamentRepo.GetByIdAsync(unknownId, Arg.Any<CancellationToken>())
+            .Throws(new ScrambleCoin.Domain.Exceptions.TournamentNotFoundException(unknownId));
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRegRepo = Substitute.For<IBotRegistrationRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var handler = BuildHandler(tournamentRepo, gameRepo, botRegRepo, uow);
+
+        await Assert.ThrowsAsync<ScrambleCoin.Domain.Exceptions.TournamentNotFoundException>(
+            () => handler.Handle(new StartTournamentCommand(unknownId), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_AlreadyStartedTournament_PropagatesTournamentInvalidStateException()
+    {
+        var tournamentId = Guid.NewGuid();
+        var tournament = BuildTournamentWithBots(tournamentId, 2);
+        tournament.Start(); // put it in GroupStage so a second Start() throws
+
+        var tournamentRepo = Substitute.For<ITournamentRepository>();
+        tournamentRepo.GetByIdAsync(tournamentId, Arg.Any<CancellationToken>())
+            .Returns(tournament);
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRegRepo = Substitute.For<IBotRegistrationRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var handler = BuildHandler(tournamentRepo, gameRepo, botRegRepo, uow);
+
+        await Assert.ThrowsAsync<ScrambleCoin.Domain.Exceptions.TournamentInvalidStateException>(
+            () => handler.Handle(new StartTournamentCommand(tournamentId), CancellationToken.None));
     }
 }

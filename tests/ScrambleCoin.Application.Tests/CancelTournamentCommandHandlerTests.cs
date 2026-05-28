@@ -150,4 +150,47 @@ public class CancelTournamentCommandHandlerTests
 
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WithActiveKnockoutGame_ForceCancelsGame()
+    {
+        var tournamentId = Guid.NewGuid();
+        var tournament = new DomainTournament(tournamentId, "Test", 8, 4, DateTimeOffset.UtcNow);
+        tournament.AddParticipant(Guid.NewGuid(), "Bot1", DefaultLineup);
+        tournament.AddParticipant(Guid.NewGuid(), "Bot2", DefaultLineup);
+        tournament.AddParticipant(Guid.NewGuid(), "Bot3", DefaultLineup);
+        tournament.AddParticipant(Guid.NewGuid(), "Bot4", DefaultLineup);
+        tournament.Start();
+
+        // Complete all group matches so we can advance to knockout
+        foreach (var m in tournament.GroupMatches)
+            m.RecordResult(m.BotOne, false, 10, 5);
+
+        tournament.AdvanceToKnockout();
+
+        // Assign a game to the first incomplete knockout match
+        var knockoutMatch = tournament.KnockoutMatches.First(m => !m.IsCompleted);
+        var matchGameId = Guid.NewGuid();
+        knockoutMatch.AssignGame(matchGameId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        // Build an in-memory game in a non-terminal state
+        var gameInDb = new Game(matchGameId, Guid.NewGuid(), Guid.NewGuid(), new Board());
+
+        var tournamentRepo = Substitute.For<ITournamentRepository>();
+        tournamentRepo.GetByIdAsync(tournamentId, Arg.Any<CancellationToken>())
+            .Returns(tournament);
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        gameRepo.GetByIdAsync(matchGameId, Arg.Any<CancellationToken>())
+            .Returns(gameInDb);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var handler = BuildHandler(tournamentRepo, gameRepo, uow);
+        await handler.Handle(new CancelTournamentCommand(tournamentId), CancellationToken.None);
+
+        await gameRepo.Received(1).StageAsync(
+            Arg.Is<Game>(g => g.Id == matchGameId),
+            Arg.Any<CancellationToken>());
+    }
 }
