@@ -71,8 +71,20 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
         if (dirty)
         {
-            await _tournamentRepository.SaveAsync(tournament, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _tournamentRepository.SaveAsync(tournament, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                // A concurrent request already committed the same state transition.
+                // Reload the now-current tournament and return it without retrying.
+                _logger.LogWarning(
+                    "Tournament {TournamentId}: concurrency conflict on bracket sync. Reloading current state.",
+                    tournament.Id);
+                tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
+            }
         }
 
         return BuildDto(tournament);

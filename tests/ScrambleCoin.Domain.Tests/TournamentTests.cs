@@ -350,7 +350,7 @@ public class TournamentTests
     // ══════════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void RecordKnockoutResult_Draw_WinnerIsHigherSeed()
+    public void RecordKnockoutResult_Draw_WinnerIsBotOneSlot()
     {
         // With 4 bots, TopN=4 → 2 first-round matches + 1 final
         var t = NewTournament(4, topN: 4);
@@ -361,7 +361,7 @@ public class TournamentTests
         var r1Match = t.KnockoutMatches.First(m => m.Round == 1);
         t.RecordKnockoutResult(r1Match.Id, null, isDraw: true);
 
-        // BotOne is the higher seed → should be the winner
+        // BotOne slot advances on a draw (position-based tie-break, not seed-based)
         Assert.Equal(r1Match.BotOne, r1Match.WinnerId);
     }
 

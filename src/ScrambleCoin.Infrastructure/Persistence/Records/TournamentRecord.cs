@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ScrambleCoin.Domain.Enums;
@@ -21,6 +22,13 @@ public sealed class TournamentRecord
 
     public Guid? WinnerId { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
+
+    /// <summary>
+    /// EF Core optimistic concurrency token. Prevents concurrent GET /bracket requests from
+    /// both advancing the tournament status and creating duplicate knockout games.
+    /// </summary>
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     // ── JSON columns ──────────────────────────────────────────────────────────
 

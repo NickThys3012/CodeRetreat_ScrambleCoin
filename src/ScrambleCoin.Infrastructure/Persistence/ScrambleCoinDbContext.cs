@@ -131,11 +131,30 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
             entity.Property(t => t.Status).IsRequired();
             entity.Property(t => t.WinnerId);
             entity.Property(t => t.CreatedAtUtc).IsRequired();
+            entity.Property(t => t.RowVersion).IsRowVersion();
 
             // JSON columns — stored as Unicode text
             entity.Property(t => t.ParticipantsJson).IsRequired().HasColumnName("Participants");
             entity.Property(t => t.GroupMatchesJson).IsRequired().HasColumnName("GroupMatches");
             entity.Property(t => t.KnockoutMatchesJson).IsRequired().HasColumnName("KnockoutMatches");
         });
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Wraps <see cref="DbUpdateConcurrencyException"/> as <see cref="ConcurrencyConflictException"/>
+    /// so the Application layer can handle concurrency conflicts without referencing EF Core.
+    /// </remarks>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyConflictException(
+                "A concurrent update was detected. Reload the aggregate and retry.", ex);
+        }
     }
 }
