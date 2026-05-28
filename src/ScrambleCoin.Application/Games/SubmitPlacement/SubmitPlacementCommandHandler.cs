@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Application.Services;
+using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
 
@@ -18,17 +20,20 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IVillainAutomationService _villainAutomationService;
+    private readonly IPublisher _publisher;
     private readonly ILogger<SubmitPlacementCommandHandler> _logger;
 
     public SubmitPlacementCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IVillainAutomationService villainAutomationService,
+        IPublisher publisher,
         ILogger<SubmitPlacementCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _villainAutomationService = villainAutomationService;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -69,11 +74,25 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
                 throw new DomainException($"Unknown action '{request.Action}'. Valid values are: place, replace, skip.");
         }
 
+        // Capture domain events BEFORE SaveAsync clears them.
+        var phaseAdvancedEvents = game.DomainEvents
+            .OfType<TurnPhaseAdvanced>()
+            .ToList();
+
         await _gameRepository.SaveAsync(game, cancellationToken);
 
         _logger.LogInformation(
             "Placement action '{Action}' committed by player {PlayerId} in game {GameId} on turn {Turn}",
             request.Action, playerId, request.GameId, game.TurnNumber);
+
+        foreach (var phaseEvent in phaseAdvancedEvents)
+            await _publisher.Publish(
+                new TurnPhaseChangedNotification(
+                    phaseEvent.GameId,
+                    phaseEvent.TurnNumber,
+                    phaseEvent.PreviousPhase.ToString(),
+                    phaseEvent.NewPhase?.ToString()),
+                cancellationToken);
 
         // Trigger villain automation if it's now the villain's turn
         await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);

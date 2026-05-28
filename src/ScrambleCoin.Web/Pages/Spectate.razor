@@ -162,11 +162,11 @@
             return Task.CompletedTask;
         };
 
-        _hub.Reconnected += _ =>
+        _hub.Reconnected += async _ =>
         {
             _connectionState = "Connected";
-            InvokeAsync(StateHasChanged);
-            return Task.CompletedTask;
+            await _hub.InvokeAsync("JoinGame", GameId);
+            await InvokeAsync(StateHasChanged);
         };
 
         _hub.Closed += _ =>
