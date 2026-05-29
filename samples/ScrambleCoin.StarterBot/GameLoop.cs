@@ -182,12 +182,16 @@ public sealed class GameLoop
             return;
         }
 
-        foreach (var piece in unplaced)
+        var currentState = state;
+        var piece = unplaced.First();
+        const int maxRetries = 5;
+
+        for (var attempt = 0; attempt < maxRetries; attempt++)
         {
             if (ct.IsCancellationRequested) break;
 
             Console.WriteLine($"  Placing piece: {piece.Name} ({piece.PieceId})");
-            var decision = _strategy.DecidePlacement(state, piece);
+            var decision = _strategy.DecidePlacement(currentState, piece);
 
             var result = decision switch
             {
@@ -200,14 +204,13 @@ public sealed class GameLoop
             {
                 placedThisTurn.Add(piece.PieceId);
                 Console.WriteLine($"  ✓ Placement submitted. Phase after: {result.Phase ?? "ended"}");
-                break; // Only one placement action per player per PlacePhase
-            }
-            else
-            {
-                // Placement failed (e.g. tile occupied by opponent who placed concurrently).
-                // Stop retrying now — state is stale. The next poll will refresh it.
                 break;
             }
+
+            // Failed — re-fetch fresh state and retry with updated occupancy
+            Console.WriteLine($"  ↩ Placement failed, refreshing state (attempt {attempt + 1}/{maxRetries})…");
+            await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
+            currentState = await _client.GetStateAsync(gameId, ct) ?? currentState;
         }
     }
 
