@@ -159,6 +159,33 @@ public sealed class ForceEndGameCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenGameIsInProgress_PublishesCorrectWinnerIdAndIsDraw_WhenOnePlayerLeads()
+    {
+        // Arrange — give PlayerOne a score advantage so the game is not a draw.
+        var game = InProgressGame();
+        game.AddScore(game.PlayerOne, 5);
+
+        var gameRepo  = Substitute.For<IGameRepository>();
+        var publisher = Substitute.For<IPublisher>();
+        gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        GameFinished? capturedNotification = null;
+        await publisher.Publish(
+            Arg.Do<GameFinished>(n => capturedNotification = n),
+            Arg.Any<CancellationToken>());
+
+        var handler = BuildHandler(gameRepo, publisher);
+
+        // Act
+        await handler.Handle(new ForceEndGameCommand(game.Id), CancellationToken.None);
+
+        // Assert: PlayerOne leads → IsDraw = false, WinnerId = PlayerOne.
+        Assert.NotNull(capturedNotification);
+        Assert.False(capturedNotification!.IsDraw);
+        Assert.Equal(game.PlayerOne, capturedNotification.WinnerId);
+    }
+
+    [Fact]
     public async Task Handle_WhenGameIsInProgress_SavesGameBeforePublishing()
     {
         // Verify ordering by making SaveAsync throw — Publish must not be called if Save fails.
