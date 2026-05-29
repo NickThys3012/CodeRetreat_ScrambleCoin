@@ -124,7 +124,11 @@
                             <strong>@context.ScorePlayerTwo</strong>
                         </MudTd>
                         <MudTd DataLabel="Last Move">
-                            @((DateTimeOffset.UtcNow - context.LastMoveAt).TotalSeconds.ToString("F0"))s ago
+                            @{
+                                var elapsed = DateTimeOffset.UtcNow - context.LastMoveAt;
+                                var lastMoveLabel = elapsed > TimeSpan.FromDays(1) ? "unknown" : $"{elapsed.TotalSeconds:F0}s ago";
+                            }
+                            @lastMoveLabel
                         </MudTd>
                         <MudTd DataLabel="Action">
                             <MudButton Size="Size.Small"
