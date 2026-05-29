@@ -1,24 +1,34 @@
 using MediatR;
+using ScrambleCoin.Application.Tournament.GetBracket;
 
 namespace ScrambleCoin.Application.Tournament.GetBotGames;
 
 /// <summary>
-/// Handles <see cref="GetBotGamesQuery"/>: collects all matches (group and knockout)
-/// for a specific bot and returns the game ID and token pairs so the bot can submit moves.
+/// Handles <see cref="GetBotGamesQuery"/>: lazily advances the tournament bracket
+/// (same as <see cref="GetTournamentBracketQuery"/>) then returns the bot's game IDs and tokens.
+/// This ensures bots polling for games will naturally trigger group→knockout advancement
+/// without needing a separate bracket call.
 /// </summary>
 public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, IReadOnlyList<BotGameDto>>
 {
     private readonly ITournamentRepository _tournamentRepository;
+    private readonly ISender _sender;
 
-    public GetBotGamesQueryHandler(ITournamentRepository tournamentRepository)
+    public GetBotGamesQueryHandler(ITournamentRepository tournamentRepository, ISender sender)
     {
         _tournamentRepository = tournamentRepository;
+        _sender = sender;
     }
-
     public async Task<IReadOnlyList<BotGameDto>> Handle(
         GetBotGamesQuery request, CancellationToken cancellationToken)
     {
-        var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
+        // Trigger lazy bracket advancement (creates knockout games when group stage is done).
+        // This is idempotent — safe to call on every poll.
+        await _sender.Send(new GetTournamentBracketQuery(request.TournamentId), cancellationToken);
+
+        // Reload fresh from DB — the bracket query may have committed new game assignments,
+        // and FindAsync would otherwise return the stale identity-map entity.
+        var tournament = await _tournamentRepository.ReloadAsync(request.TournamentId, cancellationToken);
 
         var results = new List<BotGameDto>();
 

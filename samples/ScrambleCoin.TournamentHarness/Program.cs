@@ -115,7 +115,8 @@ static async Task RunBotAsync(
     using var discoveryClient = new BotClient(baseUrl);
 
     // gameId → running task (never double-start the same game)
-    var activeGames  = new Dictionary<Guid, Task>();
+    var activeGames    = new Dictionary<Guid, Task>();
+    var completedGames = new HashSet<Guid>(); // never restart a finished game
     var noNewStreak  = 0;
     const int maxNoNew = 15; // 15 × 2 s = 30 s with no new games + no active games → done
 
@@ -130,6 +131,7 @@ static async Task RunBotAsync(
         {
             if (activeGames[id].IsFaulted)
                 Log($"[{botName}] ⚠  Game {id} faulted: {activeGames[id].Exception?.GetBaseException().Message}");
+            completedGames.Add(id);
             activeGames.Remove(id);
         }
 
@@ -141,7 +143,7 @@ static async Task RunBotAsync(
         }
 
         var newGames = games
-            .Where(g => !activeGames.ContainsKey(g.GameId))
+            .Where(g => !activeGames.ContainsKey(g.GameId) && !completedGames.Contains(g.GameId))
             .ToList();
 
         if (newGames.Count == 0)
