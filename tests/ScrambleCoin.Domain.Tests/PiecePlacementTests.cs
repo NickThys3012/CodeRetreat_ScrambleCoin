@@ -335,15 +335,16 @@ public class PiecePlacementTests
     }
 
     [Fact]
-    public void SkipPlacement_BothPlayers_AutoAdvancesToMovePhase()
+    public void SkipPlacement_BothPlayers_WithNoPieces_AutoSkipsMovePhaseAndAdvancesToCoinSpawn()
     {
         var (game, p1, p2, _, _) = GameInPlacePhase();
 
         game.SkipPlacement(p1);
         Assert.Equal(TurnPhase.PlacePhase, game.CurrentPhase);
 
+        // Both skipped → 0 pieces on board → MovePhase is auto-skipped to CoinSpawn.
         game.SkipPlacement(p2);
-        Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
+        Assert.Equal(TurnPhase.CoinSpawn, game.CurrentPhase);
     }
 
     [Fact]

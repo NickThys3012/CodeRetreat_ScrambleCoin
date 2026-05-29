@@ -50,9 +50,9 @@ builder.Services.AddMediatR(cfg =>
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
-// No-op broadcaster: API host has no SignalR hub; the behaviour resolves without error.
+builder.Services.AddSignalR();
 builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
-    ScrambleCoin.Application.Abstractions.NullGameBroadcaster>();
+    ScrambleCoin.Api.Hubs.GameBroadcaster>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
 builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
@@ -164,6 +164,7 @@ app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.Healt
 app.MapGameEndpoints();
 app.MapSoloModeEndpoints();
 app.MapTournamentEndpoints();
+app.MapHub<ScrambleCoin.Api.Hubs.GameHub>("/hubs/game");
 
 app.Run();
 

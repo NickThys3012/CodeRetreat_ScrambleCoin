@@ -40,13 +40,23 @@ public class CoinSpawnServiceTests
         game.SetLineup(p2, new Lineup(p2Pieces));
         game.Start(); // → CoinSpawn, turn 1
 
-        // Advance through (targetTurn - 1) full turns without pieces on the board.
+        // Advance through (targetTurn - 1) full turns with one piece per player on the board
+        // so MovePhase is not immediately auto-skipped (0-piece auto-skip behaviour).
+        // Place pieces on turn 1; skip placement on subsequent turns (pieces stay on board).
         for (var t = 1; t < targetTurn; t++)
         {
-            game.AdvancePhase();     // CoinSpawn → PlacePhase
-            game.SkipPlacement(p1); // P1 skips
-            game.SkipPlacement(p2); // P2 skips → auto-advances to MovePhase
-            game.AdvanceTurn();     // MovePhase → CoinSpawn (next turn)
+            game.AdvancePhase(); // CoinSpawn → PlacePhase
+            if (t == 1)
+            {
+                game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0)); // places + marks p1 done
+                game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 7)); // marks p2 done → auto-advances to MovePhase
+            }
+            else
+            {
+                game.SkipPlacement(p1);
+                game.SkipPlacement(p2); // auto-advances to MovePhase (pieces already on board)
+            }
+            game.AdvanceTurn(); // MovePhase → CoinSpawn (next turn)
         }
 
         return (game, p1, p2);
