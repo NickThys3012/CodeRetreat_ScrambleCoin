@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Tournaments;
 using ScrambleCoin.Infrastructure.Persistence;
@@ -38,7 +37,7 @@ public sealed class TournamentRepositoryTests
             topN,
             DateTimeOffset.UtcNow);
 
-        for (int i = 0; i < participantCount; i++)
+        for (var i = 0; i < participantCount; i++)
             tournament.AddParticipant(Guid.NewGuid(), $"Bot{i}", ValidLineup);
 
         return tournament;

@@ -1,5 +1,3 @@
-using ScrambleCoin.Domain.Tournaments;
-
 namespace ScrambleCoin.Application.Tournament;
 
 /// <summary>

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tournament.GetStandings;
@@ -37,7 +36,7 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
         var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
 
         // Sync game results if tournament is in GroupStage
-        bool dirty = false;
+        var dirty = false;
         if (tournament.Status == Domain.Enums.TournamentStatus.GroupStage)
         {
             dirty = await SyncGroupResultsAsync(tournament, cancellationToken);
@@ -77,7 +76,7 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
     /// </summary>
     internal async Task<bool> SyncGroupResultsAsync(DomainTournament tournament, CancellationToken cancellationToken)
     {
-        bool dirty = false;
+        var dirty = false;
 
         foreach (var match in tournament.GroupMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
         {
@@ -101,8 +100,8 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
             Guid? gameWinnerId = isDraw ? null : (scoreOne > scoreTwo ? game.PlayerOne : game.PlayerTwo);
 
             // Map game player IDs to bot scores using the match token mapping
-            int botOneScore = match.BotOnePlayerId == game.PlayerOne ? scoreOne : scoreTwo;
-            int botTwoScore = match.BotTwoPlayerId == game.PlayerTwo ? scoreTwo : scoreOne;
+            var botOneScore = match.BotOnePlayerId == game.PlayerOne ? scoreOne : scoreTwo;
+            var botTwoScore = match.BotTwoPlayerId == game.PlayerTwo ? scoreTwo : scoreOne;
 
             tournament.RecordGroupResult(match.Id, gameWinnerId, isDraw, botOneScore, botTwoScore);
 

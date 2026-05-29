@@ -1,11 +1,10 @@
 using MediatR;
-using ScrambleCoin.Domain.Exceptions;
 
 namespace ScrambleCoin.Application.Tournament.GetBotGames;
 
 /// <summary>
 /// Handles <see cref="GetBotGamesQuery"/>: collects all matches (group and knockout)
-/// for a specific bot and returns the game ID + token pairs so the bot can submit moves.
+/// for a specific bot and returns the game ID and token pairs so the bot can submit moves.
 /// </summary>
 public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, IReadOnlyList<BotGameDto>>
 {
@@ -28,7 +27,7 @@ public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, 
         {
             if (!match.GameId.HasValue) continue;
 
-            Guid? token = match.BotOne == request.BotId ? match.BotOneToken
+            var token = match.BotOne == request.BotId ? match.BotOneToken
                         : match.BotTwo == request.BotId ? match.BotTwoToken
                         : null;
 
@@ -41,7 +40,7 @@ public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, 
         {
             if (!match.GameId.HasValue) continue;
 
-            Guid? token = match.BotOne == request.BotId ? match.BotOneToken
+            var token = match.BotOne == request.BotId ? match.BotOneToken
                         : match.BotTwo == request.BotId ? match.BotTwoToken
                         : null;
 

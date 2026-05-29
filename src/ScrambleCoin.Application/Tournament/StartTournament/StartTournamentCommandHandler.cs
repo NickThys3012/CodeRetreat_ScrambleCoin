@@ -4,7 +4,6 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Factories;
-using ScrambleCoin.Domain.Tournaments;
 using ScrambleCoin.Domain.ValueObjects;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 
@@ -57,7 +56,7 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
             var partOne = participantMap[match.BotOne];
             var partTwo = participantMap[match.BotTwo];
 
-            (Guid gameId, Guid botOnePlayerId, Guid botOneToken, Guid botTwoPlayerId, Guid botTwoToken) =
+            (var gameId, var botOnePlayerId, var botOneToken, var botTwoPlayerId, var botTwoToken) =
                 CreateGame();
 
             match.AssignGame(gameId, botOnePlayerId, botOneToken, botTwoPlayerId, botTwoToken);

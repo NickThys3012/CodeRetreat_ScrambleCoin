@@ -4,7 +4,6 @@ using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.CreateTournament;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tests;

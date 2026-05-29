@@ -5,7 +5,6 @@ using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.ValueObjects;
 using ScrambleCoin.Web.Notifications;
 
 namespace ScrambleCoin.Web.Tests;

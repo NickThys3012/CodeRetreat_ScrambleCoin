@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -66,7 +65,7 @@ public class SignalRBroadcastBehaviourTests
         var behaviour = BuildBehaviour<GameStateChangingRequest>(broadcaster);
         var request = new GameStateChangingRequest(gameId);
 
-        Guid capturedId = Guid.Empty;
+        var capturedId = Guid.Empty;
         await broadcaster
             .BroadcastBoardStateAsync(Arg.Do<Guid>(id => capturedId = id), Arg.Any<CancellationToken>());
 

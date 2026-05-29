@@ -6,7 +6,6 @@ using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Behaviours;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Web.Hubs;
-using MediatR;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()

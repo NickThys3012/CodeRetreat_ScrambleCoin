@@ -324,7 +324,7 @@ public sealed class RankingTrackTests
         // Third milestone = 15; need 5 wins (5 × 3 = 15)
         var track = NewTrack();
 
-        for (int i = 0; i < 5; i++) track.RecordWin(); // 3,6,9,12,15
+        for (var i = 0; i < 5; i++) track.RecordWin(); // 3,6,9,12,15
 
         Assert.Contains(15, track.MilestonesHit);
     }
@@ -335,7 +335,7 @@ public sealed class RankingTrackTests
         // Fourth milestone = 24; 8 wins = 24 points
         var track = NewTrack();
 
-        for (int i = 0; i < 8; i++) track.RecordWin(); // 3…24
+        for (var i = 0; i < 8; i++) track.RecordWin(); // 3…24
 
         Assert.Contains(24, track.MilestonesHit);
     }

@@ -1,5 +1,4 @@
 using MediatR;
-using ScrambleCoin.Application.Games;
 using ScrambleCoin.Domain.ValueObjects;
 
 namespace ScrambleCoin.Application.Games.VillainActions;
