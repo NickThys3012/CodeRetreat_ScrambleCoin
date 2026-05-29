@@ -1,15 +1,15 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Notifications;
 
-namespace ScrambleCoin.Web.Notifications;
+namespace ScrambleCoin.Application.Notifications;
 
 /// <summary>
 /// Reacts to a <see cref="GameFinished"/> notification by broadcasting the <c>GameEnded</c>
 /// SignalR event with final scores and winner info to all spectators watching that game.
-/// Lives in the Web layer so it can depend on <see cref="IGameBroadcaster"/> without
-/// introducing a SignalR dependency in the Application layer.
+/// Lives in the Application layer because it only depends on Application abstractions
+/// (<see cref="IGameBroadcaster"/> and <see cref="IGameRepository"/>) — no SignalR dependency here.
 /// </summary>
 public sealed class BroadcastGameEndedOnFinishedHandler : INotificationHandler<GameFinished>
 {

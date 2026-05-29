@@ -51,8 +51,7 @@ try
     builder.Services.AddMediatR(cfg =>
     {
         cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly,
-            typeof(ScrambleCoin.Web.Notifications.BroadcastGameEndedOnFinishedHandler).Assembly);
+            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
         // Serialization must wrap everything — register first so it is the outermost behaviour.
         cfg.AddOpenBehavior(typeof(GameSerializationBehaviour<,>));
         cfg.AddOpenBehavior(typeof(SignalRBroadcastBehaviour<,>));

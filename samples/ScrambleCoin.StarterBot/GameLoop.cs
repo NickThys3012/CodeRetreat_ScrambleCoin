@@ -17,7 +17,7 @@ public sealed class GameLoop
 
     // Fallback: if no SignalR event arrives within this window, do a one-off REST poll
     // to recover from a potentially missed event (e.g. after a brief reconnect).
-    private static readonly TimeSpan FallbackPollTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan FallbackPollTimeout = TimeSpan.FromSeconds(5);
 
     // How long to wait between matchmaking queue polls (unchanged)
     private static readonly TimeSpan QueuePollInterval = TimeSpan.FromSeconds(2);

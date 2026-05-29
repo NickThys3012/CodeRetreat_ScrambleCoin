@@ -530,7 +530,7 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
     // ── AC 11: phase auto-advances to MovePhase when both players act ────────
 
     [Fact]
-    public async Task Place_BothPlayersSkip_PhaseAdvancesToMovePhase()
+    public async Task Place_BothPlayersSkip_PhaseAdvancesToCoinSpawn()
     {
         // Arrange
         var (game, tokenP1, tokenP2, _, _) = await SeedGameInPlacePhaseAsync();
@@ -544,14 +544,14 @@ public class PlacementEndpointTests : IClassFixture<PlacementEndpointTests.TestW
         // P1 skips
         await clientP1.PostAsJsonAsync($"/api/games/{game.Id}/place", new { action = "skip" });
 
-        // Act: P2 skips — the response should reflect the auto-advanced phase
+        // Act: P2 skips — with 0 pieces on board, MovePhase is auto-skipped → CoinSpawn
         var response = await clientP2.PostAsJsonAsync($"/api/games/{game.Id}/place", new { action = "skip" });
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        // Assert: phase advanced to MovePhase
+        // Assert: phase auto-advanced past MovePhase (no pieces) to CoinSpawn
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(json.RootElement.TryGetProperty("phase", out var phaseElement));
-        Assert.Equal("MovePhase", phaseElement.GetString());
+        Assert.Equal("CoinSpawn", phaseElement.GetString());
     }
 
     [Fact]
