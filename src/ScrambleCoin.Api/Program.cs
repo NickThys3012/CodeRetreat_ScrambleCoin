@@ -40,11 +40,19 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>
+{
     cfg.RegisterServicesFromAssemblies(
-        typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
+        typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
+    // Register broadcast behaviour. The NullGameBroadcaster below is a no-op —
+    // spectators must target the ScrambleCoin.Web host for live SignalR updates.
+    cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.SignalRBroadcastBehaviour<,>));
+});
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
+// No-op broadcaster: API host has no SignalR hub; the behaviour resolves without error.
+builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
+    ScrambleCoin.Application.Abstractions.NullGameBroadcaster>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
 builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();

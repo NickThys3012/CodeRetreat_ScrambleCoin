@@ -1,6 +1,8 @@
 @page "/spectate/{GameId}"
 @using Microsoft.AspNetCore.SignalR.Client
 @using ScrambleCoin.Application.Games.GetBoardState
+@using MediatR
+@inject IMediator Mediator
 @implements IAsyncDisposable
 
 <PageTitle>Spectate — ScrambleCoin</PageTitle>
@@ -166,6 +168,7 @@
         {
             _connectionState = "Connected";
             await _hub.InvokeAsync("JoinGame", GameId);
+            await LoadCurrentBoardStateAsync();   // re-sync after reconnect
             await InvokeAsync(StateHasChanged);
         };
 
@@ -179,6 +182,23 @@
         await _hub.StartAsync();
         _connectionState = "Connected";
         await _hub.InvokeAsync("JoinGame", GameId);
+        await LoadCurrentBoardStateAsync();   // populate board on initial load
+    }
+
+    private async Task LoadCurrentBoardStateAsync()
+    {
+        if (!Guid.TryParse(GameId, out var gameId))
+            return;
+        try
+        {
+            _boardState = await Mediator.Send(new GetSpectatorBoardStateQuery(gameId));
+            _lastUpdate = DateTime.Now;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Game may not have started yet — ignore and wait for the first push.
+        }
     }
 
     // ── Board rendering helpers ───────────────────────────────────────────────
