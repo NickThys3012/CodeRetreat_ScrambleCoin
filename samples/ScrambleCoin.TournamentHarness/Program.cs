@@ -43,7 +43,7 @@ var createResp = await adminHttp.PostAsJsonAsync("api/tournament", new
 {
     name            = tourneyName,
     maxParticipants = numBots,
-    topN            = Math.Min(numBots, 4)
+    topN            = numBots
 });
 
 if (!createResp.IsSuccessStatusCode)
