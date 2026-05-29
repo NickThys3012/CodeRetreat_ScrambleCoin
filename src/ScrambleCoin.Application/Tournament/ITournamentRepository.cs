@@ -39,4 +39,10 @@ public interface ITournamentRepository
     /// <param name="gameId">The game ID to search for across all tournament group and knockout matches.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<TournamentBotInfo?> GetBotInfoByGameIdAsync(Guid gameId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns all tournaments in the system, ordered by creation time descending.
+    /// Used by the admin panel to display the tournament list.
+    /// </summary>
+    Task<IReadOnlyList<Domain.Tournaments.Tournament>> GetAllAsync(CancellationToken cancellationToken = default);
 }

@@ -115,6 +115,13 @@ public sealed class TournamentRepository : ITournamentRepository
         return null;
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Tournament>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var records = await _context.Tournaments.AsNoTracking().ToListAsync(cancellationToken);
+        return records.Select(Hydrate).ToList().AsReadOnly();
+    }
+
     // ── Serialization ─────────────────────────────────────────────────────────
 
     private static TournamentRecord Dehydrate(Tournament tournament)

@@ -66,4 +66,10 @@ public sealed class BotUnlocksRepository : IBotUnlocksRepository
         return 
             _context.BotUnlocks.AnyAsync(bu => bu.BotId == botId && bu.VillainId == villainId,cancellationToken);
     }
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<BotUnlock>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.BotUnlocks.AsNoTracking().ToListAsync(cancellationToken);
+    }
 }

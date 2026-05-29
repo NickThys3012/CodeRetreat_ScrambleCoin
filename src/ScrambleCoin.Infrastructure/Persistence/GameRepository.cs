@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.Games.Admin;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
@@ -77,6 +78,51 @@ public sealed class GameRepository : IGameRepository
             g => (g.PlayerOne == playerId || g.PlayerTwo == playerId) && g.Status == inProgress,
             cancellationToken);
     }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+    {
+        const int inProgress    = (int)GameStatus.InProgress;
+        const int waitingForBots = (int)GameStatus.WaitingForBots;
+
+        var records = await _context.Games
+            .AsNoTracking()
+            .Where(g => g.Status == inProgress || g.Status == waitingForBots)
+            .ToListAsync(cancellationToken);
+
+        var results = new List<ActiveGameSummaryDto>(records.Count);
+
+        foreach (var r in records)
+        {
+            // Parse scores JSON: {"guid-as-string": score, ...}
+            var scoresDict = string.IsNullOrEmpty(r.ScoresJson)
+                ? new Dictionary<string, int>()
+                : JsonSerializer.Deserialize<Dictionary<string, int>>(r.ScoresJson, JsonOptions)
+                  ?? new Dictionary<string, int>();
+
+            scoresDict.TryGetValue(r.PlayerOne.ToString(), out var scoreOne);
+            scoresDict.TryGetValue(r.PlayerTwo.ToString(), out var scoreTwo);
+
+            var statusStr = ((GameStatus)r.Status).ToString();
+            var phaseStr  = r.CurrentPhase.HasValue
+                ? ((TurnPhase)r.CurrentPhase.Value).ToString()
+                : null;
+
+            results.Add(new ActiveGameSummaryDto(
+                GameId:        r.Id,
+                PlayerOne:     r.PlayerOne,
+                PlayerTwo:     r.PlayerTwo,
+                Status:        statusStr,
+                TurnNumber:    r.TurnNumber,
+                Phase:         phaseStr,
+                ScorePlayerOne: scoreOne,
+                ScorePlayerTwo: scoreTwo));
+        }
+
+        return results.AsReadOnly();
+    }
+
+
 
     // ── Extraction (Game → GameRecord) ────────────────────────────────────────
 

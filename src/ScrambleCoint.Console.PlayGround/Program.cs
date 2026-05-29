@@ -252,4 +252,7 @@ sealed class InMemoryGameRepository(Game initial) : IGameRepository
 
     public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
         => Task.FromResult(false);
+
+    public Task<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>>([]);
 }
