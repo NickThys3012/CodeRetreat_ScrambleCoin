@@ -4,6 +4,7 @@ using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Behaviours;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Web.Hubs;
 
@@ -52,8 +53,11 @@ try
         cfg.RegisterServicesFromAssemblies(
             typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly,
             typeof(ScrambleCoin.Web.Notifications.BroadcastGameEndedOnFinishedHandler).Assembly);
+        // Serialization must wrap everything — register first so it is the outermost behaviour.
+        cfg.AddOpenBehavior(typeof(GameSerializationBehaviour<,>));
         cfg.AddOpenBehavior(typeof(SignalRBroadcastBehaviour<,>));
     });
+    builder.Services.AddSingleton<GameLockService>();
 
     // ── Database & EF Core ─────────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
