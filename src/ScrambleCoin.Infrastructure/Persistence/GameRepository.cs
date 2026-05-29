@@ -116,7 +116,8 @@ public sealed class GameRepository : IGameRepository
                 TurnNumber:    r.TurnNumber,
                 Phase:         phaseStr,
                 ScorePlayerOne: scoreOne,
-                ScorePlayerTwo: scoreTwo));
+                ScorePlayerTwo: scoreTwo,
+                LastMoveAt:    r.LastMoveAt));
         }
 
         return results.AsReadOnly();
@@ -154,7 +155,8 @@ public sealed class GameRepository : IGameRepository
             LineupPlayerTwoJson = game.LineupPlayerTwo is not null
                 ? SerializeLineup(game.LineupPlayerTwo)
                 : null,
-            BoardStateJson = SerializeBoardState(game.Board)
+            BoardStateJson = SerializeBoardState(game.Board),
+            LastMoveAt = DateTimeOffset.UtcNow
         };
     }
 

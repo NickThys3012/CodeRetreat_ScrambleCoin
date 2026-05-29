@@ -25,14 +25,10 @@ public sealed class GetAllBotsProgressQueryHandler
         GetAllBotsProgressQuery request,
         CancellationToken cancellationToken)
     {
-        // Load all defeat records and ranking tracks in parallel.
-        var allUnlocksTask  = _botUnlocksRepository.GetAllAsync(cancellationToken);
-        var rankingTrackTask = _rankingRepository.GetAllAsync(cancellationToken);
-
-        await Task.WhenAll(allUnlocksTask, rankingTrackTask);
-
-        var allUnlocks    = allUnlocksTask.Result;
-        var rankingTracks = rankingTrackTask.Result;
+        // Load all defeat records and ranking tracks sequentially to avoid a concurrent
+        // DbContext operation (both repositories share the same scoped DbContext instance).
+        var allUnlocks    = await _botUnlocksRepository.GetAllAsync(cancellationToken);
+        var rankingTracks = await _rankingRepository.GetAllAsync(cancellationToken);
 
         // Build a BotId → BotName lookup from ranking tracks.
         var botNames = rankingTracks.ToDictionary(t => t.BotId, t => t.BotName);

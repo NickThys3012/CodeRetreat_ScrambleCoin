@@ -12,6 +12,7 @@ namespace ScrambleCoin.Application.Games.Admin;
 /// <param name="Phase">Current phase name, or <c>null</c> when no phase is active.</param>
 /// <param name="ScorePlayerOne">Coin score for <see cref="PlayerOne"/>.</param>
 /// <param name="ScorePlayerTwo">Coin score for <see cref="PlayerTwo"/>.</param>
+/// <param name="LastMoveAt">UTC timestamp of the last move recorded in this game.</param>
 public sealed record ActiveGameSummaryDto(
     Guid GameId,
     Guid PlayerOne,
@@ -20,4 +21,5 @@ public sealed record ActiveGameSummaryDto(
     int TurnNumber,
     string? Phase,
     int ScorePlayerOne,
-    int ScorePlayerTwo);
+    int ScorePlayerTwo,
+    DateTimeOffset LastMoveAt);

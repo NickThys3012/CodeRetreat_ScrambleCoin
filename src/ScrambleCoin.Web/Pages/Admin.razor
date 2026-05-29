@@ -90,6 +90,7 @@
                         <MudTh>Phase</MudTh>
                         <MudTh>P1 Score</MudTh>
                         <MudTh>P2 Score</MudTh>
+                        <MudTh>Last Move</MudTh>
                         <MudTh>Action</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -121,6 +122,9 @@
                         </MudTd>
                         <MudTd DataLabel="P2 Score">
                             <strong>@context.ScorePlayerTwo</strong>
+                        </MudTd>
+                        <MudTd DataLabel="Last Move">
+                            @((DateTimeOffset.UtcNow - context.LastMoveAt).TotalSeconds.ToString("F0"))s ago
                         </MudTd>
                         <MudTd DataLabel="Action">
                             <MudButton Size="Size.Small"
@@ -537,8 +541,10 @@
         {
             while (await timer.WaitForNextTickAsync(ct))
             {
-                await LoadAllAsync();
-                await InvokeAsync(StateHasChanged);
+                // Marshal the entire load onto the Blazor circuit thread so that all
+                // state-field writes and the final StateHasChanged happen on the same
+                // thread, eliminating any race with in-progress renders.
+                await InvokeAsync(LoadAllAsync);
             }
         }
         catch (OperationCanceledException) { /* component disposed */ }
@@ -575,6 +581,10 @@
         {
             _isLoading = false;
         }
+
+        // Called from both OnInitializedAsync (already on the circuit thread) and
+        // from InvokeAsync inside RefreshLoopAsync (also on the circuit thread).
+        StateHasChanged();
     }
 
     // ── Tournament actions ────────────────────────────────────────────────────
