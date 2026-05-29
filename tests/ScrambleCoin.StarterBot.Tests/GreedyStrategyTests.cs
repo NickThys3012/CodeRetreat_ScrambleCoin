@@ -90,8 +90,7 @@ public sealed class GreedyStrategyTests
 
         var place = (PlacementDecision.Place)_sut.DecidePlacement(state, piece);
 
-        Assert.NotEqual(new Position(0, 1).Row * 10 + new Position(0, 1).Col,
-                        place.Position.Row * 10 + place.Position.Col);
+        Assert.NotEqual(new Position(0, 1), place.Position, new PositionComparer());
     }
 
     [Fact]
@@ -104,7 +103,7 @@ public sealed class GreedyStrategyTests
 
         var place = (PlacementDecision.Place)_sut.DecidePlacement(state, piece);
 
-        Assert.NotEqual(1, place.Position.Row * 10 + place.Position.Col);
+        Assert.NotEqual(new Position(0, 1), place.Position, new PositionComparer());
     }
 
     [Fact]
@@ -283,6 +282,7 @@ public sealed class GreedyStrategyTests
         Assert.Equal(2, decision.Segments.Count);
         // At least the first segment should not be empty since there's a clear path
         Assert.NotEmpty(decision.Segments[0]);
+        Assert.NotEmpty(decision.Segments[1]);
     }
 
     [Fact]
@@ -310,13 +310,10 @@ public sealed class GreedyStrategyTests
         state.AvailableCoins.Add(new CoinState { Position = new Position(0, 7) });
 
         var decision = _sut.DecideMove(state, piece);
-        var step = decision.Segments[0].SingleOrDefault();
+        var step = decision.Segments[0].Single();
 
-        if (step is not null)
-        {
-            Assert.InRange(step.Row, 0, 7);
-            Assert.InRange(step.Col, 0, 7);
-        }
+        Assert.InRange(step.Row, 0, 7);
+        Assert.InRange(step.Col, 0, 7);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
