@@ -161,10 +161,7 @@ public sealed class GameLoop
             {
                 placedThisTurn.Add(piece.PieceId);
                 Console.WriteLine($"  ✓ Placement submitted. Phase after: {result.Phase ?? "ended"}");
-
-                // If the phase changed (e.g. moved to MovePhase), stop placing
-                if (result.Phase != "PlacePhase")
-                    break;
+                break; // Only one placement per player per PlacePhase round
             }
         }
     }
@@ -298,7 +295,7 @@ public sealed class GameLoop
 
                 if (poll.Status == "timed_out")
                 {
-                    Console.WriteLine("Queue timed out — no opponent found. Re-enqueueing…");
+                    Console.WriteLine("Queue timed out — no opponent found. Restart the bot to try again.");
                     return null;
                 }
             }
