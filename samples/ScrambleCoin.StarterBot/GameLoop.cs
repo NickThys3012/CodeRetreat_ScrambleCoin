@@ -41,6 +41,7 @@ public sealed class GameLoop
         var movedThisTurn = new HashSet<Guid>();
         var lastTurn = -1;
         var lastPhase = "";
+        var waitingForOpponentPolls = 0; // counts silent polls while waiting for opponent to place
 
         while (!ct.IsCancellationRequested)
         {
@@ -71,6 +72,7 @@ public sealed class GameLoop
             {
                 placedThisTurn.Clear();
                 movedThisTurn.Clear();
+                waitingForOpponentPolls = 0;
                 lastTurn = state.Turn;
                 Console.WriteLine();
                 Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
@@ -78,12 +80,13 @@ public sealed class GameLoop
             }
             else if (state.Phase != lastPhase)
             {
+                waitingForOpponentPolls = 0;
                 Console.WriteLine();
                 Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
                 lastPhase = state.Phase ?? "";
             }
 
-            // ── Game not yet started ──────────────────────────────────────────
+            // ── Game isn't yet started ──────────────────────────────────────────
             if (state.Phase is null && state.Turn == 0)
             {
                 Console.WriteLine("  Waiting for game to start…");
@@ -109,6 +112,14 @@ public sealed class GameLoop
             // ── PlacePhase ────────────────────────────────────────────────────
             if (state.Phase == "PlacePhase")
             {
+                if (placedThisTurn.Any())
+                {
+                    waitingForOpponentPolls++;
+                    if (waitingForOpponentPolls % 5 == 1)
+                        Console.WriteLine($"  ⏳ Waiting for opponent to place… ({waitingForOpponentPolls}s)");
+                    await Task.Delay(PollInterval, ct);
+                    continue;
+                }
                 await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
                 await Task.Delay(PollInterval, ct);
                 continue;
@@ -129,17 +140,45 @@ public sealed class GameLoop
 
     // ── Phase handlers ────────────────────────────────────────────────────────
 
+    private const int MaxPiecesOnBoard = 3;
+
     private async Task HandlePlacePhaseAsync(
         Guid gameId,
         BoardState state,
         HashSet<Guid> placedThisTurn,
         CancellationToken ct)
     {
-        var unplaced = state.YourPieces.Where(p => !p.IsOnBoard && !placedThisTurn.Contains(p.PieceId)).ToList();
+        // Already submitted a placement action this turn — caller handles waiting log
+        if (placedThisTurn.Any())
+            return;
 
+        var piecesOnBoard = state.YourPieces.Count(p => p.IsOnBoard);
+
+        // Already at the 3-piece limit — must skip, cannot place another
+        if (piecesOnBoard >= MaxPiecesOnBoard)
+        {
+            Console.WriteLine($"  → Already at max pieces ({MaxPiecesOnBoard}) on board — skipping placement");
+            var r = await _client.SkipPlacementAsync(gameId, ct);
+            if (r is not null)
+            {
+                placedThisTurn.Add(Guid.Empty); // sentinel: marks that we have acted this turn
+                Console.WriteLine($"  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+            }
+            return;
+        }
+
+        var unplaced = state.YourPieces.Where(p => !p.IsOnBoard).ToList();
+
+        // No pieces left in hand (shouldn't normally happen, but be safe)
         if (unplaced.Count == 0)
         {
-            // All pieces placed — nothing more to do this phase
+            Console.WriteLine("  → No pieces in hand — skipping placement");
+            var r = await _client.SkipPlacementAsync(gameId, ct);
+            if (r is not null)
+            {
+                placedThisTurn.Add(Guid.Empty);
+                Console.WriteLine($"  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+            }
             return;
         }
 
@@ -161,7 +200,13 @@ public sealed class GameLoop
             {
                 placedThisTurn.Add(piece.PieceId);
                 Console.WriteLine($"  ✓ Placement submitted. Phase after: {result.Phase ?? "ended"}");
-                break; // Only one placement per player per PlacePhase round
+                break; // Only one placement action per player per PlacePhase
+            }
+            else
+            {
+                // Placement failed (e.g. tile occupied by opponent who placed concurrently).
+                // Stop retrying now — state is stale. The next poll will refresh it.
+                break;
             }
         }
     }
@@ -190,7 +235,7 @@ public sealed class GameLoop
             return;
         }
 
-        // Move one piece at a time (re-poll between each move to get fresh state)
+        // Move one piece at a time (re-poll between each move to get a fresh state)
         var piece = piecesToMove.First();
         Console.WriteLine($"  Moving piece: {piece.Name} at {piece.Position} ({piece.PieceId})");
         var decision = _strategy.DecideMove(state, piece);
@@ -262,16 +307,14 @@ public sealed class GameLoop
         if (queueResponse is null) return null;
 
         // Matched immediately — server returns { gameId, playerId, token } with no "status" field
-        if (queueResponse.GameId.HasValue &&
-            queueResponse.PlayerId.HasValue &&
-            queueResponse.Token.HasValue)
+        if (queueResponse is { GameId: not null, PlayerId: not null, Token: not null })
         {
             Console.WriteLine($"Matched immediately! GameId: {queueResponse.GameId}");
             return (queueResponse.GameId.Value, queueResponse.PlayerId.Value, queueResponse.Token.Value);
         }
 
         // Waiting — poll until matched
-        if (queueResponse.Status == "waiting" && queueResponse.QueueId.HasValue)
+        if (queueResponse is { Status: "waiting", QueueId: not null })
         {
             var queueId = queueResponse.QueueId.Value;
             Console.WriteLine($"Waiting in queue (QueueId: {queueId})…");
@@ -284,10 +327,7 @@ public sealed class GameLoop
 
                 Console.WriteLine($"  Queue status: {poll.Status}");
 
-                if (poll.Status == "matched" &&
-                    poll.GameId.HasValue &&
-                    poll.PlayerId.HasValue &&
-                    poll.Token.HasValue)
+                if (poll is { Status: "matched", GameId: not null, PlayerId: not null, Token: not null })
                 {
                     Console.WriteLine($"Matched! GameId: {poll.GameId}");
                     return (poll.GameId.Value, poll.PlayerId.Value, poll.Token.Value);
