@@ -41,6 +41,7 @@ public sealed class SignalRBroadcastBehaviour<TRequest, TResponse> : IPipelineBe
         try
         {
             await _broadcaster.BroadcastBoardStateAsync(gameCommand.GameId, cancellationToken);
+            await _broadcaster.NotifyActivePlayersAsync(gameCommand.GameId, cancellationToken);
         }
         catch (Exception ex)
         {

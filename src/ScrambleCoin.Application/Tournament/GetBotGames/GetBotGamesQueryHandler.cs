@@ -27,12 +27,14 @@ public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, 
         {
             if (!match.GameId.HasValue) continue;
 
-            var token = match.BotOne == request.BotId ? match.BotOneToken
-                        : match.BotTwo == request.BotId ? match.BotTwoToken
-                        : null;
+            var (token, playerId) = match.BotOne == request.BotId
+                ? (match.BotOneToken, match.BotOnePlayerId)
+                : match.BotTwo == request.BotId
+                    ? (match.BotTwoToken, match.BotTwoPlayerId)
+                    : (null, null);
 
-            if (token.HasValue)
-                results.Add(new BotGameDto(match.Id, "Group", null, match.GameId.Value, token.Value));
+            if (token.HasValue && playerId.HasValue)
+                results.Add(new BotGameDto(match.Id, "Group", null, match.GameId.Value, token.Value, playerId.Value));
         }
 
         // ── Knockout matches ──────────────────────────────────────────────────
@@ -40,12 +42,14 @@ public sealed class GetBotGamesQueryHandler : IRequestHandler<GetBotGamesQuery, 
         {
             if (!match.GameId.HasValue) continue;
 
-            var token = match.BotOne == request.BotId ? match.BotOneToken
-                        : match.BotTwo == request.BotId ? match.BotTwoToken
-                        : null;
+            var (token, playerId) = match.BotOne == request.BotId
+                ? (match.BotOneToken, match.BotOnePlayerId)
+                : match.BotTwo == request.BotId
+                    ? (match.BotTwoToken, match.BotTwoPlayerId)
+                    : (null, null);
 
-            if (token.HasValue)
-                results.Add(new BotGameDto(match.Id, "Knockout", match.Round, match.GameId.Value, token.Value));
+            if (token.HasValue && playerId.HasValue)
+                results.Add(new BotGameDto(match.Id, "Knockout", match.Round, match.GameId.Value, token.Value, playerId.Value));
         }
 
         return results.AsReadOnly();

@@ -34,6 +34,13 @@ public sealed class BroadcastPhaseChangedHandler : INotificationHandler<TurnPhas
                 newPhase: notification.NewPhase,
                 ct: cancellationToken);
 
+            // Notify the player(s) who need to act in the new phase.
+            // PlacePhase: both players must place/skip → notify both.
+            // MovePhase:  the initial active mover → notify them.
+            // null / CoinSpawn: no player action needed.
+            if (notification.NewPhase is "PlacePhase" or "MovePhase")
+                await _broadcaster.NotifyActivePlayersAsync(notification.GameId, cancellationToken);
+
             _logger.LogInformation(
                 "Broadcast PhaseChanged for game {GameId}: turn {Turn}, {Previous} → {New}",
                 notification.GameId, notification.TurnNumber,

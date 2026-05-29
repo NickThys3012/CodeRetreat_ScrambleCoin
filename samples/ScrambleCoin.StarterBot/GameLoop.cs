@@ -51,9 +51,9 @@ public sealed class GameLoop
 
         void Push(string reason) => events.Writer.TryWrite(reason);
 
-        hub.On("BoardStateUpdated", (object _) => Push("board-updated"));
-        hub.On("PhaseChanged",      (object _) => Push("phase-changed"));
-        hub.On("GameEnded",         (object _) => Push("game-ended"));
+        // ActionRequired is sent only to THIS player's private group — zero noise from opponent actions.
+        hub.On("ActionRequired", (object _) => Push("action-required"));
+        hub.On("GameEnded",      (object _) => Push("game-ended"));
 
         hub.Reconnected += _ => { Push("reconnected"); return Task.CompletedTask; };
         hub.Closed      += ex =>
@@ -66,8 +66,11 @@ public sealed class GameLoop
         try
         {
             await hub.StartAsync(ct);
+            // Join the public spectator group (for GameEnded)
             await hub.InvokeAsync("JoinGame", gameId.ToString(), ct);
-            Console.WriteLine($"[{_botName}]  🔔 SignalR connected — listening for events…");
+            // Join the private player group (for ActionRequired — only our turn notifications)
+            await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(), playerId.ToString(), ct);
+            Console.WriteLine($"[{_botName}]  🔔 SignalR connected — waiting for ActionRequired events…");
         }
         catch (Exception ex)
         {

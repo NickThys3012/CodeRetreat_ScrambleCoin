@@ -28,6 +28,15 @@ public static class TournamentEndpoints
                 "Bots can be registered via POST /api/tournament/{id}/participants.")
             .WithTags("Tournament");
 
+        // POST /api/tournament/{id}/join — bot self-registers (no admin key required)
+        app.MapPost("/api/tournament/{id:guid}/join", JoinTournament)
+            .WithName("JoinTournament")
+            .WithSummary("Self-register a bot for the tournament")
+            .WithDescription(
+                "Bots call this to register themselves before the tournament starts. " +
+                "No admin key required. Supply botId, botName, and lineup.")
+            .WithTags("Tournament");
+
         // POST /api/tournament/{id}/participants — register a bot
         app.MapPost("/api/tournament/{id:guid}/participants", AddParticipant)
             .WithName("AddTournamentParticipant")
@@ -114,6 +123,44 @@ public static class TournamentEndpoints
                 ct);
 
             return Results.Created($"/api/tournament/{result.TournamentId}", new { tournamentId = result.TournamentId });
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+    }
+
+    /// <summary>Bot self-registers for the tournament. No admin key required.</summary>
+    private static async Task<IResult> JoinTournament(
+        Guid id,
+        AddParticipantRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        try
+        {
+            await sender.Send(
+                new AddTournamentParticipantCommand(id, body.BotId, body.BotName, body.Lineup),
+                ct);
+
+            return Results.NoContent();
+        }
+        catch (TournamentNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+        catch (TournamentInvalidStateException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
         }
         catch (DomainException ex)
         {

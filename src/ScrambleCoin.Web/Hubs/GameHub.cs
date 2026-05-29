@@ -38,4 +38,20 @@ public sealed class GameHub : Hub
         var groupName = GroupPrefix + gameId;
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
     }
+
+    /// <summary>
+    /// Registers the caller as an active player for <paramref name="gameId"/>.
+    /// The connection is added to a private group <c>player-{gameId}-{playerId}</c>
+    /// that only receives <c>ActionRequired</c> messages targeted at that specific player.
+    /// Call this once after joining a game — no token validation is performed here because
+    /// <c>ActionRequired</c> carries no secret data; all real actions still require a valid
+    /// <c>X-Bot-Token</c> on the REST API.
+    /// </summary>
+    /// <param name="gameId">The game the caller is participating in (string GUID).</param>
+    /// <param name="playerId">The caller's player ID (string GUID).</param>
+    public async Task RegisterAsPlayer(string gameId, string playerId)
+    {
+        var groupName = $"player-{gameId}-{playerId}";
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+    }
 }

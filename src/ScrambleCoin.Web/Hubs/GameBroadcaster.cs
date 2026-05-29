@@ -13,7 +13,8 @@ namespace ScrambleCoin.Web.Hubs;
 /// </summary>
 public sealed class GameBroadcaster : IGameBroadcaster
 {
-    private const string GroupPrefix = "game-";
+    private const string GameGroupPrefix   = "game-";
+    private const string PlayerGroupPrefix = "player-";
 
     private readonly IHubContext<GameHub> _hubContext;
     private readonly ISender _sender;
@@ -21,14 +22,14 @@ public sealed class GameBroadcaster : IGameBroadcaster
     public GameBroadcaster(IHubContext<GameHub> hubContext, ISender sender)
     {
         _hubContext = hubContext;
-        _sender = sender;
+        _sender     = sender;
     }
 
     /// <inheritdoc />
     public async Task BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
     {
         var boardState = await _sender.Send(new GetSpectatorBoardStateQuery(gameId), ct);
-        var group = _hubContext.Clients.Group(GroupPrefix + gameId);
+        var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("BoardStateUpdated", boardState, ct);
     }
 
@@ -40,7 +41,7 @@ public sealed class GameBroadcaster : IGameBroadcaster
         string? newPhase,
         CancellationToken ct = default)
     {
-        var group = _hubContext.Clients.Group(GroupPrefix + gameId);
+        var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("PhaseChanged", new
         {
             GameId = gameId,
@@ -59,7 +60,7 @@ public sealed class GameBroadcaster : IGameBroadcaster
         bool isDraw,
         CancellationToken ct = default)
     {
-        var group = _hubContext.Clients.Group(GroupPrefix + gameId);
+        var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("GameEnded", new
         {
             GameId = gameId,
@@ -68,5 +69,32 @@ public sealed class GameBroadcaster : IGameBroadcaster
             WinnerId = winnerId,
             IsDraw = isDraw
         }, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task NotifyActivePlayersAsync(Guid gameId, CancellationToken ct = default)
+    {
+        var info = await _sender.Send(new GetGamePlayerIdsQuery(gameId), ct);
+
+        switch (info.Phase)
+        {
+            case "PlacePhase":
+                // Both players need to place (or skip) — notify each on their private channel.
+                await SendActionRequiredAsync(gameId, info.PlayerOne, "PlacePhase", ct);
+                await SendActionRequiredAsync(gameId, info.PlayerTwo, "PlacePhase", ct);
+                break;
+
+            case "MovePhase" when info.ActiveMover is { } activeId:
+                await SendActionRequiredAsync(gameId, activeId, "MovePhase", ct);
+                break;
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private Task SendActionRequiredAsync(Guid gameId, Guid playerId, string phase, CancellationToken ct)
+    {
+        var group = _hubContext.Clients.Group(PlayerGroupPrefix + gameId + "-" + playerId);
+        return group.SendAsync("ActionRequired", new { Phase = phase }, ct);
     }
 }

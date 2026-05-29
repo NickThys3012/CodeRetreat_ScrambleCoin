@@ -224,6 +224,11 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
     private static TournamentBracketDto BuildDto(DomainTournament tournament)
     {
+        var participants = tournament.Participants
+            .Select(p => new ParticipantDto(p.BotId, p.BotName))
+            .ToList()
+            .AsReadOnly();
+
         var groupDtos = tournament.GroupMatches.Select(m => new GroupMatchDto(
             MatchId: m.Id,
             BotOne: m.BotOne,
@@ -257,6 +262,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             tournament.Name,
             tournament.Status.ToString(),
             tournament.WinnerId,
+            participants,
             groupDtos.AsReadOnly(),
             knockoutRounds.AsReadOnly());
     }
