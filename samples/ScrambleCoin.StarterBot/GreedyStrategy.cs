@@ -9,7 +9,7 @@ namespace ScrambleCoin.StarterBot;
 ///   <item><b>MovePhase</b>: move each piece one step toward the nearest coin.
 ///   If no coins remain, the piece stays still.</item>
 /// </list>
-/// Replace this class (or implement <see cref="IStrategy"/>) to customise the bot.
+/// Replace this class (or implement <see cref="IStrategy"/>) to customize the bot.
 /// </summary>
 public sealed class GreedyStrategy : IStrategy
 {
@@ -58,7 +58,7 @@ public sealed class GreedyStrategy : IStrategy
             ["Fairy Godmother"] = "Anywhere",
             ["Ursula"]          = "Anywhere",
             ["Rapunzel"]        = "Anywhere",
-            ["Forky"]           = "Anywhere",
+            ["Forky"]           = "Anywhere"
         };
 
     // ── PlacePhase ────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ public sealed class GreedyStrategy : IStrategy
     /// <inheritdoc />
     public PlacementDecision DecidePlacement(BoardState state, PieceState piece)
     {
-        // Collect all occupied positions (obstacles, pieces, coins)
+        // Collect all positions blocked by obstacles or existing pieces (coins are NOT blocking)
         var occupied = GetOccupiedPositions(state);
 
         // Choose candidate tiles based on the piece's entry-point type
@@ -105,7 +105,7 @@ public sealed class GreedyStrategy : IStrategy
             if (step is not null)
             {
                 segments.Add(new List<Position> { step }.AsReadOnly());
-                currentPos = step; // Update position for next segment
+                currentPos = step; // Update position for the next segment
                 blocked.Add((step.Row, step.Col)); // Treat destination as blocked for subsequent segments
             }
             else
@@ -125,14 +125,14 @@ public sealed class GreedyStrategy : IStrategy
         if (state.AvailableCoins.Count == 0)
             return null; // No coins — stay still
 
-        // Find nearest coin (by Euclidean distance)
+        // Find the nearest coin (by Euclidean distance)
         var target = state.AvailableCoins
             .OrderBy(c => from.DistanceTo(c.Position))
             .First().Position;
 
         Console.WriteLine($"    {piece.Name} at {from} → nearest coin at {target}");
 
-        // Generate candidate steps based on movement type
+        // Generate candidate steps based on a movement type
         var candidates = GetMoveCandidates(from, piece.MovementType);
 
         // Filter: stay on board, not blocked
@@ -182,7 +182,7 @@ public sealed class GreedyStrategy : IStrategy
         OrthogonalNeighbours(p).Concat(DiagonalNeighbours(p));
 
     /// <summary>
-    /// Returns tiles the piece may be placed on, filtered to its entry-point type and ordered
+    /// Returns tiles the piece may be placed on, filtered to its entry-point type, and ordered
     /// so that the most preferred tile comes first.
     /// <list type="bullet">
     ///   <item><b>Borders</b>: non-corner border tiles only (a Borders piece cannot use corners).</item>
@@ -192,7 +192,7 @@ public sealed class GreedyStrategy : IStrategy
     /// </summary>
     private static IEnumerable<Position> GetCandidateTiles(BoardState state, PieceState piece)
     {
-        var entryType = PieceEntryPoints.TryGetValue(piece.Name, out var et) ? et : "Borders";
+        var entryType = PieceEntryPoints.GetValueOrDefault(piece.Name, "Borders");
 
         var corners = new[]
         {
@@ -242,14 +242,9 @@ public sealed class GreedyStrategy : IStrategy
         return blocked;
     }
 
-    /// <summary>All positions currently occupied (obstacles, pieces, coins).</summary>
-    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state)
-    {
-        var occupied = GetBlockedPositions(state);
-        foreach (var coin in state.AvailableCoins)
-            occupied.Add((coin.Position.Row, coin.Position.Col));
-        return occupied;
-    }
+    /// <summary>All positions currently occupied by obstacles or pieces (coins are collectible, not blocking).</summary>
+    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state) =>
+        GetBlockedPositions(state);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

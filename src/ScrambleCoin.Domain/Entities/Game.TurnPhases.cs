@@ -50,6 +50,9 @@ public partial class Game
                 _movedPieceIds.Clear();
                 MovePhaseActivePlayer = PlayerOne;
                 _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                // Eagerly skip any player(s) with no pieces on board so the turn
+                // advances automatically without waiting for a MovePiece call.
+                SkipActiveMoverIfNoPiecesRemaining();
                 break;
 
             case TurnPhase.MovePhase:
