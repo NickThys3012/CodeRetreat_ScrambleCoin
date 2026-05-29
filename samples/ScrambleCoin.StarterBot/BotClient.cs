@@ -22,17 +22,27 @@ public sealed class BotClient : IDisposable
     public BotClient(string baseUrl)
     {
         _http = new HttpClient { BaseAddress = new Uri(baseUrl.TrimEnd('/') + '/') };
+        HubUrl = new Uri(_http.BaseAddress, "/hubs/game").ToString();
     }
+
+    /// <summary>Absolute URL of the ScrambleCoin SignalR hub (e.g. <c>http://localhost:5001/hubs/game</c>).</summary>
+    public string HubUrl { get; }
 
     /// <summary>
     /// Test seam: inject a pre-configured <see cref="HttpClient"/> directly.
     /// The caller is responsible for setting <c>BaseAddress</c>.
     /// </summary>
-    internal BotClient(HttpClient http) => _http = http;
+    internal BotClient(HttpClient http)
+    {
+        _http   = http;
+        HubUrl  = http.BaseAddress is not null
+            ? new Uri(http.BaseAddress, "/hubs/game").ToString()
+            : string.Empty;
+    }
 
     // ── Authentication ────────────────────────────────────────────────────────
 
-    /// <summary>Sets the bot token sent on every subsequent request via <c>X-Bot-Token</c>.</summary>
+    /// <summary>Sets the bot token sent on every later request via <c>X-Bot-Token</c>.</summary>
     public void SetBotToken(Guid token)
     {
         _http.DefaultRequestHeaders.Remove("X-Bot-Token");
@@ -50,6 +60,34 @@ public sealed class BotClient : IDisposable
         var body = new { lineup };
         var response = await _http.PostAsJsonAsync($"api/games/{gameId}/join", body, ct);
         return await ReadResponseAsync<JoinResponse>(response, "JoinGame");
+    }
+
+    // ── Tournament joining ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers this bot for a tournament (self-registration, no admin key required).
+    /// Call this while the tournament is in <c>Pending</c> state.
+    /// <c>POST /api/tournament/{tournamentId}/join</c>
+    /// Returns <c>true</c> on success (204 No Content), <c>false</c> on error.
+    /// </summary>
+    public async Task<bool> JoinTournamentAsync(
+        Guid tournamentId,
+        Guid botId,
+        string botName,
+        IReadOnlyList<string> lineup,
+        CancellationToken ct = default)
+    {
+        var body = new { botId, botName, lineup };
+        var response = await _http.PostAsJsonAsync($"api/tournament/{tournamentId}/join", body, ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"[Tournament] Registered as '{botName}' (BotId: {botId})");
+            return true;
+        }
+
+        await PrintApiErrorAsync(response, "JoinTournament");
+        return false;
     }
 
     /// <summary>
@@ -171,6 +209,22 @@ public sealed class BotClient : IDisposable
         return await ReadResponseAsync<MoveResponse>(response, "MovePiece");
     }
 
+    // ── Tournament game discovery ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all games (and tokens) assigned to this bot in the tournament.
+    /// Call this after the tournament starts; poll until your next game appears.
+    /// <c>GET /api/tournament/{tournamentId}/bots/{botId}/games</c>
+    /// </summary>
+    public async Task<List<BotGameInfo>?> GetBotGamesAsync(
+        Guid tournamentId,
+        Guid botId,
+        CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync(BuildUri($"api/tournament/{tournamentId}/bots/{botId}/games"), ct);
+        return await ReadResponseAsync<List<BotGameInfo>>(response, "GetBotGames");
+    }
+
     // ── Game result ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -184,7 +238,7 @@ public sealed class BotClient : IDisposable
 
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
-            // Game not finished yet
+            //The game isn't finished yet
             return null;
         }
 

@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Threading.Channels;
 using ScrambleCoin.StarterBot.Models;
 
 namespace ScrambleCoin.StarterBot;
 
 /// <summary>
-/// Main game loop: join → poll → decide → submit → repeat until the game ends.
+/// Main game loop: join → react to SignalR events → decide → submit → repeat until the game ends.
+/// Replaces the old polling loop with a push-driven model: the server notifies the bot whenever
+/// the board state changes, so the bot only calls REST when it actually needs to act.
 /// </summary>
 public sealed class GameLoop
 {
@@ -11,10 +15,11 @@ public sealed class GameLoop
     private readonly IStrategy _strategy;
     private readonly string _botName;
 
-    // How long to wait between state polls
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+    // Fallback: if no SignalR event arrives within this window, do a one-off REST poll
+    // to recover from a potentially missed event (e.g. after a brief reconnect).
+    private static readonly TimeSpan FallbackPollTimeout = TimeSpan.FromSeconds(30);
 
-    // How long to wait between matchmaking queue polls
+    // How long to wait between matchmaking queue polls (unchanged)
     private static readonly TimeSpan QueuePollInterval = TimeSpan.FromSeconds(2);
 
     public GameLoop(BotClient client, IStrategy strategy, string botName)
@@ -27,114 +32,154 @@ public sealed class GameLoop
     // ── Entry point ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Runs the bot for a single game.
-    /// Call this once per game; it returns when the game ends or the token is cancelled.
+    /// Runs the bot for a single game via SignalR push events.
+    /// Returns when the game ends or the token is cancelled.
     /// </summary>
     public async Task RunAsync(Guid gameId, Guid playerId, CancellationToken ct = default)
     {
         Console.WriteLine($"[{_botName}] Game started — GameId: {gameId} | PlayerId: {playerId}");
         Console.WriteLine("──────────────────────────────────────────────────────────");
 
-        // Track which placement actions we've already submitted this turn
-        // to avoid re-submitting after a successful placement.
-        var placedThisTurn = new HashSet<Guid>();
-        var movedThisTurn = new HashSet<Guid>();
-        var lastTurn = -1;
-        var lastPhase = "";
-        var waitingForOpponentPolls = 0; // counts silent polls while waiting for opponent to place
+        // ── SignalR connection ─────────────────────────────────────────────────
+        var hub = new HubConnectionBuilder()
+            .WithUrl(_client.HubUrl)
+            .WithAutomaticReconnect()
+            .Build();
 
-        while (!ct.IsCancellationRequested)
+        // Channel bridges SignalR callbacks (background thread) into the async loop below.
+        var events = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
+
+        void Push(string reason) => events.Writer.TryWrite(reason);
+
+        hub.On("BoardStateUpdated", (object _) => Push("board-updated"));
+        hub.On("PhaseChanged",      (object _) => Push("phase-changed"));
+        hub.On("GameEnded",         (object _) => Push("game-ended"));
+
+        hub.Reconnected += _ => { Push("reconnected"); return Task.CompletedTask; };
+        hub.Closed      += ex =>
         {
-            BoardState? state;
-            try
-            {
-                state = await _client.GetStateAsync(gameId, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"[ERROR] Connection failed: {ex.Message} — retrying in 3 s…");
-                await Task.Delay(TimeSpan.FromSeconds(3), ct);
-                continue;
-            }
+            Console.WriteLine($"[{_botName}]  ⚠ SignalR disconnected: {ex?.Message}");
+            Push("disconnected");
+            return Task.CompletedTask;
+        };
 
-            if (state is null)
-            {
-                await Task.Delay(PollInterval, ct);
-                continue;
-            }
+        try
+        {
+            await hub.StartAsync(ct);
+            await hub.InvokeAsync("JoinGame", gameId.ToString(), ct);
+            Console.WriteLine($"[{_botName}]  🔔 SignalR connected — listening for events…");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{_botName}]  ⚠ SignalR unavailable ({ex.Message}) — falling back to polling.");
+            await hub.DisposeAsync();
+            await RunPollingFallbackAsync(gameId, playerId, ct);
+            return;
+        }
 
-            // Reset per-turn tracking when a new turn starts
-            if (state.Turn != lastTurn)
-            {
-                placedThisTurn.Clear();
-                movedThisTurn.Clear();
-                waitingForOpponentPolls = 0;
-                lastTurn = state.Turn;
-                Console.WriteLine();
-                Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
-                lastPhase = state.Phase ?? "";
-            }
-            else if (state.Phase != lastPhase)
-            {
-                waitingForOpponentPolls = 0;
-                Console.WriteLine();
-                Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
-                lastPhase = state.Phase ?? "";
-            }
+        // Track which actions we've already submitted this turn
+        var placedThisTurn = new HashSet<Guid>();
+        var movedThisTurn  = new HashSet<Guid>();
+        var lastTurn       = -1;
+        var lastPhase      = "";
 
-            // ── Game isn't yet started ──────────────────────────────────────────
-            if (state.Phase is null && state.Turn == 0)
-            {
-                Console.WriteLine("  Waiting for game to start…");
-                await Task.Delay(PollInterval, ct);
-                continue;
-            }
+        // Seed the channel so we do an immediate state fetch on startup.
+        Push("init");
 
-            // ── Game ended ────────────────────────────────────────────────────
-            if (state.Phase is null && state.Turn > 0)
+        try
+        {
+            while (!ct.IsCancellationRequested)
             {
-                await PrintFinalResultAsync(gameId, playerId, state, ct);
-                return;
-            }
+                // Wait for the next event, but time out to handle missed events.
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(FallbackPollTimeout);
 
-            // ── CoinSpawn phase ───────────────────────────────────────────────
-            if (state.Phase == "CoinSpawn")
-            {
-                Console.WriteLine("  CoinSpawn — waiting for coins to be placed…");
-                await Task.Delay(PollInterval, ct);
-                continue;
-            }
-
-            // ── PlacePhase ────────────────────────────────────────────────────
-            if (state.Phase == "PlacePhase")
-            {
-                if (placedThisTurn.Any())
+                string signal;
+                try
                 {
-                    waitingForOpponentPolls++;
-                    if (waitingForOpponentPolls % 5 == 1)
-                        Console.WriteLine($"  ⏳ Waiting for opponent to place… ({waitingForOpponentPolls}s)");
-                    await Task.Delay(PollInterval, ct);
+                    signal = await events.Reader.ReadAsync(timeoutCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // Timeout — no event in 30 s; poll once as a safety net.
+                    Console.WriteLine($"[{_botName}]  ⏱ No SignalR event for 30 s — polling once.");
+                    signal = "timeout-poll";
+                }
+
+                // Fetch fresh player-specific state via REST (the SignalR payload is spectator-only).
+                BoardState? state;
+                try
+                {
+                    state = await _client.GetStateAsync(gameId, ct);
+                }
+                catch (OperationCanceledException) { break; }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine($"[{_botName}]  [ERROR] Connection failed: {ex.Message}");
                     continue;
                 }
-                await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
-                await Task.Delay(PollInterval, ct);
-                continue;
-            }
 
-            // ── MovePhase ─────────────────────────────────────────────────────
-            if (state.Phase == "MovePhase")
-            {
-                await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
-                await Task.Delay(PollInterval, ct);
-                continue;
-            }
+                if (state is null) continue;
 
-            // Unknown phase — just wait
-            await Task.Delay(PollInterval, ct);
+                // ── Turn / phase tracking ──────────────────────────────────────
+                if (state.Turn != lastTurn)
+                {
+                    placedThisTurn.Clear();
+                    movedThisTurn.Clear();
+                    lastTurn = state.Turn;
+                    Console.WriteLine();
+                    Console.WriteLine($"[{_botName}] [Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
+                    lastPhase = state.Phase ?? "";
+                }
+                else if (state.Phase != lastPhase)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine($"[{_botName}] [Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
+                    lastPhase = state.Phase ?? "";
+                }
+
+                // ── Game not started yet ───────────────────────────────────────
+                if (state.Phase is null && state.Turn == 0)
+                {
+                    Console.WriteLine($"[{_botName}]  Waiting for game to start…");
+                    continue; // wait for next SignalR event
+                }
+
+                // ── Game ended ────────────────────────────────────────────────
+                if (state.Phase is null && state.Turn > 0)
+                {
+                    await PrintFinalResultAsync(gameId, playerId, state, ct);
+                    return;
+                }
+
+                // ── CoinSpawn ─────────────────────────────────────────────────
+                if (state.Phase == "CoinSpawn")
+                {
+                    // Server handles this; next SignalR event will show PlacePhase.
+                    continue;
+                }
+
+                // ── PlacePhase ────────────────────────────────────────────────
+                if (state.Phase == "PlacePhase")
+                {
+                    if (!placedThisTurn.Any())
+                        await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
+                    // If already placed, just wait for the next event (opponent placing).
+                    continue;
+                }
+
+                // ── MovePhase ─────────────────────────────────────────────────
+                if (state.Phase == "MovePhase")
+                {
+                    await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
+                    continue;
+                }
+            }
+        }
+        finally
+        {
+            await hub.StopAsync(CancellationToken.None);
+            await hub.DisposeAsync();
         }
     }
 
@@ -148,49 +193,45 @@ public sealed class GameLoop
         HashSet<Guid> placedThisTurn,
         CancellationToken ct)
     {
-        // Already submitted a placement action this turn — caller handles waiting log
-        if (placedThisTurn.Any())
-            return;
+        if (placedThisTurn.Any()) return;
 
         var piecesOnBoard = state.YourPieces.Count(p => p.IsOnBoard);
 
-        // Already at the 3-piece limit — must skip, cannot place another
         if (piecesOnBoard >= MaxPiecesOnBoard)
         {
-            Console.WriteLine($"  → Already at max pieces ({MaxPiecesOnBoard}) on board — skipping placement");
+            Console.WriteLine($"[{_botName}]  → Already at max pieces ({MaxPiecesOnBoard}) on board — skipping placement");
             var r = await _client.SkipPlacementAsync(gameId, ct);
             if (r is not null)
             {
-                placedThisTurn.Add(Guid.Empty); // sentinel: marks that we have acted this turn
-                Console.WriteLine($"  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+                placedThisTurn.Add(Guid.Empty);
+                Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
             }
             return;
         }
 
         var unplaced = state.YourPieces.Where(p => !p.IsOnBoard).ToList();
 
-        // No pieces left in hand (shouldn't normally happen, but be safe)
         if (unplaced.Count == 0)
         {
-            Console.WriteLine("  → No pieces in hand — skipping placement");
+            Console.WriteLine($"[{_botName}]  → No pieces in hand — skipping placement");
             var r = await _client.SkipPlacementAsync(gameId, ct);
             if (r is not null)
             {
                 placedThisTurn.Add(Guid.Empty);
-                Console.WriteLine($"  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+                Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
             }
             return;
         }
 
         var currentState = state;
-        var piece = unplaced.First();
+        var piece        = unplaced.First();
         const int maxRetries = 5;
 
         for (var attempt = 0; attempt < maxRetries; attempt++)
         {
             if (ct.IsCancellationRequested) break;
 
-            Console.WriteLine($"  Placing piece: {piece.Name} ({piece.PieceId})");
+            Console.WriteLine($"[{_botName}]  Placing piece: {piece.Name} ({piece.PieceId})");
             var decision = _strategy.DecidePlacement(currentState, piece);
 
             var result = decision switch
@@ -203,12 +244,11 @@ public sealed class GameLoop
             if (result is not null)
             {
                 placedThisTurn.Add(piece.PieceId);
-                Console.WriteLine($"  ✓ Placement submitted. Phase after: {result.Phase ?? "ended"}");
-                break;
+                Console.WriteLine($"[{_botName}]  ✓ Placement submitted. Phase after: {result.Phase ?? "ended"}");
+                return;
             }
 
-            // Failed — re-fetch fresh state and retry with updated occupancy
-            Console.WriteLine($"  ↩ Placement failed, refreshing state (attempt {attempt + 1}/{maxRetries})…");
+            Console.WriteLine($"[{_botName}]  ↩ Placement failed, refreshing state (attempt {attempt + 1}/{maxRetries})…");
             await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
             currentState = await _client.GetStateAsync(gameId, ct) ?? currentState;
         }
@@ -221,10 +261,10 @@ public sealed class GameLoop
         HashSet<Guid> movedThisTurn,
         CancellationToken ct)
     {
-        // Only act when it is our turn
-        if (state.ActivePlayer is null || !state.ActivePlayer.Equals(playerId.ToString(), StringComparison.OrdinalIgnoreCase))
+        if (state.ActivePlayer is null ||
+            !state.ActivePlayer.Equals(playerId.ToString(), StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine($"  Waiting for our turn… (active: {state.ActivePlayer ?? "none"})");
+            Console.WriteLine($"[{_botName}]  Waiting for our turn… (active: {state.ActivePlayer ?? "none"})");
             return;
         }
 
@@ -232,23 +272,17 @@ public sealed class GameLoop
             .Where(p => p.IsOnBoard && !movedThisTurn.Contains(p.PieceId))
             .ToList();
 
-        if (piecesToMove.Count == 0)
-        {
-            // All pieces moved this turn
-            return;
-        }
+        if (piecesToMove.Count == 0) return;
 
-        // Move one piece at a time (re-poll between each move to get a fresh state)
-        var piece = piecesToMove.First();
-        Console.WriteLine($"  Moving piece: {piece.Name} at {piece.Position} ({piece.PieceId})");
+        var piece    = piecesToMove.First();
         var decision = _strategy.DecideMove(state, piece);
+        Console.WriteLine($"[{_botName}]  Moving piece: {piece.Name} at {piece.Position} ({piece.PieceId})");
 
         var result = await _client.MovePieceAsync(gameId, decision.PieceId, decision.Segments, ct);
-
         if (result is not null)
         {
             movedThisTurn.Add(piece.PieceId);
-            Console.WriteLine($"  ✓ Move submitted. Phase after: {result.Phase ?? "ended"} | Score: {result.YourScore} vs {result.OpponentScore}");
+            Console.WriteLine($"[{_botName}]  ✓ Move submitted. Phase after: {result.Phase ?? "ended"} | Score: {result.YourScore} vs {result.OpponentScore}");
         }
     }
 
@@ -270,8 +304,7 @@ public sealed class GameLoop
 
         if (result is null)
         {
-            // Fall back to last known state scores
-            Console.WriteLine($"Final score (from last state): {lastState.YourScore} vs {lastState.OpponentScore}");
+            Console.WriteLine($"[{_botName}] Final score (from last state): {lastState.YourScore} vs {lastState.OpponentScore}");
         }
         else
         {
@@ -295,6 +328,72 @@ public sealed class GameLoop
         Console.WriteLine("══════════════════════════════════════════════════════════");
     }
 
+    // ── Polling fallback ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Legacy polling loop used when SignalR is unavailable.
+    /// Identical in behaviour to the old <c>GameLoop</c> but without the 1-second fixed wait.
+    /// </summary>
+    private async Task RunPollingFallbackAsync(Guid gameId, Guid playerId, CancellationToken ct)
+    {
+        var placedThisTurn = new HashSet<Guid>();
+        var movedThisTurn  = new HashSet<Guid>();
+        var lastTurn       = -1;
+        var lastPhase      = "";
+
+        while (!ct.IsCancellationRequested)
+        {
+            BoardState? state;
+            try { state = await _client.GetStateAsync(gameId, ct); }
+            catch (OperationCanceledException) { break; }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[{_botName}] [ERROR] {ex.Message} — retrying in 3 s…");
+                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+                continue;
+            }
+
+            if (state is null) { await Task.Delay(TimeSpan.FromSeconds(1), ct); continue; }
+
+            if (state.Turn != lastTurn)
+            {
+                placedThisTurn.Clear();
+                movedThisTurn.Clear();
+                lastTurn = state.Turn;
+                Console.WriteLine();
+                Console.WriteLine($"[{_botName}] [Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
+                lastPhase = state.Phase ?? "";
+            }
+            else if (state.Phase != lastPhase)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"[{_botName}] [Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
+                lastPhase = state.Phase ?? "";
+            }
+
+            if (state.Phase is null && state.Turn == 0) { await Task.Delay(TimeSpan.FromSeconds(1), ct); continue; }
+            if (state.Phase is null && state.Turn > 0)  { await PrintFinalResultAsync(gameId, playerId, state, ct); return; }
+            if (state.Phase == "CoinSpawn")              { await Task.Delay(TimeSpan.FromSeconds(1), ct); continue; }
+
+            if (state.Phase == "PlacePhase")
+            {
+                if (!placedThisTurn.Any())
+                    await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+                continue;
+            }
+
+            if (state.Phase == "MovePhase")
+            {
+                await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+                continue;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        }
+    }
+
     // ── Matchmaking ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -309,14 +408,12 @@ public sealed class GameLoop
         var queueResponse = await _client.EnqueueAsync(lineup, ct);
         if (queueResponse is null) return null;
 
-        // Matched immediately — server returns { gameId, playerId, token } with no "status" field
         if (queueResponse is { GameId: not null, PlayerId: not null, Token: not null })
         {
             Console.WriteLine($"Matched immediately! GameId: {queueResponse.GameId}");
             return (queueResponse.GameId.Value, queueResponse.PlayerId.Value, queueResponse.Token.Value);
         }
 
-        // Waiting — poll until matched
         if (queueResponse is { Status: "waiting", QueueId: not null })
         {
             var queueId = queueResponse.QueueId.Value;

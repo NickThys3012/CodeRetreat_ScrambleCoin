@@ -241,3 +241,24 @@ public sealed class MoveResponse
     [JsonPropertyName("opponentScore")]
     public int OpponentScore { get; set; }
 }
+
+public sealed class BotGameInfo
+{
+    [JsonPropertyName("matchId")]
+    public Guid MatchId { get; set; }
+
+    [JsonPropertyName("stage")]
+    public string Stage { get; set; } = "";
+
+    [JsonPropertyName("round")]
+    public int? Round { get; set; }
+
+    [JsonPropertyName("gameId")]
+    public Guid GameId { get; set; }
+
+    [JsonPropertyName("token")]
+    public Guid Token { get; set; }
+
+    [JsonPropertyName("playerId")]
+    public Guid PlayerId { get; set; }
+}

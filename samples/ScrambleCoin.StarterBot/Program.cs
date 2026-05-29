@@ -2,7 +2,7 @@ using ScrambleCoin.StarterBot;
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
-var baseUrl  = Environment.GetEnvironmentVariable("BASE_URL")  ?? "http://localhost:5000";
+var baseUrl  = Environment.GetEnvironmentVariable("BASE_URL")  ?? "http://localhost:5001";
 var botName  = Environment.GetEnvironmentVariable("BOT_NAME")  ?? "StarterBot";
 var gameIdEnv = Environment.GetEnvironmentVariable("GAME_ID");
 
