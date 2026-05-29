@@ -108,7 +108,7 @@ public sealed class QueueService : IQueueService
         foreach (var pieceName in lineupPieceNames)
         {
             if (PieceFactory.TryCreate(pieceName) is null)
-                throw new ScrambleCoin.Domain.Exceptions.DomainException($"Unknown piece name: '{pieceName}'.");
+                throw new Domain.Exceptions.DomainException($"Unknown piece name: '{pieceName}'.");
         }
 
         // ── Clean up timed-out waiting bots before attempting to pair ──────────
@@ -250,23 +250,23 @@ public sealed class QueueService : IQueueService
             return Task.FromResult<QueueEntry?>(null);
 
         // ── AC 7: Check for timeout on still-waiting entries ──────────────────
-        if (entry.Status == "waiting" &&
-            _enqueuedAt.TryGetValue(queueId, out var enqueuedAt) &&
-            DateTimeOffset.UtcNow - enqueuedAt > _timeout)
+        if (entry.Status != "waiting" ||
+            !_enqueuedAt.TryGetValue(queueId, out var enqueuedAt) ||
+            DateTimeOffset.UtcNow - enqueuedAt <= _timeout)
         {
-            _entries.TryRemove(queueId, out _);
-            // Do NOT remove _enqueuedAt here. The WaitingBot is still in _waitingQueue and cannot
-            // be removed from it directly. Leaving _enqueuedAt intact lets the lazy-eviction loop
-            // in EnqueueAsync call IsExpired correctly and discard the orphan instead of matching it.
-            if (_queueIdToToken.TryRemove(queueId, out var timedOutToken))
-                _waitingTokens.TryRemove(timedOutToken, out _);
-
-            _logger.LogInformation("Queue entry timed out: QueueId={QueueId}", queueId);
-
-            return Task.FromResult<QueueEntry?>(new QueueEntry(queueId, Status: "timed_out"));
+            return Task.FromResult<QueueEntry?>(entry);
         }
+        _entries.TryRemove(queueId, out _);
+        // Do NOT remove _enqueuedAt here. The WaitingBot is still in _waitingQueue and cannot
+        // be removed from it directly. Leaving _enqueuedAt intact lets the lazy-eviction loop
+        // in EnqueueAsync call IsExpired correctly and discard the orphan instead of matching it.
+        if (_queueIdToToken.TryRemove(queueId, out var timedOutToken))
+            _waitingTokens.TryRemove(timedOutToken, out _);
 
-        return Task.FromResult<QueueEntry?>(entry);
+        _logger.LogInformation("Queue entry timed out: QueueId={QueueId}", queueId);
+
+        return Task.FromResult<QueueEntry?>(new QueueEntry(queueId, Status: "timed_out"));
+
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

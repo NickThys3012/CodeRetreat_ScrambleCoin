@@ -98,7 +98,7 @@ public sealed class TournamentRepository : ITournamentRepository
                 record.KnockoutMatchesJson, JsonOptions) ?? [];
 
             var km = knockoutMatches.FirstOrDefault(m => m.GameId == gameId);
-            if (km is not null && km.BotOne.HasValue && km.BotTwo.HasValue)
+            if (km is { BotOne: not null, BotTwo: not null })
             {
                 return new TournamentBotInfo(
                     BotOneId:       km.BotOne.Value,
@@ -124,7 +124,7 @@ public sealed class TournamentRepository : ITournamentRepository
             p.BotName,
             p.Lineup.ToList())).ToList();
 
-        var groupMatches = tournament.GroupMatches.Select(m => new Records.GroupMatchDto(
+        var groupMatches = tournament.GroupMatches.Select(m => new GroupMatchDto(
             m.Id,
             m.BotOne,
             m.BotTwo,
@@ -139,7 +139,7 @@ public sealed class TournamentRepository : ITournamentRepository
             m.BotOneScore,
             m.BotTwoScore)).ToList();
 
-        var knockoutMatches = tournament.KnockoutMatches.Select(m => new Records.KnockoutMatchDto(
+        var knockoutMatches = tournament.KnockoutMatches.Select(m => new KnockoutMatchDto(
             m.Id,
             m.Round,
             m.Position,
@@ -204,15 +204,14 @@ public sealed class TournamentRepository : ITournamentRepository
         // Group matches list
         var groupMatchesField = type.GetField("_groupMatches", flags)!;
         var groupMatchesList = (List<GroupMatch>)groupMatchesField.GetValue(tournament)!;
-        var groupMatchDtos = JsonSerializer.Deserialize<List<Records.GroupMatchDto>>(
+        var groupMatchDtos = JsonSerializer.Deserialize<List<GroupMatchDto>>(
             record.GroupMatchesJson, JsonOptions) ?? [];
 
         foreach (var dto in groupMatchDtos)
         {
             var match = new GroupMatch(dto.Id, dto.BotOne, dto.BotTwo);
 
-            if (dto.GameId.HasValue && dto.BotOnePlayerId.HasValue && dto.BotOneToken.HasValue
-                && dto.BotTwoPlayerId.HasValue && dto.BotTwoToken.HasValue)
+            if (dto is { GameId: not null, BotOnePlayerId: not null, BotOneToken: not null, BotTwoPlayerId: not null, BotTwoToken: not null })
             {
                 match.AssignGame(dto.GameId.Value, dto.BotOnePlayerId.Value, dto.BotOneToken.Value,
                                  dto.BotTwoPlayerId.Value, dto.BotTwoToken.Value);
@@ -227,15 +226,14 @@ public sealed class TournamentRepository : ITournamentRepository
         // Knockout matches list
         var knockoutMatchesField = type.GetField("_knockoutMatches", flags)!;
         var knockoutMatchesList = (List<KnockoutMatch>)knockoutMatchesField.GetValue(tournament)!;
-        var knockoutMatchDtos = JsonSerializer.Deserialize<List<Records.KnockoutMatchDto>>(
+        var knockoutMatchDtos = JsonSerializer.Deserialize<List<KnockoutMatchDto>>(
             record.KnockoutMatchesJson, JsonOptions) ?? [];
 
         foreach (var dto in knockoutMatchDtos)
         {
             var match = new KnockoutMatch(dto.Id, dto.Round, dto.Position, dto.BotOne, dto.BotTwo);
 
-            if (dto.GameId.HasValue && dto.BotOnePlayerId.HasValue && dto.BotOneToken.HasValue
-                && dto.BotTwoPlayerId.HasValue && dto.BotTwoToken.HasValue)
+            if (dto is { GameId: not null, BotOnePlayerId: not null, BotOneToken: not null, BotTwoPlayerId: not null, BotTwoToken: not null })
             {
                 match.AssignGame(dto.GameId.Value, dto.BotOnePlayerId.Value, dto.BotOneToken.Value,
                                  dto.BotTwoPlayerId.Value, dto.BotTwoToken.Value);

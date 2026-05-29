@@ -44,21 +44,20 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Rank">
-                    @if (context.Rank == 1)
+                    @switch (context.Rank)
                     {
-                        <span>🥇 1</span>
-                    }
-                    else if (context.Rank == 2)
-                    {
-                        <span>🥈 2</span>
-                    }
-                    else if (context.Rank == 3)
-                    {
-                        <span>🥉 3</span>
-                    }
-                    else
-                    {
-                        <span>@context.Rank</span>
+                        case 1:
+                            <span>🥇 1</span>
+                            break;
+                        case 2:
+                            <span>🥈 2</span>
+                            break;
+                        case 3:
+                            <span>🥉 3</span>
+                            break;
+                        default:
+                            <span>@context.Rank</span>
+                            break;
                     }
                 </MudTd>
                 <MudTd DataLabel="Bot Name">

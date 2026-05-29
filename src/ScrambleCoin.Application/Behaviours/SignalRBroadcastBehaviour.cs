@@ -34,21 +34,22 @@ public sealed class SignalRBroadcastBehaviour<TRequest, TResponse> : IPipelineBe
         // Execute the command first; broadcast only on success.
         var response = await next(cancellationToken);
 
-        if (request is IGameStateChangingCommand gameCommand)
+        if (request is not IGameStateChangingCommand gameCommand)
         {
-            try
-            {
-                await _broadcaster.BroadcastBoardStateAsync(gameCommand.GameId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "SignalR broadcast failed for game {GameId} after {CommandType}. Spectators may miss an update.",
-                    gameCommand.GameId,
-                    typeof(TRequest).Name);
-                // Do NOT re-throw — a broadcast failure must never fail the command.
-            }
+            return response;
+        }
+        try
+        {
+            await _broadcaster.BroadcastBoardStateAsync(gameCommand.GameId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "SignalR broadcast failed for game {GameId} after {CommandType}. Spectators may miss an update.",
+                gameCommand.GameId,
+                typeof(TRequest).Name);
+            // Do NOT re-throw — a broadcast failure must never fail the command.
         }
 
         return response;

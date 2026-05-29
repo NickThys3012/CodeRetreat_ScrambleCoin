@@ -64,7 +64,7 @@ public class PassiveAbilitiesTests
 
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
-        var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 

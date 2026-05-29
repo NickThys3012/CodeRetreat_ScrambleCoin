@@ -94,7 +94,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
     {
         var dirty = false;
 
-        foreach (var match in tournament.GroupMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
+        foreach (var match in tournament.GroupMatches.Where(m => m is { IsCompleted: false, GameId: not null }))
         {
             Game game;
             try { game = await _gameRepository.GetByIdAsync(match.GameId!.Value, ct); }
@@ -133,7 +133,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                 .Where(m => m.Round == round)
                 .ToList();
 
-            foreach (var match in roundMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
+            foreach (var match in roundMatches.Where(m => m is { IsCompleted: false, GameId: not null }))
             {
                 Game game;
                 try { game = await _gameRepository.GetByIdAsync(match.GameId!.Value, ct); }
@@ -176,9 +176,8 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         var participantMap = tournament.Participants.ToDictionary(p => p.BotId);
 
         foreach (var match in tournament.KnockoutMatches
-            .Where(m => m.Round == round && !m.IsCompleted && m.GameId is null
-                        && m.BotOne.HasValue && m.BotTwo.HasValue
-                        && m.BotOne.Value != Guid.Empty && m.BotTwo.Value != Guid.Empty))
+            .Where(m => m.Round == round && m is { IsCompleted: false, GameId: null, BotOne: not null, BotTwo: not null }
+                && m.BotOne.Value != Guid.Empty && m.BotTwo.Value != Guid.Empty))
         {
             if (!participantMap.TryGetValue(match.BotOne!.Value, out var partOne) ||
                 !participantMap.TryGetValue(match.BotTwo!.Value, out var partTwo))
@@ -192,8 +191,8 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
             match.AssignGame(gameId, botOnePlayerId, botOneToken, botTwoPlayerId, botTwoToken);
 
-            var board = new Domain.Entities.Board();
-            var game = new Domain.Entities.Game(gameId, botOnePlayerId, botTwoPlayerId, board);
+            var board = new Board();
+            var game = new Game(gameId, botOnePlayerId, botTwoPlayerId, board);
 
             var lineupOne = BuildLineup(botOnePlayerId, partOne.Lineup);
             var lineupTwo = BuildLineup(botTwoPlayerId, partTwo.Lineup);

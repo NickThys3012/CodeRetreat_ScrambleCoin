@@ -29,7 +29,7 @@ public class CreateTournamentCommandHandlerTests
         var handler = BuildHandler(repo, uow);
 
         var result = await handler.Handle(
-            new CreateTournamentCommand("Test Cup", 8, 4),
+            new CreateTournamentCommand("Test Cup", 8),
             CancellationToken.None);
 
         Assert.NotEqual(Guid.Empty, result.TournamentId);
@@ -43,7 +43,7 @@ public class CreateTournamentCommandHandlerTests
         var handler = BuildHandler(repo, uow);
 
         await handler.Handle(
-            new CreateTournamentCommand("Test Cup", 8, 4),
+            new CreateTournamentCommand("Test Cup", 8),
             CancellationToken.None);
 
         await repo.Received(1).SaveAsync(
@@ -64,7 +64,7 @@ public class CreateTournamentCommandHandlerTests
         var handler = BuildHandler(repo, uow);
 
         await handler.Handle(
-            new CreateTournamentCommand("Test Cup", 8, 4),
+            new CreateTournamentCommand("Test Cup", 8),
             CancellationToken.None);
 
         Assert.NotNull(captured);
@@ -84,7 +84,7 @@ public class CreateTournamentCommandHandlerTests
         var handler = BuildHandler(repo, uow);
 
         await handler.Handle(
-            new CreateTournamentCommand("Grand Prix", 16, 4),
+            new CreateTournamentCommand("Grand Prix", 16),
             CancellationToken.None);
 
         Assert.Equal("Grand Prix", captured!.Name);
@@ -98,7 +98,7 @@ public class CreateTournamentCommandHandlerTests
         var handler = BuildHandler(repo, uow);
 
         await handler.Handle(
-            new CreateTournamentCommand("Test Cup", 8, 4),
+            new CreateTournamentCommand("Test Cup", 8),
             CancellationToken.None);
 
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());

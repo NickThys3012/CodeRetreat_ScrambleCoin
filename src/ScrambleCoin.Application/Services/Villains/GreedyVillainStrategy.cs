@@ -139,7 +139,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         // Get all coins on the board
         var coins = game.Board.GetAllCoins();
         if (coins.Count == 0)
-            return new List<Position>();
+            return [];
 
         // Find the nearest coin
         var nearestCoinPos = coins
@@ -147,7 +147,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             .FirstOrDefault()?.Position;
 
         if (nearestCoinPos is null)
-            return new List<Position>();
+            return [];
 
         // For simplicity: move one step toward the coin
         // This is a greedy approach: move in the direction that reduces distance most

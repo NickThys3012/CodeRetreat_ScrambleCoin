@@ -63,7 +63,7 @@ public class MovementTests
     /// </summary>
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
-        var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 
@@ -332,9 +332,9 @@ public class MovementTests
             p1MaxDistance: 2);
 
         // Act: two segments, each with 1 step
-        var segment1 = (IReadOnlyList<Position>)new List<Position> { new(0, 4) }.AsReadOnly();
-        var segment2 = (IReadOnlyList<Position>)new List<Position> { new(0, 5) }.AsReadOnly();
-        var segments = (IReadOnlyList<IReadOnlyList<Position>>)new List<IReadOnlyList<Position>> { segment1, segment2 }.AsReadOnly();
+        IReadOnlyList<Position> segment1 = new List<Position> { new(0, 4) }.AsReadOnly();
+        IReadOnlyList<Position> segment2 = new List<Position> { new(0, 5) }.AsReadOnly();
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>> { segment1, segment2 }.AsReadOnly();
 
         game.MovePiece(p1, p1Piece.Id, segments); // should not throw
 

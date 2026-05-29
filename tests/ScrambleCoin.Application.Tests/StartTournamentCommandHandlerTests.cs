@@ -148,7 +148,7 @@ public class StartTournamentCommandHandlerTests
 
         var tournamentRepo = Substitute.For<ITournamentRepository>();
         tournamentRepo.GetByIdAsync(unknownId, Arg.Any<CancellationToken>())
-            .Throws(new ScrambleCoin.Domain.Exceptions.TournamentNotFoundException(unknownId));
+            .Throws(new Domain.Exceptions.TournamentNotFoundException(unknownId));
 
         var gameRepo = Substitute.For<IGameRepository>();
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
@@ -156,7 +156,7 @@ public class StartTournamentCommandHandlerTests
 
         var handler = BuildHandler(tournamentRepo, gameRepo, botRegRepo, uow);
 
-        await Assert.ThrowsAsync<ScrambleCoin.Domain.Exceptions.TournamentNotFoundException>(
+        await Assert.ThrowsAsync<Domain.Exceptions.TournamentNotFoundException>(
             () => handler.Handle(new StartTournamentCommand(unknownId), CancellationToken.None));
     }
 
@@ -177,7 +177,7 @@ public class StartTournamentCommandHandlerTests
 
         var handler = BuildHandler(tournamentRepo, gameRepo, botRegRepo, uow);
 
-        await Assert.ThrowsAsync<ScrambleCoin.Domain.Exceptions.TournamentInvalidStateException>(
+        await Assert.ThrowsAsync<Domain.Exceptions.TournamentInvalidStateException>(
             () => handler.Handle(new StartTournamentCommand(tournamentId), CancellationToken.None));
     }
 }

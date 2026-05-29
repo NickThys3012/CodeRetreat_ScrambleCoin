@@ -69,7 +69,7 @@ public class EtherealMovementTests
     /// </summary>
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
     {
-        var segment = (IReadOnlyList<Position>)positions.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = positions.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 

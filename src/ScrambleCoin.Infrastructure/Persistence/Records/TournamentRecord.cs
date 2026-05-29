@@ -26,7 +26,7 @@ public sealed class TournamentRecord
     /// both advancing the tournament status and creating duplicate knockout games.
     /// </summary>
     [Timestamp]
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public byte[] RowVersion { get; set; } = [];
 
     // ── JSON columns ──────────────────────────────────────────────────────────
 

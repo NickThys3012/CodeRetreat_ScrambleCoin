@@ -127,7 +127,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var hubUrl = $"/hubs/game";
+        const string hubUrl = "/hubs/game";
 
         _hub = new HubConnectionBuilder()
             .WithUrl(hubUrl)
@@ -143,7 +143,7 @@
 
         _hub.On<object>("PhaseChanged", _ =>
         {
-            // Board state is also pushed via BoardStateUpdated which carries phase info.
+            // Board state is also pushed via BoardStateUpdated, which carries phase info.
             // Nothing extra to do here — StateHasChanged triggered by BoardStateUpdated.
         });
 
@@ -168,7 +168,7 @@
         {
             _connectionState = "Connected";
             await _hub.InvokeAsync("JoinGame", GameId);
-            await LoadCurrentBoardStateAsync();   // re-sync after reconnect
+            await LoadCurrentBoardStateAsync();   // re-sync after reconnection
             await InvokeAsync(StateHasChanged);
         };
 
@@ -219,20 +219,21 @@
         if (tile.IsObstacle)
             return $"{border}{size} background: #555; color: #aaa;";
 
-        if (tile.Occupant?.Type == "coin")
+        switch (tile.Occupant?.Type)
         {
-            var bg = tile.Occupant.CoinType == "Gold" ? "#b8860b" : "#9e9e9e";
-            return $"{border}{size} background: {bg};";
-        }
+            case "coin":
+            {
+                var bg = tile.Occupant.CoinType == "Gold" ? "#b8860b" : "#9e9e9e";
+                return $"{border}{size} background: {bg};";
+            }
 
-        if (tile.Occupant?.Type == "piece")
-        {
-            // We treat YourPieces as P1 and OpponentPieces as P2 (broadcaster always sends P1 first).
-            // Since we don't know which PlayerId is P1 here, use the piece's PlayerId colour from the board's YourPieces list.
-            return $"{border}{size} background: #263238; color: #fff;";
+            case "piece":
+                // We treat YourPieces as P1 and OpponentPieces as P2 (the broadcaster always sends P1 first).
+                // Since we don't know which PlayerId is P1 here, use the piece's PlayerId colour from the board's YourPieces list.
+                return $"{border}{size} background: #263238; color: #fff;";
+            default:
+                return $"{border}{size} background: #1a1a2e;";
         }
-
-        return $"{border}{size} background: #1a1a2e;";
     }
 
     private static string GetTileTooltip(TileDto? tile)
@@ -251,7 +252,7 @@
 
     private static RenderFragment RenderTileContent(TileDto? tile) => builder =>
     {
-        if (tile is null || (tile.Occupant is null && !tile.IsObstacle))
+        if (tile is null || tile.Occupant is null && !tile.IsObstacle)
             return;
 
         if (tile.IsObstacle)
@@ -260,16 +261,18 @@
             return;
         }
 
-        if (tile.Occupant?.Type == "coin")
+        switch (tile.Occupant?.Type)
         {
-            var emoji = tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈";
-            builder.AddContent(0, $"{emoji} {tile.Occupant.Value}");
-            return;
-        }
+            case "coin":
+            {
+                var emoji = tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈";
+                builder.AddContent(0, $"{emoji} {tile.Occupant.Value}");
+                return;
+            }
 
-        if (tile.Occupant?.Type == "piece")
-        {
-            builder.AddContent(0, $"♟ {tile.Occupant.Name?[..Math.Min(4, tile.Occupant.Name?.Length ?? 0)]}");
+            case "piece":
+                builder.AddContent(0, $"♟ {tile.Occupant.Name?[..Math.Min(4, tile.Occupant.Name?.Length ?? 0)]}");
+                break;
         }
     };
 

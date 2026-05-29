@@ -35,9 +35,9 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
     {
         var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
 
-        // Sync game results if tournament is in GroupStage
+        // Sync game results if the tournament is in GroupStage
         var dirty = false;
-        if (tournament.Status == Domain.Enums.TournamentStatus.GroupStage)
+        if (tournament.Status == TournamentStatus.GroupStage)
         {
             dirty = await SyncGroupResultsAsync(tournament, cancellationToken);
         }
@@ -78,7 +78,7 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
     {
         var dirty = false;
 
-        foreach (var match in tournament.GroupMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
+        foreach (var match in tournament.GroupMatches.Where(m => m is { IsCompleted: false, GameId: not null }))
         {
             Game game;
             try

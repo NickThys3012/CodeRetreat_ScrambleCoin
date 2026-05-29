@@ -29,11 +29,11 @@ public sealed class AwardRankingPointsCommandHandlerTests
 
     private static RankingTrack TrackFor(Guid id, string name) => new(id, name);
 
-    private AwardRankingPointsCommand WinCommand(Guid winnerId) =>
+    private static AwardRankingPointsCommand WinCommand(Guid winnerId) =>
         new(GameId, BotOneId, "BotOne", BotTwoId, "BotTwo",
             WinnerId: winnerId, IsDraw: false, TurnNumber: 5);
 
-    private AwardRankingPointsCommand DrawCommand() =>
+    private static AwardRankingPointsCommand DrawCommand() =>
         new(GameId, BotOneId, "BotOne", BotTwoId, "BotTwo",
             WinnerId: null, IsDraw: true, TurnNumber: 5);
 

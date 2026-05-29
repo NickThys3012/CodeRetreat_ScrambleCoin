@@ -72,7 +72,7 @@ public sealed class GameRepository : IGameRepository
     /// <inheritdoc/>
     public async Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
     {
-        var inProgress = (int)GameStatus.InProgress;
+        const int inProgress = (int)GameStatus.InProgress;
         return await _context.Games.AnyAsync(
             g => (g.PlayerOne == playerId || g.PlayerTwo == playerId) && g.Status == inProgress,
             cancellationToken);

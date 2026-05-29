@@ -20,7 +20,7 @@ public sealed class GameHub : Hub
 
     /// <summary>
     /// Adds the calling client to the spectator group for <paramref name="gameId"/>.
-    /// All subsequent push events for that game will be received by the caller.
+    /// The caller will receive all later push events for that game.
     /// </summary>
     /// <param name="gameId">The game to spectate (as a string GUID).</param>
     public async Task JoinGame(string gameId)

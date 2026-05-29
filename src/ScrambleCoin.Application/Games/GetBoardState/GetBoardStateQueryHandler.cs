@@ -87,10 +87,9 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
     private static ReadOnlyCollection<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
     {
         var lineup = playerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
-        if (lineup is null)
-            return Array.Empty<PieceDto>().AsReadOnly();
-
-        return lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
+        return lineup is null ? 
+            Array.Empty<PieceDto>().AsReadOnly() : 
+            lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
     }
 
     private static PieceDto MapPiece(Piece piece) =>

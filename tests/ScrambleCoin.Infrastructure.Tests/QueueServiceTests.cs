@@ -321,7 +321,7 @@ public class QueueServiceTests
 
         // Assert
         Assert.NotNull(polled);
-        Assert.Equal("timed_out", polled!.Status);
+        Assert.Equal("timed_out", polled.Status);
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public class QueueServiceTests
         var polled = await service.PollAsync(entry.QueueId);
 
         Assert.NotNull(polled);
-        Assert.Equal(entry.QueueId, polled!.QueueId);
+        Assert.Equal(entry.QueueId, polled.QueueId);
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public class QueueServiceTests
         var polled = await service.PollAsync(entry.QueueId);
 
         Assert.NotNull(polled);
-        Assert.Equal("waiting", polled!.Status);
+        Assert.Equal("waiting", polled.Status);
     }
 
     // ── Issue #51: Critical path 2 — conflict when same token already waiting ──

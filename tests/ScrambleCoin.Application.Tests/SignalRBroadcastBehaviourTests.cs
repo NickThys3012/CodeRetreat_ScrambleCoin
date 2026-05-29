@@ -20,7 +20,7 @@ public class SignalRBroadcastBehaviourTests
         : IRequest<Unit>, IGameStateChangingCommand;
 
     /// <summary>A query/command that does NOT implement <see cref="IGameStateChangingCommand"/>.</summary>
-    private sealed record NonGameStateChangingRequest() : IRequest<Unit>;
+    private sealed record NonGameStateChangingRequest : IRequest<Unit>;
 
     // ── Factory helpers ───────────────────────────────────────────────────────
 
