@@ -55,7 +55,17 @@ public sealed class GameLoop
         hub.On("ActionRequired", (object _) => Push("action-required"));
         hub.On("GameEnded",      (object _) => Push("game-ended"));
 
-        hub.Reconnected += _ => { Push("reconnected"); return Task.CompletedTask; };
+        hub.Reconnected += async _ =>
+        {
+            Push("reconnected");
+            // Re-join groups — auto-reconnect creates a new connection that has left all groups.
+            try
+            {
+                await hub.InvokeAsync("JoinGame",         gameId.ToString());
+                await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(),   playerId.ToString());
+            }
+            catch { /* best-effort: may fail if the hub is still settling */ }
+        };
         hub.Closed      += ex =>
         {
             Console.WriteLine($"[{_botName}]  ⚠ SignalR disconnected: {ex?.Message}");
@@ -104,8 +114,14 @@ public sealed class GameLoop
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    // Timeout — no event in 30 s; poll once as a safety net.
-                    Console.WriteLine($"[{_botName}]  ⏱ No SignalR event for 30 s — polling once.");
+                    // Timeout — no event in 5 s; poll once as a safety net.
+                    Console.WriteLine($"[{_botName}]  ⏱ No SignalR event for 5 s — polling once.");
+                    // Re-register in case a reconnect silently dropped us from the player group.
+                    try
+                    {
+                        await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(), playerId.ToString(), ct);
+                    }
+                    catch { /* best-effort: hub may be reconnecting */ }
                     signal = "timeout-poll";
                 }
 
