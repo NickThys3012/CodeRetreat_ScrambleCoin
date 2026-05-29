@@ -150,7 +150,7 @@ public sealed class GameLoop
             Console.WriteLine($"  Placing piece: {piece.Name} ({piece.PieceId})");
             var decision = _strategy.DecidePlacement(state, piece);
 
-            PlacementResponse? result = decision switch
+            var result = decision switch
             {
                 PlacementDecision.Place place => await _client.PlacePieceAsync(gameId, place.PieceId, place.Position, ct),
                 PlacementDecision.Skip        => await _client.SkipPlacementAsync(gameId, ct),

@@ -8,7 +8,7 @@ var gameIdEnv = Environment.GetEnvironmentVariable("GAME_ID");
 
 // Bot identity token — required by the server for queue and join endpoints.
 // Persist this across runs via the BOT_TOKEN environment variable so the server
-// can recognise the bot across sessions (e.g. duplicate-queue detection).
+// can recognize the bot across sessions (e.g. duplicate-queue detection).
 // If not set, a new random UUID is generated at startup.
 var botTokenEnv = Environment.GetEnvironmentVariable("BOT_TOKEN");
 var botIdentityToken = !string.IsNullOrWhiteSpace(botTokenEnv) && Guid.TryParse(botTokenEnv, out var parsedBotToken)
@@ -43,7 +43,7 @@ var client   = new BotClient(baseUrl);
 using var clientDisposal = client; // ensure HttpClient is disposed on exit
 
 // Set the bot identity token BEFORE any API calls so queue/join endpoints receive X-Bot-Token.
-// After joining a game the game-specific token returned by the server replaces this.
+// After joining a game, the game-specific token returned by the server replaces this.
 client.SetBotToken(botIdentityToken);
 var strategy = new GreedyStrategy();        // ← swap in your own IStrategy here
 var loop     = new GameLoop(client, strategy, botName);
@@ -85,7 +85,7 @@ else
     (gameId, playerId, token) = match.Value;
 }
 
-// Authenticate all subsequent requests with the assigned bot token
+// Authenticate all later requests with the assigned bot token
 client.SetBotToken(token);
 Console.WriteLine($"Bot token set. Ready to play.");
 Console.WriteLine();
