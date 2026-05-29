@@ -67,20 +67,19 @@ public sealed class GameLoop
             }
 
             // Reset per-turn tracking when a new turn starts
-            if (state.Turn != lastTurn || state.Phase != lastPhase)
+            if (state.Turn != lastTurn)
             {
-                if (state.Phase == "PlacePhase" && state.Turn != lastTurn)
-                    placedThisTurn.Clear();
-                if (state.Phase == "MovePhase" && state.Turn != lastTurn)
-                    movedThisTurn.Clear();
-
-                if (state.Phase != lastPhase || state.Turn != lastTurn)
-                {
-                    Console.WriteLine();
-                    Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
-                }
-
+                placedThisTurn.Clear();
+                movedThisTurn.Clear();
                 lastTurn = state.Turn;
+                Console.WriteLine();
+                Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
+                lastPhase = state.Phase ?? "";
+            }
+            else if (state.Phase != lastPhase)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"[Turn {state.Turn}] Phase: {state.Phase ?? "(waiting/ended)"} | Score: {state.YourScore} vs {state.OpponentScore}");
                 lastPhase = state.Phase ?? "";
             }
 
@@ -265,9 +264,8 @@ public sealed class GameLoop
         var queueResponse = await _client.EnqueueAsync(lineup, ct);
         if (queueResponse is null) return null;
 
-        // Matched immediately
-        if (queueResponse.Status == "matched" &&
-            queueResponse.GameId.HasValue &&
+        // Matched immediately — server returns { gameId, playerId, token } with no "status" field
+        if (queueResponse.GameId.HasValue &&
             queueResponse.PlayerId.HasValue &&
             queueResponse.Token.HasValue)
         {

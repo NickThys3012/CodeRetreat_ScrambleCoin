@@ -19,11 +19,12 @@ cp .env.example .env
 # Edit .env and set BASE_URL to point at your server
 ```
 
-| Variable  | Required | Description                                                          |
-|-----------|----------|----------------------------------------------------------------------|
-| `BASE_URL` | Yes     | Base URL of the ScrambleCoin server, e.g. `http://localhost:5000`    |
-| `BOT_NAME` | No      | Display name for this bot (console output only). Default: `StarterBot` |
-| `GAME_ID`  | No      | Join a specific pre-created game. Leave blank to use matchmaking.    |
+| Variable    | Required | Description                                                          |
+|-------------|----------|----------------------------------------------------------------------|
+| `BASE_URL`  | Yes      | Base URL of the ScrambleCoin server, e.g. `http://localhost:5000`    |
+| `BOT_NAME`  | No       | Display name for this bot (console output only). Default: `StarterBot` |
+| `BOT_TOKEN` | No       | Persistent UUID that identifies this bot to the server. Auto-generated at startup if not set — set this to keep a stable identity across restarts. |
+| `GAME_ID`   | No       | Join a specific pre-created game. Leave blank to use matchmaking.    |
 
 ### 2. Run the bot
 
@@ -147,7 +148,20 @@ All endpoints are on the ScrambleCoin API server (`BASE_URL`).
 
 ### Authentication
 
-After joining a game, every request must include:
+The server requires `X-Bot-Token` on **all** API calls (queue, join, state, place, move).
+
+**Two-stage token usage:**
+1. **Bot identity token** — a stable UUID that identifies the bot to the matchmaking queue and join endpoints. Set via `BOT_TOKEN` env var, or auto-generated at startup.
+2. **Game token** — returned by the queue/join response once matched. This replaces the bot identity token for all in-game calls (state, place, move).
+
+The starter bot handles this automatically. Your code needs only:
+```csharp
+// 1. Set bot identity token before any API calls (done in Program.cs)
+client.SetBotToken(botIdentityToken);
+
+// 2. After joining a game, replace with the game-specific token
+client.SetBotToken(gameToken);
+```
 
 ```
 X-Bot-Token: <token-guid>

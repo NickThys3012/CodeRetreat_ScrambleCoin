@@ -81,6 +81,14 @@ public sealed class BotClient : IDisposable
     public async Task<QueuePollResponse?> PollQueueAsync(Guid queueId, CancellationToken ct = default)
     {
         var response = await _http.GetAsync(BuildUri($"api/games/queue/{queueId}"), ct);
+
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            // 409 — queue entry timed out; signal the caller to break out and re-enqueue
+            Console.WriteLine("[Queue] Entry expired (409) — will re-enqueue.");
+            return new QueuePollResponse { Status = "timed_out" };
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             await PrintApiErrorAsync(response, "PollQueue");

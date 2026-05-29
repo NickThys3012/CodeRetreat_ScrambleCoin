@@ -5,7 +5,7 @@ namespace ScrambleCoin.StarterBot;
 /// <summary>
 /// Default greedy strategy:
 /// <list type="bullet">
-///   <item><b>PlacePhase</b>: place the piece on the first free border tile.</item>
+///   <item><b>PlacePhase</b>: place the piece on the first free tile valid for its entry-point type.</item>
 ///   <item><b>MovePhase</b>: move each piece one step toward the nearest coin.
 ///   If no coins remain, the piece stays still.</item>
 /// </list>
@@ -14,6 +14,52 @@ namespace ScrambleCoin.StarterBot;
 public sealed class GreedyStrategy : IStrategy
 {
     private const int BoardSize = 8;
+
+    /// <summary>
+    /// Maps each known piece name to its entry-point type.
+    /// Pieces not listed here are treated as "Borders" by default.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> PieceEntryPoints =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // ── Borders ───────────────────────────────────────────────────────
+            ["Mickey"]    = "Borders",
+            ["Minnie"]    = "Borders",
+            ["Elsa"]      = "Borders",
+            ["Cogsworth"] = "Borders",
+            ["Lumiere"]   = "Borders",
+            ["Remy"]      = "Borders",
+            ["Anna"]      = "Borders",
+            ["Kristoff"]  = "Borders",
+            ["Ralph"]     = "Borders",
+            ["Pumbaa"]    = "Borders",
+            ["WALL•E"]    = "Borders",
+            ["Sulley"]    = "Borders",
+            ["Stitch"]    = "Borders",
+            ["Jafar"]     = "Borders",
+            ["Nala"]      = "Borders",
+            ["Simba"]     = "Borders",
+            ["Oswald"]    = "Borders",
+            // ── Corners ───────────────────────────────────────────────────────
+            ["Donald"]         = "Corners",
+            ["Goofy"]          = "Corners",
+            ["Scrooge"]        = "Corners",
+            ["Rafiki"]         = "Corners",
+            ["Scar"]           = "Corners",
+            ["Cinderella"]     = "Corners",
+            ["Mike Wazowski"]  = "Corners",
+            ["EVE"]            = "Corners",
+            // ── Anywhere ─────────────────────────────────────────────────────
+            ["Flynn"]           = "Anywhere",
+            ["Olaf"]            = "Anywhere",
+            ["Daisy"]           = "Anywhere",
+            ["Moana"]           = "Anywhere",
+            ["Merlin"]          = "Anywhere",
+            ["Fairy Godmother"] = "Anywhere",
+            ["Ursula"]          = "Anywhere",
+            ["Rapunzel"]        = "Anywhere",
+            ["Forky"]           = "Anywhere",
+        };
 
     // ── PlacePhase ────────────────────────────────────────────────────────────
 
@@ -136,23 +182,31 @@ public sealed class GreedyStrategy : IStrategy
         OrthogonalNeighbours(p).Concat(DiagonalNeighbours(p));
 
     /// <summary>
-    /// Returns tiles the piece may be placed on, ordered front-to-back
-    /// (corners first for corner-entry pieces, border sweep for border pieces).
+    /// Returns tiles the piece may be placed on, filtered to its entry-point type and ordered
+    /// so that the most preferred tile comes first.
+    /// <list type="bullet">
+    ///   <item><b>Borders</b>: non-corner border tiles only (a Borders piece cannot use corners).</item>
+    ///   <item><b>Corners</b>: the 4 corners first, then non-corner border tiles as fallback.</item>
+    ///   <item><b>Anywhere</b>: all board tiles, border first for faster collection.</item>
+    /// </list>
     /// </summary>
     private static IEnumerable<Position> GetCandidateTiles(BoardState state, PieceState piece)
     {
-        // Determine entry point type from board metadata (not exposed in BoardState),
-        // so we use a heuristic based on piece name/movement.
-        // Starter lineup pieces all use Borders or Corners.
-        // For simplicity, try corners first, then full border sweep.
+        var entryType = PieceEntryPoints.TryGetValue(piece.Name, out var et) ? et : "Borders";
+
         var corners = new[]
         {
             new Position(0, 0), new Position(0, BoardSize - 1),
             new Position(BoardSize - 1, 0), new Position(BoardSize - 1, BoardSize - 1)
         };
-        var borders = BorderTiles().ToArray();
+        var nonCornerBorders = BorderTiles().Except(corners, PositionEqualityComparer.Instance);
 
-        return corners.Concat(borders.Except(corners, PositionEqualityComparer.Instance));
+        return entryType switch
+        {
+            "Corners"  => corners.Concat(nonCornerBorders),
+            "Anywhere" => AllTiles(),
+            _          => nonCornerBorders   // "Borders" and any unknown entry type
+        };
     }
 
     private static IEnumerable<Position> BorderTiles()
@@ -161,6 +215,15 @@ public sealed class GreedyStrategy : IStrategy
         for (var col = 0; col < BoardSize; col++) yield return new Position(BoardSize - 1, col); // bottom row
         for (var row = 1; row < BoardSize - 1; row++) yield return new Position(row, 0);       // left col
         for (var row = 1; row < BoardSize - 1; row++) yield return new Position(row, BoardSize - 1); // right col
+    }
+
+    private static IEnumerable<Position> AllTiles()
+    {
+        // Border tiles first (usually better starting positions), then interior
+        foreach (var p in BorderTiles()) yield return p;
+        for (var row = 1; row < BoardSize - 1; row++)
+            for (var col = 1; col < BoardSize - 1; col++)
+                yield return new Position(row, col);
     }
 
     /// <summary>Positions blocked by obstacles or any piece on the board.</summary>

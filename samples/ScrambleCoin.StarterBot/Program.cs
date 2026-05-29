@@ -6,6 +6,15 @@ var baseUrl  = Environment.GetEnvironmentVariable("BASE_URL")  ?? "http://localh
 var botName  = Environment.GetEnvironmentVariable("BOT_NAME")  ?? "StarterBot";
 var gameIdEnv = Environment.GetEnvironmentVariable("GAME_ID");
 
+// Bot identity token — required by the server for queue and join endpoints.
+// Persist this across runs via the BOT_TOKEN environment variable so the server
+// can recognise the bot across sessions (e.g. duplicate-queue detection).
+// If not set, a new random UUID is generated at startup.
+var botTokenEnv = Environment.GetEnvironmentVariable("BOT_TOKEN");
+var botIdentityToken = !string.IsNullOrWhiteSpace(botTokenEnv) && Guid.TryParse(botTokenEnv, out var parsedBotToken)
+    ? parsedBotToken
+    : Guid.NewGuid();
+
 // Default lineup — 5 starter pieces. Change these to use different pieces.
 // All available starter piece names: Mickey, Minnie, Donald, Goofy, Scrooge
 var lineup = new[] { "Mickey", "Minnie", "Donald", "Goofy", "Scrooge" };
@@ -15,6 +24,7 @@ Console.WriteLine($"║  ScrambleCoin StarterBot — {botName,-32}║");
 Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
 Console.WriteLine($"Server:  {baseUrl}");
 Console.WriteLine($"Lineup:  {string.Join(", ", lineup)}");
+Console.WriteLine($"BotToken: {botIdentityToken} {(string.IsNullOrWhiteSpace(botTokenEnv) ? "(auto-generated)" : "(from BOT_TOKEN)")}");
 Console.WriteLine();
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
@@ -31,6 +41,10 @@ Console.CancelKeyPress += (_, e) =>
 
 var client   = new BotClient(baseUrl);
 using var clientDisposal = client; // ensure HttpClient is disposed on exit
+
+// Set the bot identity token BEFORE any API calls so queue/join endpoints receive X-Bot-Token.
+// After joining a game the game-specific token returned by the server replaces this.
+client.SetBotToken(botIdentityToken);
 var strategy = new GreedyStrategy();        // ← swap in your own IStrategy here
 var loop     = new GameLoop(client, strategy, botName);
 
