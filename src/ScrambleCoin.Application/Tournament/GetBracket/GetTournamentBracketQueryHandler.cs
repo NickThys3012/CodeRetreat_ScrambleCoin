@@ -2,10 +2,8 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament.GetStandings;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tournament.GetBracket;
@@ -41,7 +39,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
     {
         var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
 
-        bool dirty = false;
+        var dirty = false;
 
         // ── Group stage sync ──────────────────────────────────────────────────
         if (tournament.Status == TournamentStatus.GroupStage)
@@ -65,7 +63,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         // ── Knockout stage sync ───────────────────────────────────────────────
         if (tournament.Status == TournamentStatus.KnockoutStage)
         {
-            bool knockoutDirty = await SyncKnockoutResultsAsync(tournament, cancellationToken);
+            var knockoutDirty = await SyncKnockoutResultsAsync(tournament, cancellationToken);
             dirty = dirty || knockoutDirty;
         }
 
@@ -94,7 +92,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
     private async Task<bool> SyncGroupResultsAsync(DomainTournament tournament, CancellationToken ct)
     {
-        bool dirty = false;
+        var dirty = false;
 
         foreach (var match in tournament.GroupMatches.Where(m => !m.IsCompleted && m.GameId.HasValue))
         {
@@ -110,8 +108,8 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             var isDraw = scoreOne == scoreTwo;
             Guid? gameWinnerId = isDraw ? null : (scoreOne > scoreTwo ? game.PlayerOne : game.PlayerTwo);
 
-            int botOneScore = match.BotOnePlayerId == game.PlayerOne ? scoreOne : scoreTwo;
-            int botTwoScore = match.BotTwoPlayerId == game.PlayerTwo ? scoreTwo : scoreOne;
+            var botOneScore = match.BotOnePlayerId == game.PlayerOne ? scoreOne : scoreTwo;
+            var botTwoScore = match.BotTwoPlayerId == game.PlayerTwo ? scoreTwo : scoreOne;
 
             tournament.RecordGroupResult(match.Id, gameWinnerId, isDraw, botOneScore, botTwoScore);
             dirty = true;
@@ -122,14 +120,14 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
     private async Task<bool> SyncKnockoutResultsAsync(DomainTournament tournament, CancellationToken ct)
     {
-        bool dirty = false;
+        var dirty = false;
 
         // Process rounds in order so that next-round participants populate before we create their games
-        int maxRound = tournament.KnockoutMatches.Count > 0
+        var maxRound = tournament.KnockoutMatches.Count > 0
             ? tournament.KnockoutMatches.Max(m => m.Round)
             : 0;
 
-        for (int round = 1; round <= maxRound; round++)
+        for (var round = 1; round <= maxRound; round++)
         {
             var roundMatches = tournament.KnockoutMatches
                 .Where(m => m.Round == round)
@@ -159,7 +157,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             }
 
             // If all matches in this round are now complete, create games for the next round
-            bool roundComplete = roundMatches.All(m => m.IsCompleted);
+            var roundComplete = roundMatches.All(m => m.IsCompleted);
             if (roundComplete && round < maxRound)
             {
                 await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, ct);

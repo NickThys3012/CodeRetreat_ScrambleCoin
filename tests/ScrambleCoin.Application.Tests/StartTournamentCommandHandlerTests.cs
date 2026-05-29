@@ -7,7 +7,6 @@ using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.StartTournament;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tests;
@@ -33,7 +32,7 @@ public class StartTournamentCommandHandlerTests
     private static DomainTournament BuildTournamentWithBots(Guid id, int botCount)
     {
         var t = new DomainTournament(id, "Test Cup", 16, 4, DateTimeOffset.UtcNow);
-        for (int i = 0; i < botCount; i++)
+        for (var i = 0; i < botCount; i++)
             t.AddParticipant(Guid.NewGuid(), $"Bot{i}", DefaultLineup);
         return t;
     }

@@ -234,7 +234,7 @@ public class VillainGameFlowE2ETests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var handler = new VillainPlacePieceCommandHandler(repo, Substitute.For<ILogger<VillainPlacePieceCommandHandler>>());
+        var handler = new VillainPlacePieceCommandHandler(repo, Substitute.For<IPublisher>(), Substitute.For<ILogger<VillainPlacePieceCommandHandler>>());
 
         // Act
         var result = await handler.Handle(
@@ -261,7 +261,7 @@ public class VillainGameFlowE2ETests
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
-        var handler = new VillainSkipPlacementCommandHandler(repo, Substitute.For<ILogger<VillainSkipPlacementCommandHandler>>());
+        var handler = new VillainSkipPlacementCommandHandler(repo, Substitute.For<IPublisher>(), Substitute.For<ILogger<VillainSkipPlacementCommandHandler>>());
 
         // Act
         var result = await handler.Handle(

@@ -7,7 +7,6 @@ using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.GetBracket;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tests;

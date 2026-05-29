@@ -1,0 +1,293 @@
+@page "/spectate/{GameId}"
+@using Microsoft.AspNetCore.SignalR.Client
+@using ScrambleCoin.Application.Games.GetBoardState
+@using MediatR
+@inject IMediator Mediator
+@implements IAsyncDisposable
+
+<PageTitle>Spectate — ScrambleCoin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge">
+
+    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
+        👁️ Spectating Game
+    </div>
+
+    <MudText Typo="Typo.caption" Style="color:#888;" Class="mb-2">
+        Game ID: <code>@GameId</code>
+        &nbsp;|&nbsp;
+        Connection: <span style="color: @ConnectionColour">@_connectionState</span>
+    </MudText>
+
+    @if (_gameEnded)
+    {
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            🏁 <strong>Game Over!</strong>
+            @if (_isDraw)
+            {
+                <span> It's a draw — both players scored equally.</span>
+            }
+            else
+            {
+                <span> Winner: <strong>@(_winnerId?.ToString() ?? "Unknown")</strong></span>
+            }
+            &nbsp;|&nbsp; P1: @_playerOneScore pts &nbsp;|&nbsp; P2: @_playerTwoScore pts
+        </MudAlert>
+    }
+
+    @if (_boardState is not null)
+    {
+        <!-- Turn / Phase / Score bar -->
+        <MudPaper Elevation="2" Class="pa-3 mb-4 d-flex" Style="gap: 2rem; align-items: center; flex-wrap: wrap;">
+            <MudChip T="string" Color="Color.Primary" Size="Size.Medium">Turn @_boardState.Turn / 5</MudChip>
+            <MudChip T="string" Color="Color.Secondary" Size="Size.Medium">Phase: @(_boardState.Phase ?? "—")</MudChip>
+            @if (_boardState.ActivePlayer is not null)
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small">Active: @_boardState.ActivePlayer[..8]…</MudChip>
+            }
+            <MudSpacer />
+            <MudText><strong>Player 1:</strong> @_boardState.YourScore pts</MudText>
+            <MudText><strong>Player 2:</strong> @_boardState.OpponentScore pts</MudText>
+        </MudPaper>
+
+        <!-- 8×8 board grid -->
+        <div style="overflow-x: auto;">
+            <table style="border-collapse: collapse; font-size: 0.7rem; min-width: 400px;">
+                <thead>
+                    <tr>
+                        <th style="width: 28px;"></th>
+                        @for (var col = 0; col < 8; col++)
+                        {
+                            <th style="width: 52px; text-align: center; padding: 2px; color: #888;">@col</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var row = 0; row < 8; row++)
+                    {
+                        var rowIndex = row;
+                        <tr>
+                            <td style="padding: 2px; color: #888; text-align: center;">@row</td>
+                            @for (var col = 0; col < 8; col++)
+                            {
+                                var tile = GetTile(rowIndex, col);
+                                <td style="@GetTileStyle(tile)" title="@GetTileTooltip(tile)">
+                                    @RenderTileContent(tile)
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Legend -->
+        <MudPaper Elevation="1" Class="pa-2 mt-3">
+            <MudText Typo="Typo.caption" Style="color:#888;">
+                Legend: &nbsp;
+                <span style="background:#555; padding: 1px 6px; border-radius:3px;">⬛ Obstacle</span>&nbsp;
+                <span style="background:#b8860b; color:#fff; padding: 1px 6px; border-radius:3px;">🪙 Gold Coin</span>&nbsp;
+                <span style="background:#aaa; color:#000; padding: 1px 6px; border-radius:3px;">🥈 Silver Coin</span>&nbsp;
+                <span style="background:#1565c0; color:#fff; padding: 1px 6px; border-radius:3px;">🟦 P1 Piece</span>&nbsp;
+                <span style="background:#b71c1c; color:#fff; padding: 1px 6px; border-radius:3px;">🟥 P2 Piece</span>
+            </MudText>
+        </MudPaper>
+
+        <MudText Typo="Typo.caption" Style="color:#666;" Class="mt-2">
+            Last update: @_lastUpdate.ToString("HH:mm:ss.fff")
+        </MudText>
+    }
+    else if (!_gameEnded)
+    {
+        <MudProgressCircular Indeterminate="true" Class="my-4" />
+        <MudText>Waiting for the game to start…</MudText>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public string GameId { get; set; } = string.Empty;
+
+    private HubConnection? _hub;
+    private BoardStateDto? _boardState;
+    private string _connectionState = "Connecting…";
+    private bool _gameEnded;
+    private bool _isDraw;
+    private Guid? _winnerId;
+    private int _playerOneScore;
+    private int _playerTwoScore;
+    private DateTime _lastUpdate = DateTime.Now;
+
+    private string ConnectionColour => _connectionState switch
+    {
+        "Connected" => "#4caf50",
+        "Reconnecting…" => "#ff9800",
+        _ => "#f44336"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hubUrl = $"/hubs/game";
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<BoardStateDto>("BoardStateUpdated", board =>
+        {
+            _boardState = board;
+            _lastUpdate = DateTime.Now;
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hub.On<object>("PhaseChanged", _ =>
+        {
+            // Board state is also pushed via BoardStateUpdated which carries phase info.
+            // Nothing extra to do here — StateHasChanged triggered by BoardStateUpdated.
+        });
+
+        _hub.On<GameEndedPayload>("GameEnded", payload =>
+        {
+            _gameEnded = true;
+            _isDraw = payload.IsDraw;
+            _winnerId = payload.WinnerId;
+            _playerOneScore = payload.PlayerOneScore;
+            _playerTwoScore = payload.PlayerTwoScore;
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hub.Reconnecting += _ =>
+        {
+            _connectionState = "Reconnecting…";
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        _hub.Reconnected += async _ =>
+        {
+            _connectionState = "Connected";
+            await _hub.InvokeAsync("JoinGame", GameId);
+            await LoadCurrentBoardStateAsync();   // re-sync after reconnect
+            await InvokeAsync(StateHasChanged);
+        };
+
+        _hub.Closed += _ =>
+        {
+            _connectionState = "Disconnected";
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        await _hub.StartAsync();
+        _connectionState = "Connected";
+        await _hub.InvokeAsync("JoinGame", GameId);
+        await LoadCurrentBoardStateAsync();   // populate board on initial load
+    }
+
+    private async Task LoadCurrentBoardStateAsync()
+    {
+        if (!Guid.TryParse(GameId, out var gameId))
+            return;
+        try
+        {
+            _boardState = await Mediator.Send(new GetSpectatorBoardStateQuery(gameId));
+            _lastUpdate = DateTime.Now;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Game may not have started yet — ignore and wait for the first push.
+        }
+    }
+
+    // ── Board rendering helpers ───────────────────────────────────────────────
+
+    private TileDto? GetTile(int row, int col)
+    {
+        return _boardState?.Board.Tiles.FirstOrDefault(t => t.Position.Row == row && t.Position.Col == col);
+    }
+
+    private static string GetTileStyle(TileDto? tile)
+    {
+        const string border = "border: 1px solid #333;";
+        const string size = "width: 52px; height: 52px; text-align: center; vertical-align: middle;";
+
+        if (tile is null)
+            return $"{border}{size} background: #1e1e1e;";
+
+        if (tile.IsObstacle)
+            return $"{border}{size} background: #555; color: #aaa;";
+
+        if (tile.Occupant?.Type == "coin")
+        {
+            var bg = tile.Occupant.CoinType == "Gold" ? "#b8860b" : "#9e9e9e";
+            return $"{border}{size} background: {bg};";
+        }
+
+        if (tile.Occupant?.Type == "piece")
+        {
+            // We treat YourPieces as P1 and OpponentPieces as P2 (broadcaster always sends P1 first).
+            // Since we don't know which PlayerId is P1 here, use the piece's PlayerId colour from the board's YourPieces list.
+            return $"{border}{size} background: #263238; color: #fff;";
+        }
+
+        return $"{border}{size} background: #1a1a2e;";
+    }
+
+    private static string GetTileTooltip(TileDto? tile)
+    {
+        if (tile is null) return "";
+        if (tile.IsObstacle) return "Obstacle";
+        if (tile.Occupant is null) return "Empty";
+
+        return tile.Occupant.Type switch
+        {
+            "coin" => $"{tile.Occupant.CoinType} coin ({tile.Occupant.Value} pts)",
+            "piece" => $"Piece: {tile.Occupant.Name} (owner: {tile.Occupant.PlayerId?.ToString()[..8]}…)",
+            _ => ""
+        };
+    }
+
+    private static RenderFragment RenderTileContent(TileDto? tile) => builder =>
+    {
+        if (tile is null || (tile.Occupant is null && !tile.IsObstacle))
+            return;
+
+        if (tile.IsObstacle)
+        {
+            builder.AddContent(0, "⬛");
+            return;
+        }
+
+        if (tile.Occupant?.Type == "coin")
+        {
+            var emoji = tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈";
+            builder.AddContent(0, $"{emoji} {tile.Occupant.Value}");
+            return;
+        }
+
+        if (tile.Occupant?.Type == "piece")
+        {
+            builder.AddContent(0, $"♟ {tile.Occupant.Name?[..Math.Min(4, tile.Occupant.Name?.Length ?? 0)]}");
+        }
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            try { await _hub.InvokeAsync("LeaveGame", GameId); } catch { /* ignore on dispose */ }
+            await _hub.DisposeAsync();
+        }
+    }
+
+    // ── Payload record for GameEnded SignalR event ────────────────────────────
+
+    private sealed record GameEndedPayload(
+        Guid GameId,
+        int PlayerOneScore,
+        int PlayerTwoScore,
+        Guid? WinnerId,
+        bool IsDraw);
+}

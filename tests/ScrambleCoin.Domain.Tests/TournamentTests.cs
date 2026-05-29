@@ -26,7 +26,7 @@ public class TournamentTests
             topN,
             DateTimeOffset.UtcNow);
 
-        for (int i = 0; i < participantCount; i++)
+        for (var i = 0; i < participantCount; i++)
             t.AddParticipant(Guid.NewGuid(), $"Bot{i}", DefaultLineup);
 
         return t;
@@ -230,7 +230,7 @@ public class TournamentTests
 
         var standings = t.ComputeStandings();
 
-        for (int i = 0; i < standings.Count - 1; i++)
+        for (var i = 0; i < standings.Count - 1; i++)
             Assert.True(standings[i].Points >= standings[i + 1].Points,
                 $"Position {i} ({standings[i].Points} pts) should be >= position {i + 1} ({standings[i + 1].Points} pts)");
     }

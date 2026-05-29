@@ -5,6 +5,8 @@ namespace ScrambleCoin.Application.Games.MovePiece;
 
 /// <summary>
 /// Submits a single piece's move action(s) during MovePhase.
+/// Implements <see cref="IGameStateChangingCommand"/> so that the SignalR broadcast
+/// pipeline behaviour fires after every successful move.
 /// </summary>
 /// <param name="GameId">The game identifier.</param>
 /// <param name="BotToken">The bearer token of the bot submitting the move.</param>
@@ -17,4 +19,4 @@ public sealed record MovePieceCommand(
     Guid GameId,
     Guid BotToken,
     Guid PieceId,
-    IReadOnlyList<IReadOnlyList<Position>> Segments) : IRequest<MoveResult>;
+    IReadOnlyList<IReadOnlyList<Position>> Segments) : IRequest<MoveResult>, IGameStateChangingCommand;

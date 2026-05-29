@@ -5,7 +5,6 @@ using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.AddParticipant;
 using ScrambleCoin.Domain.Exceptions;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tests;

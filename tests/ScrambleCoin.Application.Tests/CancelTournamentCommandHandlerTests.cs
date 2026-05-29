@@ -5,7 +5,6 @@ using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.CancelTournament;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
-using ScrambleCoin.Domain.Tournaments;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
 
 namespace ScrambleCoin.Application.Tests;

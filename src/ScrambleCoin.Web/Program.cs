@@ -2,7 +2,10 @@ using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.Abstractions;
+using ScrambleCoin.Application.Behaviours;
 using ScrambleCoin.Infrastructure.Persistence;
+using ScrambleCoin.Web.Hubs;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -37,13 +40,20 @@ try
     builder.Services.AddRazorPages();
     builder.Services.AddServerSideBlazor();
 
+    // ── SignalR ───────────────────────────────────────────────────────────────
+    builder.Services.AddSignalR();
+
     // ── MudBlazor ─────────────────────────────────────────────────────────────
     builder.Services.AddMudServices();
 
     // ── MediatR ───────────────────────────────────────────────────────────────
     builder.Services.AddMediatR(cfg =>
+    {
         cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
+            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly,
+            typeof(ScrambleCoin.Web.Notifications.BroadcastGameEndedOnFinishedHandler).Assembly);
+        cfg.AddOpenBehavior(typeof(SignalRBroadcastBehaviour<,>));
+    });
 
     // ── Database & EF Core ─────────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -77,6 +87,9 @@ try
         ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
     builder.Services.AddSingleton<Random>();
     
+    // ── SignalR Broadcaster ───────────────────────────────────────────────────
+    builder.Services.AddScoped<IGameBroadcaster, GameBroadcaster>();
+
     var app = builder.Build();
 
     // ── Database initialization & seeding ─────────────────────────────────────
@@ -100,6 +113,7 @@ try
     app.UseSerilogRequestLogging();
 
     app.MapBlazorHub();
+    app.MapHub<GameHub>("/hubs/game");
     app.MapFallbackToPage("/_Host");
 
     app.Run();

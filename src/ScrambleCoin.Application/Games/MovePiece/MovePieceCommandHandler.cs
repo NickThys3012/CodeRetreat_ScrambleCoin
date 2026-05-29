@@ -62,8 +62,11 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
         game.MovePiece(playerId, request.PieceId, request.Segments);
 
         // Capture events BEFORE SaveAsync clears them.
-        var turnRolledOver = game.DomainEvents
+        var phaseAdvancedEvents = game.DomainEvents
             .OfType<TurnPhaseAdvanced>()
+            .ToList();
+
+        var turnRolledOver = phaseAdvancedEvents
             .Any(e => e.NewPhase == TurnPhase.CoinSpawn);
 
         var gameEndedEvent = game.DomainEvents
@@ -75,6 +78,15 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
         _logger.LogInformation(
             "Piece {PieceId} moved by bot {BotId} in game {GameId} on turn {Turn}.",
             request.PieceId, playerId, request.GameId, turnNumber);
+
+        foreach (var phaseEvent in phaseAdvancedEvents)
+            await _publisher.Publish(
+                new TurnPhaseChangedNotification(
+                    phaseEvent.GameId,
+                    phaseEvent.TurnNumber,
+                    phaseEvent.PreviousPhase.ToString(),
+                    phaseEvent.NewPhase?.ToString()),
+                cancellationToken);
 
         if (turnRolledOver)
             await _publisher.Publish(new TurnRolledOver(request.GameId), cancellationToken);

@@ -48,14 +48,14 @@ public sealed class Tournament
 
     private readonly List<GroupMatch> _groupMatches = [];
 
-    /// <summary>All round-robin group matches (populated when tournament starts).</summary>
+    /// <summary>All round-robin group matches (populated when the tournament starts).</summary>
     public IReadOnlyList<GroupMatch> GroupMatches => _groupMatches.AsReadOnly();
 
     // ── Knockout stage ────────────────────────────────────────────────────────
 
     private readonly List<KnockoutMatch> _knockoutMatches = [];
 
-    /// <summary>All knockout bracket matches (populated when group stage completes).</summary>
+    /// <summary>All knockout bracket matches (populated when the group stage completes).</summary>
     public IReadOnlyList<KnockoutMatch> KnockoutMatches => _knockoutMatches.AsReadOnly();
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ public sealed class Tournament
 
         // Resolve any first-round byes immediately and propagate winners upward
         var firstRound = _knockoutMatches.Where(m => m.Round == 1).ToList();
-        int maxRound = _knockoutMatches.Max(m => m.Round);
+        var maxRound = _knockoutMatches.Max(m => m.Round);
         foreach (var match in firstRound.Where(m => m.IsBye))
         {
             match.ResolveBye();
@@ -228,9 +228,9 @@ public sealed class Tournament
         if (match.Round >= maxRound || !match.WinnerId.HasValue)
             return;
 
-        int nextRound    = match.Round + 1;
-        int nextPosition = match.Position / 2;
-        int nextSlot     = (match.Position % 2 == 0) ? 1 : 2;
+        var nextRound    = match.Round + 1;
+        var nextPosition = match.Position / 2;
+        var nextSlot     = (match.Position % 2 == 0) ? 1 : 2;
         var nextMatch    = _knockoutMatches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
         if (nextMatch is null)
             return;
@@ -239,14 +239,14 @@ public sealed class Tournament
 
         // If propagating a double-bye created another bye in the next round (both slots known,
         // at least one is Guid.Empty), resolve it immediately and keep propagating.
-        if (nextMatch.IsBye && nextMatch.BotOne.HasValue && nextMatch.BotTwo.HasValue && !nextMatch.IsCompleted)
+        if (nextMatch is { IsBye: true, BotOne: not null, BotTwo: not null, IsCompleted: false })
         {
             nextMatch.ResolveBye();
             PropagateByeWinner(nextMatch, maxRound);
         }
     }
 
-
+    /// <summary>
     /// If this is the final match, transitions to <see cref="TournamentStatus.Completed"/>.
     /// </summary>
     /// <returns>
@@ -283,7 +283,7 @@ public sealed class Tournament
         match.RecordResult(botWinnerId, isDraw);
 
         // Find the final round number
-        int maxRound = _knockoutMatches.Max(m => m.Round);
+        var maxRound = _knockoutMatches.Max(m => m.Round);
 
         if (match.Round == maxRound)
         {
@@ -294,9 +294,9 @@ public sealed class Tournament
         }
 
         // Populate the next-round match
-        int nextRound = match.Round + 1;
-        int nextPosition = match.Position / 2;
-        int nextSlot = (match.Position % 2 == 0) ? 1 : 2;
+        var nextRound = match.Round + 1;
+        var nextPosition = match.Position / 2;
+        var nextSlot = (match.Position % 2 == 0) ? 1 : 2;
 
         var nextMatch = _knockoutMatches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
         if (nextMatch is not null && botWinnerId.HasValue)
@@ -385,20 +385,20 @@ public sealed class Tournament
         var bots = _participants.Select(p => p.BotId).ToList();
 
         // With an odd number, add a sentinel "bye" so the total count is even.
-        bool hasBye = bots.Count % 2 != 0;
+        var hasBye = bots.Count % 2 != 0;
         if (hasBye)
             bots.Add(Guid.Empty); // Guid.Empty = bye slot
 
-        int n = bots.Count;
-        int rounds = n - 1;
-        int matchesPerRound = n / 2;
+        var n = bots.Count;
+        var rounds = n - 1;
+        var matchesPerRound = n / 2;
 
         var matches = new List<GroupMatch>();
         var rotation = bots.ToList();
 
-        for (int round = 0; round < rounds; round++)
+        for (var round = 0; round < rounds; round++)
         {
-            for (int i = 0; i < matchesPerRound; i++)
+            for (var i = 0; i < matchesPerRound; i++)
             {
                 var botOne = rotation[i];
                 var botTwo = rotation[n - 1 - i];
@@ -427,20 +427,20 @@ public sealed class Tournament
         var participants = rankedBots.ToList();
 
         // Pad to next power of 2 with bye sentinels
-        int bracketSize = NextPowerOf2(participants.Count);
+        var bracketSize = NextPowerOf2(participants.Count);
         while (participants.Count < bracketSize)
             participants.Add(Guid.Empty);
 
         var allMatches = new List<KnockoutMatch>();
-        int round = 1;
-        int slots = bracketSize;
+        var round = 1;
+        var slots = bracketSize;
 
         // Round 1: seed 1 vs last, 2 vs second-to-last (standard bracket seeding)
         var roundBots = participants.ToList();
         while (roundBots.Count > 1)
         {
-            int matchCount = roundBots.Count / 2;
-            for (int i = 0; i < matchCount; i++)
+            var matchCount = roundBots.Count / 2;
+            for (var i = 0; i < matchCount; i++)
             {
                 // Preserve Guid.Empty as-is so KnockoutMatch.IsBye (which checks == Guid.Empty) works correctly.
                 Guid? botOne = roundBots[i];
@@ -448,13 +448,10 @@ public sealed class Tournament
 
                 // For round 1, use standard seeding pairing (top vs bottom)
                 // For later rounds, participants are TBD (null)
-                if (round == 1)
-                    allMatches.Add(new KnockoutMatch(Guid.NewGuid(), round, i, botOne, botTwo));
-                else
-                    allMatches.Add(new KnockoutMatch(Guid.NewGuid(), round, i, null, null));
+                allMatches.Add(round == 1 ? new KnockoutMatch(Guid.NewGuid(), round, i, botOne, botTwo) : new KnockoutMatch(Guid.NewGuid(), round, i, null, null));
             }
 
-            // Next round has half the slots
+            // The next round has half the slots
             slots /= 2;
             roundBots = Enumerable.Repeat(Guid.Empty, slots).ToList();
             round++;
@@ -466,7 +463,7 @@ public sealed class Tournament
     private static int NextPowerOf2(int n)
     {
         if (n <= 1) return 1;
-        int p = 1;
+        var p = 1;
         while (p < n) p <<= 1;
         return p;
     }
