@@ -43,13 +43,14 @@ builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssemblies(
         typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
-    // Register broadcast behaviour. The NullGameBroadcaster below is a no-op —
-    // spectators must target the ScrambleCoin.Web host for live SignalR updates.
+    // Serialization must wrap everything — register first so it is the outermost behaviour.
+    cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.GameSerializationBehaviour<,>));
     cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.SignalRBroadcastBehaviour<,>));
 });
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
+builder.Services.AddSingleton<ScrambleCoin.Application.Services.GameLockService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
     ScrambleCoin.Api.Hubs.GameBroadcaster>();
