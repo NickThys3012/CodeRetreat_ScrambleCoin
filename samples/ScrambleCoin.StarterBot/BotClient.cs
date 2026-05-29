@@ -24,6 +24,12 @@ public sealed class BotClient : IDisposable
         _http = new HttpClient { BaseAddress = new Uri(baseUrl.TrimEnd('/') + '/') };
     }
 
+    /// <summary>
+    /// Test seam: inject a pre-configured <see cref="HttpClient"/> directly.
+    /// The caller is responsible for setting <c>BaseAddress</c>.
+    /// </summary>
+    internal BotClient(HttpClient http) => _http = http;
+
     // ── Authentication ────────────────────────────────────────────────────────
 
     /// <summary>Sets the bot token sent on every subsequent request via <c>X-Bot-Token</c>.</summary>

@@ -36,6 +36,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrambleCoin.StarterBot", "samples\ScrambleCoin.StarterBot\ScrambleCoin.StarterBot.csproj", "{5A89F787-0F1A-4E20-9B00-E9E2EFC4BFD2}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrambleCoin.StarterBot.Tests", "tests\ScrambleCoin.StarterBot.Tests\ScrambleCoin.StarterBot.Tests.csproj", "{9B36A08A-3498-48DF-8E88-9D85ABD0291F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -190,6 +194,18 @@ Global
 		{5A89F787-0F1A-4E20-9B00-E9E2EFC4BFD2}.Release|x64.Build.0 = Release|Any CPU
 		{5A89F787-0F1A-4E20-9B00-E9E2EFC4BFD2}.Release|x86.ActiveCfg = Release|Any CPU
 		{5A89F787-0F1A-4E20-9B00-E9E2EFC4BFD2}.Release|x86.Build.0 = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|x64.Build.0 = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Debug|x86.Build.0 = Debug|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|x64.ActiveCfg = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|x64.Build.0 = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|x86.ActiveCfg = Release|Any CPU
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -208,5 +224,6 @@ Global
 		{8537B41B-6FEF-486F-90F9-859831449740} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BACA2232-0F6C-4B56-A822-49C0EB59491F} = {8537B41B-6FEF-486F-90F9-859831449740}
 		{5A89F787-0F1A-4E20-9B00-E9E2EFC4BFD2} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{9B36A08A-3498-48DF-8E88-9D85ABD0291F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
