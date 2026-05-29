@@ -36,7 +36,7 @@ public sealed class GetLeaderboardQueryHandlerTests
         var mid  = TrackWithPoints("MidBot",  10);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { low, mid, high }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { low, mid, high }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -52,7 +52,7 @@ public sealed class GetLeaderboardQueryHandlerTests
         var trackB = TrackWithPoints("B", 10);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { trackA, trackB }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { trackA, trackB }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -67,7 +67,7 @@ public sealed class GetLeaderboardQueryHandlerTests
         var trackC = TrackWithPoints("C", 10);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { trackA, trackB, trackC }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { trackA, trackB, trackC }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -85,7 +85,7 @@ public sealed class GetLeaderboardQueryHandlerTests
         var fewerWins = TrackWithPoints("FewerWins", 10, wins: 2, gamesPlayed: 5);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { fewerWins, moreWins }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { fewerWins, moreWins }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -95,12 +95,12 @@ public sealed class GetLeaderboardQueryHandlerTests
     [Fact]
     public async Task Handle_TieInPoints_TieInWins_FewerGamesPlayedRanksHigher()
     {
-        // Same points & wins → fewer games played comes first
+        // Same points & wins → fewer games played come first
         var efficient = TrackWithPoints("Efficient",   10, wins: 3, gamesPlayed: 4);
         var less      = TrackWithPoints("LessEfficient", 10, wins: 3, gamesPlayed: 8);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { less, efficient }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { less, efficient }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -113,7 +113,7 @@ public sealed class GetLeaderboardQueryHandlerTests
     public async Task Handle_EmptyLeaderboard_ReturnsEmptyList()
     {
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(Array.Empty<RankingTrack>().ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(Array.Empty<RankingTrack>().ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -137,7 +137,7 @@ public sealed class GetLeaderboardQueryHandlerTests
             milestonesHit: []);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { track }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { track }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 
@@ -158,7 +158,7 @@ public sealed class GetLeaderboardQueryHandlerTests
         var track = TrackWithPoints("OnlyBot", 10);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns(new[] { track }.ToList().AsReadOnly() as IReadOnlyList<RankingTrack>);
+             .Returns(new[] { track }.ToList().AsReadOnly());
 
         var result = await BuildHandler().Handle(new GetLeaderboardQuery(), CancellationToken.None);
 

@@ -239,11 +239,12 @@ public sealed class Tournament
 
         // If propagating a double-bye created another bye in the next round (both slots known,
         // at least one is Guid.Empty), resolve it immediately and keep propagating.
-        if (nextMatch is { IsBye: true, BotOne: not null, BotTwo: not null, IsCompleted: false })
+        if (nextMatch is not { IsBye: true, BotOne: not null, BotTwo: not null, IsCompleted: false })
         {
-            nextMatch.ResolveBye();
-            PropagateByeWinner(nextMatch, maxRound);
+            return;
         }
+        nextMatch.ResolveBye();
+        PropagateByeWinner(nextMatch, maxRound);
     }
 
     /// <summary>

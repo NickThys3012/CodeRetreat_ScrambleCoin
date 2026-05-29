@@ -134,7 +134,7 @@ public class GetTournamentBracketQueryHandlerTests
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
 
-        Assert.Equal(TournamentStatus.KnockoutStage.ToString(), result.Status);
+        Assert.Equal(nameof(TournamentStatus.KnockoutStage), result.Status);
         Assert.NotEmpty(result.KnockoutRounds);
     }
 

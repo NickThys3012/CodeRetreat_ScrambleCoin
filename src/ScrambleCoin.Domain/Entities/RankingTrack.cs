@@ -16,11 +16,11 @@ public sealed class RankingTrack
     /// Figurine unlock milestone thresholds (in ranking points).
     /// A milestone is "hit" the first time a bot's points reach or cross the threshold.
     /// </summary>
-    public static readonly IReadOnlyList<int> Milestones = new[]
-    {
+    public static readonly IReadOnlyList<int> Milestones =
+    [
         3, 9, 15, 24, 33, 45, 57, 69, 84, 99, 114, 129, 147, 165, 183,
         201, 219, 237, 258, 279, 300, 350, 400, 450, 500, 550
-    };
+    ];
 
     private readonly List<int> _milestonesHit = [];
 

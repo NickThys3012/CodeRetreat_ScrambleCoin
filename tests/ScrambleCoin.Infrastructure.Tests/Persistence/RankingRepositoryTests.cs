@@ -258,7 +258,7 @@ public sealed class RankingRepositoryTests
         {
             var loaded = await new RankingRepository(ctx).GetByBotIdAsync(track.BotId);
             Assert.NotNull(loaded);
-            Assert.Equal(track.BotId, loaded!.BotId);
+            Assert.Equal(track.BotId, loaded.BotId);
         }
     }
 

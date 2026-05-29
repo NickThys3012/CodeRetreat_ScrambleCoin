@@ -261,7 +261,7 @@ public sealed class RankingTrackTests
     [Fact]
     public void MilestonesHit_TrackedCorrectly_FirstMilestone()
     {
-        // First milestone is 3 points — one RecordWin crosses it
+        // The first milestone is 3 points — one RecordWin crosses it
         var track = NewTrack();
 
         track.RecordWin(); // 3 pts → crosses milestone 3
@@ -315,7 +315,7 @@ public sealed class RankingTrackTests
         track.RecordWin(); // 3 → crosses milestone 3
         track.RecordWin(); // 6 → does NOT cross 3 again
 
-        Assert.Single(track.MilestonesHit.Where(m => m == 3));
+        Assert.Single(track.MilestonesHit, m => m == 3);
     }
 
     [Fact]

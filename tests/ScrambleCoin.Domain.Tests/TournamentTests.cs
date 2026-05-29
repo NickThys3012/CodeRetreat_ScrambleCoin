@@ -238,7 +238,7 @@ public class TournamentTests
     [Fact]
     public void ComputeStandings_TieBreak_ByCoinScoreDescending()
     {
-        // Two bots draw but BotOne has a higher coin score → BotOne ranked first
+        // Two bots draw, but BotOne has a higher coin score → BotOne ranked first
         var t = NewTournament(2);
         t.Start();
         var match = t.GroupMatches[0];
@@ -330,7 +330,7 @@ public class TournamentTests
         // 3 bots: seed1 gets bye; their winner propagates to the final
         var t = NewTournament(3, topN: 3);
         t.Start();
-        // All draws so coin score breaks the tie: BotOne of each match gets 10 coins
+        // All draws so the coin score breaks the tie: BotOne of each match gets 10 coins
         foreach (var m in t.GroupMatches)
             m.RecordResult(null, isDraw: true, botOneScore: 10, botTwoScore: 5);
 
@@ -373,7 +373,7 @@ public class TournamentTests
         CompleteAllGroupMatches(t);
         t.AdvanceToKnockout();
 
-        var r1P0 = t.KnockoutMatches.Single(m => m.Round == 1 && m.Position == 0);
+        var r1P0 = t.KnockoutMatches.Single(m => m is { Round: 1, Position: 0 });
         t.RecordKnockoutResult(r1P0.Id, null, isDraw: true);
 
         // Winner (BotOne of r1P0 via draw rule) should appear in the final

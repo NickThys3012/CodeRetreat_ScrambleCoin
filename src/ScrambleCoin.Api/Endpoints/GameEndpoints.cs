@@ -171,26 +171,18 @@ public static class GameEndpoints
                 title: "Not Found");
         }
 
-        if (entry.Status == "timed_out")
+        return entry.Status switch
         {
-            return Results.Problem(
-                detail: "No opponent was found before the queue entry expired. Please re-enqueue.",
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Queue Timed Out");
-        }
-
-        if (entry.Status == "waiting")
-        {
-            return Results.Ok(new { status = "waiting" });
-        }
-
-        return Results.Ok(new
-        {
-            status = "matched",
-            gameId = entry.GameId,
-            playerId = entry.PlayerId,
-            token = entry.Token
-        });
+            "timed_out" => Results.Problem(detail: "No opponent was found before the queue entry expired. Please re-enqueue.", statusCode: StatusCodes.Status409Conflict, title: "Queue Timed Out"),
+            "waiting" => Results.Ok(new
+            {
+                status = "waiting"
+            }),
+            _ => Results.Ok(new
+            {
+                status = "matched", gameId = entry.GameId, playerId = entry.PlayerId, token = entry.Token
+            })
+        };
     }
 
     /// <summary>Bot submits a placement decision (place, replace, or skip) during PlacePhase.</summary>

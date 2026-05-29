@@ -60,10 +60,9 @@ public sealed class GetSpectatorBoardStateQueryHandler : IRequestHandler<GetSpec
     private static ReadOnlyCollection<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
     {
         var lineup = playerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
-        if (lineup is null)
-            return Array.Empty<PieceDto>().AsReadOnly();
-
-        return lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
+        return lineup is null ?
+            Array.Empty<PieceDto>().AsReadOnly() :
+            lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
     }
 
     private static PieceDto MapPiece(Piece piece) =>
@@ -142,13 +141,15 @@ public sealed class GetSpectatorBoardStateQueryHandler : IRequestHandler<GetSpec
                 edges.Add("West");
         }
 
-        if (position.Col < Board.Size - 1)
+        if (position.Col >= Board.Size - 1)
         {
-            var east = new Position(position.Row, position.Col + 1);
-            if (fences.Any(f => f.IsOnEdge(position, east)))
-                edges.Add("East");
+            return edges.AsReadOnly();
         }
-
+        
+        var east = new Position(position.Row, position.Col + 1);
+        if (fences.Any(f => f.IsOnEdge(position, east)))
+            edges.Add("East");
+        
         return edges.AsReadOnly();
     }
 

@@ -53,7 +53,7 @@ public class ArchitectureTests
     [Fact]
     public void Domain_HasNoProjectReferences()
     {
-        var doc = LoadCsproj(@"src/ScrambleCoin.Domain/ScrambleCoin.Domain.csproj");
+        var doc = LoadCsproj("src/ScrambleCoin.Domain/ScrambleCoin.Domain.csproj");
         var refs = GetProjectReferences(doc);
 
         Assert.Empty(refs);
@@ -63,7 +63,7 @@ public class ArchitectureTests
     [Fact]
     public void Application_ReferencesOnlyDomain()
     {
-        var doc = LoadCsproj(@"src/ScrambleCoin.Application/ScrambleCoin.Application.csproj");
+        var doc = LoadCsproj("src/ScrambleCoin.Application/ScrambleCoin.Application.csproj");
         var refs = GetProjectReferences(doc);
 
         // Every reference must point at the Domain project
@@ -75,7 +75,7 @@ public class ArchitectureTests
     [Fact]
     public void Infrastructure_DoesNotReferenceWeb()
     {
-        var doc = LoadCsproj(@"src/ScrambleCoin.Infrastructure/ScrambleCoin.Infrastructure.csproj");
+        var doc = LoadCsproj("src/ScrambleCoin.Infrastructure/ScrambleCoin.Infrastructure.csproj");
         var refs = GetProjectReferences(doc);
 
         Assert.DoesNotContain(refs, r => r.Contains("ScrambleCoin.Web", StringComparison.OrdinalIgnoreCase));
@@ -85,7 +85,7 @@ public class ArchitectureTests
     [Fact]
     public void DomainTests_ReferencesOnlyDomain()
     {
-        var doc = LoadCsproj(@"tests/ScrambleCoin.Domain.Tests/ScrambleCoin.Domain.Tests.csproj");
+        var doc = LoadCsproj("tests/ScrambleCoin.Domain.Tests/ScrambleCoin.Domain.Tests.csproj");
         var refs = GetProjectReferences(doc);
 
         Assert.NotEmpty(refs);

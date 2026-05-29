@@ -55,7 +55,7 @@ public class IceSlidingTests
     /// </summary>
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
-        var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 
@@ -238,8 +238,8 @@ public class IceSlidingTests
 
         // Act: move 1 → (0,2) slides to (0,3)
         //      move 2 → (0,5) from (0,3)
-        var segment1 = (IReadOnlyList<Position>)new List<Position> { new(0, 1), new(0, 2) }.AsReadOnly();
-        var segment2 = (IReadOnlyList<Position>)new List<Position> { new(0, 4), new(0, 5) }.AsReadOnly();
+        IReadOnlyList<Position> segment1 = new List<Position> { new(0, 1), new(0, 2) }.AsReadOnly();
+        IReadOnlyList<Position> segment2 = new List<Position> { new(0, 4), new(0, 5) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment1, segment2 }.AsReadOnly();
 
         game.MovePiece(p1, piece.Id, segments);

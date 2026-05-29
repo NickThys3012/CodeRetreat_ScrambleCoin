@@ -72,12 +72,17 @@ public sealed class KnockoutMatch
     /// </summary>
     public void SetParticipant(int slot, Guid botId)
     {
-        if (slot == 1)
-            BotOne = botId;
-        else if (slot == 2)
-            BotTwo = botId;
-        else
-            throw new ArgumentOutOfRangeException(nameof(slot), "Slot must be 1 or 2.");
+        switch (slot)
+        {
+            case 1:
+                BotOne = botId;
+                break;
+            case 2:
+                BotTwo = botId;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(slot), "Slot must be 1 or 2.");
+        }
     }
 
     /// <summary>Assigns a real game to this knockout match.</summary>

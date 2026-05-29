@@ -57,7 +57,7 @@ public class MultiStepMovementTests
     /// </summary>
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[][] segments)
     {
-        return segments.Select(s => (IReadOnlyList<Position>)s.ToList().AsReadOnly()).ToList().AsReadOnly();
+        return segments.Select(IReadOnlyList<Position> (s) => s.ToList().AsReadOnly()).ToList().AsReadOnly();
     }
 
     // ── Test 1: Cogsworth valid sequence (Any → Orthogonal) ──────────────────

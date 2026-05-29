@@ -140,7 +140,7 @@ public class GameHubTests
     public async Task JoinGame_UsesContextConnectionId()
     {
         // Arrange — verify the hub passes the CALLER's ConnectionId, not a hard-coded value
-        var specificConnectionId = "unique-connection-xyz";
+        const string specificConnectionId = "unique-connection-xyz";
         var (hub, groups) = BuildHub(specificConnectionId);
 
         // Act
@@ -157,7 +157,7 @@ public class GameHubTests
     public async Task LeaveGame_UsesContextConnectionId()
     {
         // Arrange
-        var specificConnectionId = "unique-connection-abc";
+        const string specificConnectionId = "unique-connection-abc";
         var (hub, groups) = BuildHub(specificConnectionId);
 
         // Act

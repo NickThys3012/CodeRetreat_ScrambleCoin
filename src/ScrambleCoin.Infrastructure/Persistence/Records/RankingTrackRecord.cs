@@ -8,7 +8,7 @@ public sealed class RankingTrackRecord
     /// <summary>Bot identifier — primary key.</summary>
     public Guid BotId { get; set; }
 
-    /// <summary>Display name of the bot.</summary>
+    /// <summary>Display the name of the bot.</summary>
     public string BotName { get; set; } = string.Empty;
 
     /// <summary>Total accumulated ranking points.</summary>
@@ -27,7 +27,7 @@ public sealed class RankingTrackRecord
     public int GamesPlayed { get; set; }
 
     /// <summary>
-    /// JSON-serialised list of milestone point thresholds already hit by this bot.
+    /// JSON-serialized list of milestone point thresholds already hit by this bot.
     /// </summary>
     public string MilestonesHitJson { get; set; } = "[]";
 }

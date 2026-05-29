@@ -56,7 +56,7 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
             var partOne = participantMap[match.BotOne];
             var partTwo = participantMap[match.BotTwo];
 
-            (var gameId, var botOnePlayerId, var botOneToken, var botTwoPlayerId, var botTwoToken) =
+            var (gameId, botOnePlayerId, botOneToken, botTwoPlayerId, botTwoToken) =
                 CreateGame();
 
             match.AssignGame(gameId, botOnePlayerId, botOneToken, botTwoPlayerId, botTwoToken);

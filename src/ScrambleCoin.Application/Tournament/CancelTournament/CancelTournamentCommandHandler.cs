@@ -36,10 +36,10 @@ public sealed class CancelTournamentCommandHandler : IRequestHandler<CancelTourn
 
         // Collect all game IDs from incomplete group and knockout matches
         var activeGameIds = tournament.GroupMatches
-            .Where(m => !m.IsCompleted && m.GameId.HasValue)
+            .Where(m => m is { IsCompleted: false, GameId: not null })
             .Select(m => m.GameId!.Value)
             .Concat(tournament.KnockoutMatches
-                .Where(m => !m.IsCompleted && m.GameId.HasValue)
+                .Where(m => m is { IsCompleted: false, GameId: not null })
                 .Select(m => m.GameId!.Value))
             .Distinct()
             .ToList();
