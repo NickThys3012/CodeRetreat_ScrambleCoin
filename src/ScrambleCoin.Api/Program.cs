@@ -50,7 +50,7 @@ builder.Services.AddMediatR(cfg =>
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
-builder.Services.AddSingleton<ScrambleCoin.Application.Services.GameLockService>();
+builder.Services.AddSingleton<GameLockService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
     ScrambleCoin.Api.Hubs.GameBroadcaster>();

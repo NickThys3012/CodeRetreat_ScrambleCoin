@@ -169,11 +169,11 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
             // If all matches in this round are now complete, create games for the next round
             var roundComplete = roundMatches.All(m => m.IsCompleted);
-            if (roundComplete && round < maxRound)
-            {
-                await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, newGameIds, ct);
-                dirty = true;
-            }
+            if (!roundComplete || round >= maxRound)
+                continue;
+            
+            await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, newGameIds, ct);
+            dirty = true;
         }
 
         return dirty;

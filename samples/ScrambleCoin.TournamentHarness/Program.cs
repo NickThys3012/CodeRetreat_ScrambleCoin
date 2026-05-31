@@ -35,7 +35,8 @@ var bots = Enumerable.Range(1, numBots)
 var lineup = new[] { "Mickey", "Minnie", "Donald", "Goofy", "Scrooge" };
 
 // ── 1. Create tournament ──────────────────────────────────────────────────────
-using var adminHttp = new HttpClient { BaseAddress = new Uri(baseUrl.TrimEnd('/') + '/') };
+using var adminHttp = new HttpClient();
+adminHttp.BaseAddress = new Uri(baseUrl.TrimEnd('/') + '/');
 adminHttp.DefaultRequestHeaders.Add("X-Admin-Key", adminKey);
 
 Log("🏆 Creating tournament…");
@@ -94,6 +95,7 @@ await Task.WhenAll(bots.Select(bot =>
 
 Log(new string('─', 60));
 Log("🎉 All bots finished. Check the tournament page for results!");
+return;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Per-bot runner

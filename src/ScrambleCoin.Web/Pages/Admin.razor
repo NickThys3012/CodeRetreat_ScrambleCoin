@@ -250,99 +250,100 @@
 
                 <MudGrid>
 
-                    @if (_selectedTournament.Status == "Pending")
+                    @switch (_selectedTournament.Status)
                     {
-                        <!-- Add participant -->
-                        <MudItem xs="12" md="4">
-                            <MudCard Elevation="1">
-                                <MudCardHeader>
-                                    <CardHeaderContent>
-                                        <MudText Typo="Typo.subtitle2">Add Bot Participant</MudText>
-                                    </CardHeaderContent>
-                                </MudCardHeader>
-                                <MudCardContent>
-                                    <MudTextField @bind-Value="_addBotName"
-                                                  Label="Bot Name *"
-                                                  Variant="Variant.Outlined"
-                                                  FullWidth="true"
-                                                  Class="mb-2" />
-                                    <MudTextField @bind-Value="_addBotId"
-                                                  Label="Bot ID (leave blank to auto-generate)"
-                                                  Variant="Variant.Outlined"
-                                                  FullWidth="true"
-                                                  Class="mb-2" />
-                                    <MudTextField @bind-Value="_addBotLineup"
-                                                  Label="Lineup (comma-separated piece names)"
-                                                  HelperText="Default: Mickey,Minnie,Donald,Goofy,Scrooge"
-                                                  Variant="Variant.Outlined"
-                                                  FullWidth="true"
-                                                  Class="mb-2" />
-                                </MudCardContent>
-                                <MudCardActions>
-                                    <MudButton Variant="Variant.Filled"
-                                               Color="Color.Secondary"
-                                               StartIcon="@Icons.Material.Filled.PersonAdd"
-                                               OnClick="AddParticipantAsync"
-                                               Disabled="@(string.IsNullOrWhiteSpace(_addBotName))">
-                                        Add Bot
-                                    </MudButton>
-                                </MudCardActions>
-                            </MudCard>
-                        </MudItem>
+                        case "Pending":
+                            @:<!-- Add participant -->
+                            <MudItem xs="12" md="4">
+                                <MudCard Elevation="1">
+                                    <MudCardHeader>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.subtitle2">Add Bot Participant</MudText>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudTextField @bind-Value="_addBotName"
+                                                      Label="Bot Name *"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                        <MudTextField @bind-Value="_addBotId"
+                                                      Label="Bot ID (leave blank to auto-generate)"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                        <MudTextField @bind-Value="_addBotLineup"
+                                                      Label="Lineup (comma-separated piece names)"
+                                                      HelperText="Default: Mickey,Minnie,Donald,Goofy,Scrooge"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                    </MudCardContent>
+                                    <MudCardActions>
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Secondary"
+                                                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                                                   OnClick="AddParticipantAsync"
+                                                   Disabled="@(string.IsNullOrWhiteSpace(_addBotName))">
+                                            Add Bot
+                                        </MudButton>
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
 
-                        <!-- Actions -->
-                        <MudItem xs="12" md="8">
-                            <MudCard Elevation="1">
-                                <MudCardHeader>
-                                    <CardHeaderContent>
-                                        <MudText Typo="Typo.subtitle2">Tournament Actions</MudText>
-                                    </CardHeaderContent>
-                                </MudCardHeader>
-                                <MudCardContent>
-                                    <MudText Typo="Typo.body2" Class="mb-3">
-                                        Registered participants:
-                                        <b>@_selectedTournament.ParticipantCount</b> /
-                                        @_selectedTournament.MaxParticipants
-                                    </MudText>
-                                    @if (_selectedTournament.ParticipantCount < 2)
-                                    {
-                                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
-                                            At least 2 bots are required to start.
-                                        </MudAlert>
-                                    }
-                                    <MudButton Variant="Variant.Filled"
-                                               Color="Color.Success"
-                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
-                                               OnClick="StartTournamentAsync"
-                                               Disabled="@(_selectedTournament.ParticipantCount < 2)"
-                                               Class="mr-3 mb-2">
-                                        Start Tournament
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Error"
-                                               StartIcon="@Icons.Material.Filled.Cancel"
-                                               OnClick="CancelTournamentAsync"
-                                               Class="mb-2">
-                                        Cancel Tournament
-                                    </MudButton>
-                                </MudCardContent>
-                            </MudCard>
-                        </MudItem>
-                    }
-                    else if (_selectedTournament.Status is "GroupStage" or "KnockoutStage")
-                    {
-                        <MudItem xs="12" md="4">
-                            <MudCard Elevation="1">
-                                <MudCardContent>
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Error"
-                                               StartIcon="@Icons.Material.Filled.Cancel"
-                                               OnClick="CancelTournamentAsync">
-                                        Cancel Tournament
-                                    </MudButton>
-                                </MudCardContent>
-                            </MudCard>
-                        </MudItem>
+                            @:<!-- Actions -->
+                            <MudItem xs="12" md="8">
+                                <MudCard Elevation="1">
+                                    <MudCardHeader>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.subtitle2">Tournament Actions</MudText>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.body2" Class="mb-3">
+                                            Registered participants:
+                                            <b>@_selectedTournament.ParticipantCount</b> /
+                                            @_selectedTournament.MaxParticipants
+                                        </MudText>
+                                        @if (_selectedTournament.ParticipantCount < 2)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                                                At least 2 bots are required to start.
+                                            </MudAlert>
+                                        }
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                                   OnClick="StartTournamentAsync"
+                                                   Disabled="@(_selectedTournament.ParticipantCount < 2)"
+                                                   Class="mr-3 mb-2">
+                                            Start Tournament
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                                   OnClick="CancelTournamentAsync"
+                                                   Class="mb-2">
+                                            Cancel Tournament
+                                        </MudButton>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                            break;
+                        case "GroupStage" or "KnockoutStage":
+                            <MudItem xs="12" md="4">
+                                <MudCard Elevation="1">
+                                    <MudCardContent>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                                   OnClick="CancelTournamentAsync">
+                                            Cancel Tournament
+                                        </MudButton>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                            break;
                     }
 
                     <!-- Standings -->

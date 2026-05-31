@@ -56,7 +56,8 @@ public sealed class GameHub : Hub
             };
 
             if (needsToAct)
-                await Clients.Caller.SendAsync("ActionRequired", new { Phase = info.Phase });
+                await Clients.Caller.SendAsync("ActionRequired", new {
+                    info.Phase });
         }
         catch
         {

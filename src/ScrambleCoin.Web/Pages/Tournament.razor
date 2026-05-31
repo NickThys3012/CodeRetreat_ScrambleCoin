@@ -375,7 +375,7 @@
             {
                 var totalMatches = _bracket.GroupMatches.Count;
                 var doneMatches  = _bracket.GroupMatches.Count(m => m.IsCompleted);
-                var liveMatches  = _bracket.GroupMatches.Count(m => m.GameId.HasValue && !m.IsCompleted);
+                var liveMatches  = _bracket.GroupMatches.Count(m => m is { GameId: not null, IsCompleted: false });
                 var pct = totalMatches > 0 ? (double)doneMatches / totalMatches * 100 : 0;
 
                 <div style="margin-top:2rem; margin-bottom:.5rem; display:flex; align-items:baseline; gap:10px;">
@@ -398,12 +398,12 @@
                         var b2 = names.GetValueOrDefault(m.BotTwo, ShortId(m.BotTwo));
                         var w1 = m.WinnerId == m.BotOne;
                         var w2 = m.WinnerId == m.BotTwo;
-                        var isLive = m.GameId.HasValue && !m.IsCompleted;
-                        var cssCard = m.IsCompleted ? (m.IsDraw ? "gm-card draw" : "gm-card completed")
+                        var isLive = m is { GameId: not null, IsCompleted: false };
+                        var cssCard = m.IsCompleted ? m.IsDraw ? "gm-card draw" : "gm-card completed"
                                     : isLive        ? "gm-card live"
                                     :                 "gm-card";
                         var headerCss  = isLive ? "gm-header live" : "gm-header";
-                        var headerText = m.IsCompleted ? (m.IsDraw ? "🤝 Draw" : "✅ Done")
+                        var headerText = m.IsCompleted ? m.IsDraw ? "🤝 Draw" : "✅ Done"
                                        : isLive        ? "🔴 Live"
                                        :                 "⏳ Pending";
                         <div class="@cssCard">
@@ -437,7 +437,7 @@
             {
                 var rounds = _bracket.KnockoutRounds.OrderBy(r => r.Round).ToList();
                 var totalRounds = rounds.Count;
-                // First round has the most matches (a power of 2)
+                // The first round has the most matches (a power of 2)
                 var firstCount = rounds[0].Matches.Count;
                 // Compute total canvas height
                 var totalH = firstCount * (CardH + CardGap) - CardGap;
@@ -449,7 +449,7 @@
                     @{
                         var allKo = rounds.SelectMany(r => r.Matches).ToList();
                         var doneKo = allKo.Count(m => m.IsCompleted);
-                        var liveKo = allKo.Count(m => m.GameId.HasValue && !m.IsCompleted && !m.IsBye);
+                        var liveKo = allKo.Count(m => m is { GameId: not null, IsCompleted: false, IsBye: false });
                         if (liveKo > 0)
                         {
                             <span style="font-size:.78rem; display:flex; align-items:center; gap:4px; color:#ef9a9a;">
@@ -483,7 +483,7 @@
                                 var b2 = match.BotTwo.HasValue ? names.GetValueOrDefault(match.BotTwo.Value, ShortId(match.BotTwo.Value)) : null;
                                 var w1 = match.WinnerId.HasValue && match.WinnerId == match.BotOne;
                                 var w2 = match.WinnerId.HasValue && match.WinnerId == match.BotTwo;
-                                var cardClass = "bm" + (match.IsCompleted ? " completed" : "") + (isFinal ? " final-match" : "") + (!match.IsCompleted && match.GameId.HasValue && !match.IsBye ? " live" : "");
+                                var cardClass = "bm" + (match.IsCompleted ? " completed" : "") + (isFinal ? " final-match" : "") + (match is { IsCompleted: false, GameId: not null, IsBye: false } ? " live" : "");
 
                                 <div class="@cardClass"
                                      style="left:@(roundLeft)px; top:@(cardTop)px; height:@(CardH)px;">
@@ -492,7 +492,7 @@
                                     {
                                         <div class="bm-label" style="color:#b8860b;">⭐ Final</div>
                                     }
-                                    else if (!match.IsCompleted && match.GameId.HasValue && !match.IsBye)
+                                    else if (match is { IsCompleted: false, GameId: not null, IsBye: false })
                                     {
                                         <div class="bm-label" style="display:flex; align-items:center; justify-content:center; gap:3px; color:#ef9a9a;">
                                             <span class="live-dot"></span><span>Live</span>
@@ -522,37 +522,37 @@
                             }
 
                             <!-- SVG connectors from this round to the next -->
-                            @if (ri < rounds.Count - 1)
-                            {
-                                var svgLeft = roundLeft + CardW;
-                                var nextSlotH = SlotH(ri + 1, firstCount);
+                            @if (ri >= rounds.Count - 1)
+                                continue;
+                            
+                            var svgLeft = roundLeft + CardW;
+                            var nextSlotH = SlotH(ri + 1, firstCount);
 
-                                <svg style="position:absolute; left:@(svgLeft)px; top:0; overflow:visible;"
-                                     width="@(ConnW + RoundPad * 2)" height="@(totalH)"
-                                     xmlns="http://www.w3.org/2000/svg">
-                                    @{
-                                        var matchesThisRound = rounds[ri].Matches.Count;
-                                        for (var mi2 = 0; mi2 < matchesThisRound; mi2 += 2)
-                                        {
-                                            // Two matches in this round feed one match in the next
-                                            var topY = MatchCenterY(ri, mi2, firstCount);
-                                            var botY = MatchCenterY(ri, mi2 + 1 < matchesThisRound ? mi2 + 1 : mi2, firstCount);
-                                            var midY = (topY + botY) / 2;
-                                            var halfConn = (ConnW + RoundPad * 2) / 2;
-                                            var fullConn = ConnW + RoundPad * 2;
+                            <svg style="position:absolute; left:@(svgLeft)px; top:0; overflow:visible;"
+                                 width="@(ConnW + RoundPad * 2)" height="@totalH"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                @{
+                                    var matchesThisRound = rounds[ri].Matches.Count;
+                                    for (var mi2 = 0; mi2 < matchesThisRound; mi2 += 2)
+                                    {
+                                        // Two matches in this round feed one match in the next
+                                        var topY = MatchCenterY(ri, mi2, firstCount);
+                                        var botY = MatchCenterY(ri, mi2 + 1 < matchesThisRound ? mi2 + 1 : mi2, firstCount);
+                                        var midY = (topY + botY) / 2;
+                                        const int halfConn = (ConnW + RoundPad * 2) / 2;
+                                        const int fullConn = ConnW + RoundPad * 2;
 
-                                            // Path: horizontal arm from top match → join point → horizontal arm to next round
-                                            //       plus horizontal arm from bottom match → join point
-                                            <path d="M 0 @topY H @halfConn V @botY H 0"
-                                                  fill="none" stroke="#3a3a5a" stroke-width="1.5"
-                                                  stroke-linecap="round" stroke-linejoin="round"/>
-                                            <path d="M @halfConn @midY H @fullConn"
-                                                  fill="none" stroke="#3a3a5a" stroke-width="1.5"
-                                                  stroke-linecap="round"/>
-                                        }
+                                        // Path: horizontal arm from top match → join point → horizontal arm to next round
+                                        //       plus horizontal arm from bottom match → join point
+                                        <path d="M 0 @topY H @halfConn V @botY H 0"
+                                              fill="none" stroke="#3a3a5a" stroke-width="1.5"
+                                              stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M @halfConn @midY H @fullConn"
+                                              fill="none" stroke="#3a3a5a" stroke-width="1.5"
+                                              stroke-linecap="round"/>
                                     }
-                                </svg>
-                            }
+                                } 
+                            </svg>
                         }
                     </div>
                 </div>
@@ -627,7 +627,7 @@
                 .ThenByDescending(t => t.CreatedAtUtc)
                 .ToList();
 
-            // Auto-select best tournament
+            // Auto-select the best tournament
             if (_selectedId is null || _tournaments.All(t => t.TournamentId != _selectedId))
                 _selectedId = _tournaments.FirstOrDefault()?.TournamentId;
 
@@ -657,9 +657,9 @@
                 : null;
 
             // Count in-progress games across all stages
-            var groupLive    = _bracket.GroupMatches.Count(m => m.GameId.HasValue && !m.IsCompleted);
+            var groupLive    = _bracket.GroupMatches.Count(m => m is { GameId: not null, IsCompleted: false });
             var knockoutLive = _bracket.KnockoutRounds.SelectMany(r => r.Matches)
-                                       .Count(m => m.GameId.HasValue && !m.IsCompleted && !m.IsBye);
+                                       .Count(m => m is { GameId: not null, IsCompleted: false, IsBye: false });
             _liveGameCount = groupLive + knockoutLive;
         }
         catch (Exception ex)
@@ -683,7 +683,7 @@
     // ── Bracket layout helpers ────────────────────────────────────────────────
 
     /// <summary>Slot height for a given round index (doubles each round).</summary>
-    private int SlotH(int roundIndex, int firstCount) =>
+    private static int SlotH(int roundIndex, int firstCount) =>
         (CardH + CardGap) * (1 << roundIndex);
 
     /// <summary>Top pixel offset for match [roundIndex, matchIndex].</summary>
@@ -693,7 +693,7 @@
         return matchIndex * slotH + (slotH - CardH) / 2;
     }
 
-    /// <summary>Vertical center pixel for match [roundIndex, matchIndex].</summary>
+    /// <summary>Vertical centre pixel for match [roundIndex, matchIndex].</summary>
     private int MatchCenterY(int roundIndex, int matchIndex, int firstCount)
     {
         var slotH = SlotH(roundIndex, firstCount);
