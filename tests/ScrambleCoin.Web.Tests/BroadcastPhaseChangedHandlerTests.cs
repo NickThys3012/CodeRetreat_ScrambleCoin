@@ -3,7 +3,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Notifications;
-using ScrambleCoin.Web.Notifications;
+using ScrambleCoin.Application.Notifications;
 
 namespace ScrambleCoin.Web.Tests;
 

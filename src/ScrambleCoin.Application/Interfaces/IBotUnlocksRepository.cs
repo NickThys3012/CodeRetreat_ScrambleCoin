@@ -22,4 +22,10 @@ public interface IBotUnlocksRepository
 
     /// <summary>Checks if a bot has already defeated a specific villain.</summary>
     Task<bool> HasDefeatedVillainAsync(Guid botId, string villainId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns all bot-unlock records across every bot, used by the admin panel
+    /// to render the global solo-mode progress view.
+    /// </summary>
+    Task<IEnumerable<BotUnlock>> GetAllAsync(CancellationToken cancellationToken = default);
 }

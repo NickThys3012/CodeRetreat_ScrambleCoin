@@ -829,9 +829,12 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange: advance game CoinSpawn → PlacePhase → MovePhase
         // After Start(), game is in CoinSpawn phase.
-        var (game, p1, _) = NewStartedGame();
+        var (game, p1, p2) = NewStartedGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase; MovePhaseActivePlayer = PlayerOne
+        // Place one piece per player so MovePhase is not immediately auto-skipped.
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(p2, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 7));
+        // MarkPlacePhaseActed auto-advances to MovePhase; MovePhaseActivePlayer = PlayerOne.
 
         var reg = MakeRegistration(game.Id, p1);
 

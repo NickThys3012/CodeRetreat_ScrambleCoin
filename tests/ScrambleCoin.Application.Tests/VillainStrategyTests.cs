@@ -32,11 +32,16 @@ public class VillainStrategyTests
 
     /// <summary>
     /// Advances the game through CoinSpawn and PlacePhase.
+    /// Places one piece per player so MovePhase is not immediately auto-skipped.
     /// </summary>
     private static void AdvanceToMovePhase(Game game)
     {
+        var p1 = game.PlayerOne;
+        var p2 = game.PlayerTwo;
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces.First(p => !p.IsOnBoard).Id, new Position(0, 0));
+        game.PlacePiece(p2, game.LineupPlayerTwo!.Pieces.First(p => !p.IsOnBoard).Id, new Position(7, 7));
+        // MarkPlacePhaseActed auto-advances to MovePhase.
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────

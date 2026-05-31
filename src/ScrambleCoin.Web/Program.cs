@@ -4,6 +4,7 @@ using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Behaviours;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Web.Hubs;
 
@@ -50,10 +51,12 @@ try
     builder.Services.AddMediatR(cfg =>
     {
         cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly,
-            typeof(ScrambleCoin.Web.Notifications.BroadcastGameEndedOnFinishedHandler).Assembly);
+            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
+        // Serialization must wrap everything — register first so it is the outermost behaviour.
+        cfg.AddOpenBehavior(typeof(GameSerializationBehaviour<,>));
         cfg.AddOpenBehavior(typeof(SignalRBroadcastBehaviour<,>));
     });
+    builder.Services.AddSingleton<GameLockService>();
 
     // ── Database & EF Core ─────────────────────────────────────────────────────
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -77,12 +80,12 @@ try
         sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 
     // ── Application Services ───────────────────────────────────────────────────
-    builder.Services.AddScoped<ScrambleCoin.Application.Services.ICoinSpawnService,
-        ScrambleCoin.Application.Services.CoinSpawnService>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Services.IVillainActionDispatcher,
-        ScrambleCoin.Application.Services.VillainActionDispatcher>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Services.IVillainAutomationService,
-        ScrambleCoin.Application.Services.VillainAutomationService>();
+    builder.Services.AddScoped<ICoinSpawnService,
+        CoinSpawnService>();
+    builder.Services.AddScoped<IVillainActionDispatcher,
+        VillainActionDispatcher>();
+    builder.Services.AddScoped<IVillainAutomationService,
+        VillainAutomationService>();
     builder.Services.AddSingleton<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
         ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
     builder.Services.AddSingleton<Random>();

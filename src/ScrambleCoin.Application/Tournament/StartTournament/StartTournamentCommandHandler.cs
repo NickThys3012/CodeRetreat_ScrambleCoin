@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.ValueObjects;
@@ -24,6 +25,7 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublisher _publisher;
     private readonly ILogger<StartTournamentCommandHandler> _logger;
 
     public StartTournamentCommandHandler(
@@ -31,12 +33,14 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IUnitOfWork unitOfWork,
+        IPublisher publisher,
         ILogger<StartTournamentCommandHandler> logger)
     {
         _tournamentRepository = tournamentRepository;
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _unitOfWork = unitOfWork;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -49,6 +53,9 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
 
         // Generate the round-robin schedule
         var groupMatches = tournament.Start();
+
+        // Track game IDs so we can trigger coin spawn after saving
+        var gameIds = new List<Guid>(groupMatches.Count);
 
         // Create a game for every group match
         foreach (var match in groupMatches)
@@ -69,6 +76,8 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
             var regTwo = new DomainBotReg(botTwoToken, botTwoPlayerId, gameId);
             await _botRegistrationRepository.StageAsync(regOne, cancellationToken);
             await _botRegistrationRepository.StageAsync(regTwo, cancellationToken);
+
+            gameIds.Add(gameId);
         }
 
         // Persist tournament (with all match assignments) + all games + registrations atomically
@@ -78,6 +87,12 @@ public sealed class StartTournamentCommandHandler : IRequestHandler<StartTournam
         _logger.LogInformation(
             "Tournament {TournamentId} started. {MatchCount} group matches scheduled.",
             request.TournamentId, groupMatches.Count);
+
+        // Trigger coin spawn for each game AFTER saving so the handler sees a consistent DB state.
+        // BuildGame calls game.Start() which sets phase=CoinSpawn, but clears domain events to
+        // avoid double-publishing — so we publish TurnRolledOver explicitly here.
+        foreach (var gameId in gameIds)
+            await _publisher.Publish(new TurnRolledOver(gameId), cancellationToken);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

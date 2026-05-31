@@ -46,6 +46,9 @@ public sealed class GameRecord
     /// <summary>JSON: array of <see cref="PieceDto"/> — null until PlayerTwo submits a lineup.</summary>
     public string? LineupPlayerTwoJson { get; set; }
 
+    /// <summary>UTC timestamp of the most recent move recorded in this game.</summary>
+    public DateTimeOffset LastMoveAt { get; set; } = DateTimeOffset.UtcNow;
+
     /// <summary>JSON: <see cref="BoardStateDto"/> capturing all obstacles and tile occupants.</summary>
     public string BoardStateJson { get; set; } = "{}";
 }

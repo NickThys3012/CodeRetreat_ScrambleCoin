@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
 using ScrambleCoin.Web.Hubs;
@@ -19,11 +20,12 @@ public class GameHubTests
     private static (GameHub hub, IGroupManager groups) BuildHub(string connectionId = "conn-abc-123")
     {
         var groups = Substitute.For<IGroupManager>();
+        var sender = Substitute.For<ISender>();
 
         var context = Substitute.For<HubCallerContext>();
         context.ConnectionId.Returns(connectionId);
 
-        var hub = new GameHub();
+        var hub = new GameHub(sender);
         hub.Context = context;
         hub.Groups = groups;
 

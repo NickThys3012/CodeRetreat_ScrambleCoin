@@ -43,16 +43,17 @@ builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssemblies(
         typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
-    // Register broadcast behaviour. The NullGameBroadcaster below is a no-op —
-    // spectators must target the ScrambleCoin.Web host for live SignalR updates.
+    // Serialization must wrap everything — register first so it is the outermost behaviour.
+    cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.GameSerializationBehaviour<,>));
     cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.SignalRBroadcastBehaviour<,>));
 });
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
-// No-op broadcaster: API host has no SignalR hub; the behaviour resolves without error.
+builder.Services.AddSingleton<GameLockService>();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
-    ScrambleCoin.Application.Abstractions.NullGameBroadcaster>();
+    ScrambleCoin.Api.Hubs.GameBroadcaster>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
 builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
@@ -164,6 +165,7 @@ app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.Healt
 app.MapGameEndpoints();
 app.MapSoloModeEndpoints();
 app.MapTournamentEndpoints();
+app.MapHub<ScrambleCoin.Api.Hubs.GameHub>("/hubs/game");
 
 app.Run();
 

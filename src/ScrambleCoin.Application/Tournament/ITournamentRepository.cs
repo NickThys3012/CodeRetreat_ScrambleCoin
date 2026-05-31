@@ -27,6 +27,14 @@ public interface ITournamentRepository
     Task<Domain.Tournaments.Tournament> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reloads a tournament directly from the database, bypassing any cached/tracked
+    /// entity in the current unit-of-work scope. Use after a concurrency conflict to
+    /// ensure the caller sees the latest committed state.
+    /// </summary>
+    /// <exception cref="ScrambleCoin.Domain.Exceptions.TournamentNotFoundException">Thrown when not found.</exception>
+    Task<Domain.Tournaments.Tournament> ReloadAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Stages the current state of a tournament for persistence (insert or update) without committing.
     /// The caller must commit the staged changes via <see cref="ScrambleCoin.Application.Interfaces.IUnitOfWork.SaveChangesAsync"/>.
     /// </summary>
@@ -39,4 +47,10 @@ public interface ITournamentRepository
     /// <param name="gameId">The game ID to search for across all tournament group and knockout matches.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<TournamentBotInfo?> GetBotInfoByGameIdAsync(Guid gameId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns all tournaments in the system, ordered by creation time descending.
+    /// Used by the admin panel to display the tournament list.
+    /// </summary>
+    Task<IReadOnlyList<Domain.Tournaments.Tournament>> GetAllAsync(CancellationToken cancellationToken = default);
 }

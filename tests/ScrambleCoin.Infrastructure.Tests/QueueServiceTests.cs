@@ -340,16 +340,16 @@ public class QueueServiceTests
     [Fact]
     public async Task Poll_AfterTimeoutElapses_SubsequentPollReturnsNull()
     {
-        // After the entry is marked timed_out the record is removed, so further polls
+        // After the entry is marked timed_out, the record is removed, so further polls
         // must return null (not timed_out again).
         var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
         var entry = await service.EnqueueAsync(DefaultLineup);
         await Task.Delay(1);
 
-        // First poll removes the entry and returns "timed_out".
+        // The first poll removes the entry and returns "timed_out".
         await service.PollAsync(entry.QueueId);
 
-        // Act: second poll on same ID.
+        // Act: a second poll on the same ID.
         var polled2 = await service.PollAsync(entry.QueueId);
 
         // Assert: entry is gone.
@@ -394,7 +394,7 @@ public class QueueServiceTests
         var waitingTokens = GetWaitingTokens(service);
         waitingTokens.TryAdd(token, true);
 
-        // Act: second enqueue with same token finds an empty queue (no waiting bot to dequeue)
+        // Act: the second enqueue with the same token finds an empty queue (no waiting bot to dequeue),
         // but the token is already in the waiting set → conflict.
         var entry = await service.EnqueueAsync(DefaultLineup, token);
 
@@ -595,7 +595,7 @@ public class QueueServiceTests
 
         // Post-eviction matching is validated on a freshly configured service (5-minute timeout).
         // The zero-timeout instance cannot pair new bots usefully because every entry expires
-        // before a second bot can arrive. Using a correctly-configured instance proves the
+        // before a second bot can arrive. Using a correctly configured instance proves the
         // service architecture supports normal matching once timeout is set appropriately.
         var (svc2, _, _, _) = BuildQueueService(); // 5-minute timeout
         await svc2.EnqueueAsync(DefaultLineup);    // Bot C parks
@@ -623,7 +623,7 @@ public class QueueServiceTests
         // Act: PollAsync triggers timeout + removes token from _waitingTokens.
         await svc.PollAsync(entry.QueueId);
 
-        // Assert: same token can re-enqueue without conflict.
+        // Assert: the same token can re-enqueue without a conflict.
         var requeue = await svc.EnqueueAsync(DefaultLineup, token);
         Assert.NotEqual("conflict", requeue.Status);
     }
@@ -648,7 +648,7 @@ public class QueueServiceTests
         var botBToken = Guid.NewGuid();
         await svc.EnqueueAsync(DefaultLineup, botBToken);
 
-        // Assert: Bot A's token was freed by the eviction — re-enqueue must not return conflict.
+        // Assert: The eviction freed Bot A's token — re-enqueue must not return conflict.
         var requeue = await svc.EnqueueAsync(DefaultLineup, botAToken);
         Assert.NotEqual("conflict", requeue.Status);
     }

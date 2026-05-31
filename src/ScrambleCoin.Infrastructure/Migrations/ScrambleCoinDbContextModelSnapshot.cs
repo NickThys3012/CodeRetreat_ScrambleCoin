@@ -135,6 +135,9 @@ namespace ScrambleCoin.Infrastructure.Migrations
                     b.Property<int>("GameMode")
                         .HasColumnType("int");
 
+                    b.Property<DateTimeOffset>("LastMoveAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("LineupPlayerOneJson")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("LineupPlayerOne");

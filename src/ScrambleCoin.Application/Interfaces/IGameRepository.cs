@@ -1,3 +1,4 @@
+using ScrambleCoin.Application.Games.Admin;
 using ScrambleCoin.Domain.Entities;
 
 namespace ScrambleCoin.Application.Interfaces;
@@ -26,4 +27,11 @@ public interface IGameRepository
     /// <param name="playerId">The player-slot identifier to check.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns lightweight summaries of all games that are currently
+    /// <c>InProgress</c> or <c>WaitingForBots</c>, without reconstructing full Game aggregates.
+    /// Used by the admin panel for live game monitoring.
+    /// </summary>
+    public Task<IReadOnlyList<ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default);
 }

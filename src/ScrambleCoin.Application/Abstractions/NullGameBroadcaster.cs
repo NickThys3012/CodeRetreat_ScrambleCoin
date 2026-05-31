@@ -17,4 +17,6 @@ public sealed class NullGameBroadcaster : IGameBroadcaster
     public Task BroadcastPhaseChangedAsync(Guid gameId, int turn, string? previousPhase, string? newPhase, CancellationToken ct = default) => Task.CompletedTask;
 
     public Task BroadcastGameEndedAsync(Guid gameId, int playerOneScore, int playerTwoScore, Guid? winnerId, bool isDraw, CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task NotifyActivePlayersAsync(Guid gameId, CancellationToken ct = default) => Task.CompletedTask;
 }

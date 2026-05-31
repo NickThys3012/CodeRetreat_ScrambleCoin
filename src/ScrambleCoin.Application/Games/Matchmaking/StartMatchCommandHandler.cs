@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.ValueObjects;
@@ -11,24 +12,28 @@ namespace ScrambleCoin.Application.Games.Matchmaking;
 
 /// <summary>
 /// Handles <see cref="StartMatchCommand"/>: creates a game shell, assigns both bot lineups,
-/// starts the game, persists the game and both bot registrations in one atomic operation.
+/// starts the game, persists the game and both bot registrations in one atomic operation,
+/// then publishes <see cref="TurnRolledOver"/> to trigger coin spawning for turn 1.
 /// </summary>
 public sealed class StartMatchCommandHandler : IRequestHandler<StartMatchCommand, StartMatchResult>
 {
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublisher _publisher;
     private readonly ILogger<StartMatchCommandHandler> _logger;
 
     public StartMatchCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IUnitOfWork unitOfWork,
+        IPublisher publisher,
         ILogger<StartMatchCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _unitOfWork = unitOfWork;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -53,7 +58,7 @@ public sealed class StartMatchCommandHandler : IRequestHandler<StartMatchCommand
         var regOne = new DomainBotReg(tokenOne, game.PlayerOne, game.Id);
         var regTwo = new DomainBotReg(tokenTwo, game.PlayerTwo, game.Id);
 
-        // Stage all changes on the shared DbContext, then commit once (Fix 4).
+        // Stage all changes on the shared DbContext, then commit once.
         await _gameRepository.StageAsync(game, cancellationToken);
         await _botRegistrationRepository.StageAsync(regOne, cancellationToken);
         await _botRegistrationRepository.StageAsync(regTwo, cancellationToken);
@@ -65,6 +70,9 @@ public sealed class StartMatchCommandHandler : IRequestHandler<StartMatchCommand
         _logger.LogInformation(
             "Match started via StartMatchCommand: GameId={GameId}, P1={PlayerOne}, P2={PlayerTwo}",
             game.Id, game.PlayerOne, game.PlayerTwo);
+
+        // Trigger coin spawn for turn 1 AFTER saving so the handler has a consistent DB state.
+        await _publisher.Publish(new TurnRolledOver(game.Id), cancellationToken);
 
         return new StartMatchResult(
             game.Id,

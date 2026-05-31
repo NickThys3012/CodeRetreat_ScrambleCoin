@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -23,10 +24,11 @@ public class GetTournamentBracketQueryHandlerTests
         ITournamentRepository tournamentRepo,
         IGameRepository gameRepo,
         IBotRegistrationRepository botRegRepo,
+        IPublisher publisher,
         IUnitOfWork uow)
     {
         var logger = Substitute.For<ILogger<GetTournamentBracketQueryHandler>>();
-        return new GetTournamentBracketQueryHandler(tournamentRepo, gameRepo, botRegRepo, uow, logger);
+        return new GetTournamentBracketQueryHandler(tournamentRepo, gameRepo, botRegRepo, uow, publisher, logger);
     }
 
     [Fact]
@@ -44,8 +46,9 @@ public class GetTournamentBracketQueryHandlerTests
         var gameRepo = Substitute.For<IGameRepository>();
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
         var uow = Substitute.For<IUnitOfWork>();
-
-        var handler = BuildHandler(repo, gameRepo, botRegRepo, uow);
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
         var result = await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
@@ -65,9 +68,12 @@ public class GetTournamentBracketQueryHandlerTests
         repo.GetByIdAsync(tournamentId, Arg.Any<CancellationToken>())
             .Returns(tournament);
 
-        var handler = BuildHandler(repo, Substitute.For<IGameRepository>(),
-            Substitute.For<IBotRegistrationRepository>(), Substitute.For<IUnitOfWork>());
-
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRegRepo = Substitute.For<IBotRegistrationRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
         var result = await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
@@ -93,8 +99,10 @@ public class GetTournamentBracketQueryHandlerTests
         var gameRepo = Substitute.For<IGameRepository>();
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
         var uow = Substitute.For<IUnitOfWork>();
-
-        var handler = BuildHandler(repo, gameRepo, botRegRepo, uow);
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
+        
         var result = await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
@@ -128,8 +136,10 @@ public class GetTournamentBracketQueryHandlerTests
 
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
         var uow = Substitute.For<IUnitOfWork>();
-
-        var handler = BuildHandler(repo, gameRepo, botRegRepo, uow);
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
+        
         var result = await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
@@ -160,8 +170,10 @@ public class GetTournamentBracketQueryHandlerTests
 
         var botRegRepo = Substitute.For<IBotRegistrationRepository>();
         var uow = Substitute.For<IUnitOfWork>();
-
-        var handler = BuildHandler(repo, gameRepo, botRegRepo, uow);
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
+        
         await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);
@@ -182,9 +194,13 @@ public class GetTournamentBracketQueryHandlerTests
         repo.GetByIdAsync(tournamentId, Arg.Any<CancellationToken>())
             .Returns(tournament);
 
-        var handler = BuildHandler(repo, Substitute.For<IGameRepository>(),
-            Substitute.For<IBotRegistrationRepository>(), Substitute.For<IUnitOfWork>());
-
+        var gameRepo = Substitute.For<IGameRepository>();
+        var botRegRepo = Substitute.For<IBotRegistrationRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var publisher = Substitute.For<IPublisher>();
+        
+        var handler = BuildHandler(repo, gameRepo, botRegRepo, publisher, uow);
+        
         await handler.Handle(
             new GetTournamentBracketQuery(tournamentId),
             CancellationToken.None);

@@ -5,6 +5,7 @@ namespace ScrambleCoin.Application.Tournament.GetBracket;
 /// <param name="TournamentName">Human-readable name.</param>
 /// <param name="Status">Current lifecycle status.</param>
 /// <param name="WinnerId">Bot ID of the overall tournament winner; <c>null</c> until Completed.</param>
+/// <param name="Participants">All registered participants (available in every lifecycle state).</param>
 /// <param name="GroupMatches">All round-robin group stage matches.</param>
 /// <param name="KnockoutRounds">Knockout rounds, each containing their matches.</param>
 public sealed record TournamentBracketDto(
@@ -12,8 +13,14 @@ public sealed record TournamentBracketDto(
     string TournamentName,
     string Status,
     Guid? WinnerId,
+    IReadOnlyList<ParticipantDto> Participants,
     IReadOnlyList<GroupMatchDto> GroupMatches,
     IReadOnlyList<KnockoutRoundDto> KnockoutRounds);
+
+/// <summary>A registered tournament participant.</summary>
+/// <param name="BotId">Stable bot identifier.</param>
+/// <param name="BotName">Human-readable display name.</param>
+public sealed record ParticipantDto(Guid BotId, string BotName);
 
 /// <summary>DTO for a single group stage match.</summary>
 /// <param name="MatchId">Unique match identifier.</param>

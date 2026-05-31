@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Entities;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
@@ -19,6 +20,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublisher _publisher;
     private readonly ILogger<GetTournamentBracketQueryHandler> _logger;
 
     public GetTournamentBracketQueryHandler(
@@ -26,12 +28,14 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IUnitOfWork unitOfWork,
+        IPublisher publisher,
         ILogger<GetTournamentBracketQueryHandler> logger)
     {
         _tournamentRepository = tournamentRepository;
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _unitOfWork = unitOfWork;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -40,6 +44,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         var tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
 
         var dirty = false;
+        var newGameIds = new List<Guid>();
 
         // ── Group stage sync ──────────────────────────────────────────────────
         if (tournament.Status == TournamentStatus.GroupStage)
@@ -56,14 +61,14 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
                 dirty = true;
 
                 // Create games for round 1 knockout matches
-                await CreateKnockoutGamesForCurrentRoundAsync(tournament, 1, cancellationToken);
+                await CreateKnockoutGamesForCurrentRoundAsync(tournament, 1, newGameIds, cancellationToken);
             }
         }
 
         // ── Knockout stage sync ───────────────────────────────────────────────
         if (tournament.Status == TournamentStatus.KnockoutStage)
         {
-            var knockoutDirty = await SyncKnockoutResultsAsync(tournament, cancellationToken);
+            var knockoutDirty = await SyncKnockoutResultsAsync(tournament, newGameIds, cancellationToken);
             dirty = dirty || knockoutDirty;
         }
 
@@ -77,13 +82,19 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             catch (ConcurrencyConflictException)
             {
                 // A concurrent request already committed the same state transition.
-                // Reload the now-current tournament and return it without retrying.
+                // Reload fresh from DB (bypassing the identity map which still holds stale data).
                 _logger.LogWarning(
                     "Tournament {TournamentId}: concurrency conflict on bracket sync. Reloading current state.",
                     tournament.Id);
-                tournament = await _tournamentRepository.GetByIdAsync(request.TournamentId, cancellationToken);
+                tournament = await _tournamentRepository.ReloadAsync(request.TournamentId, cancellationToken);
+                newGameIds.Clear(); // other request already published TurnRolledOver for those games
             }
         }
+
+        // Trigger coin spawn for each newly created knockout game so it advances
+        // from CoinSpawn → PlacePhase and bots receive an ActionRequired event.
+        foreach (var gameId in newGameIds)
+            await _publisher.Publish(new TurnRolledOver(gameId), cancellationToken);
 
         return BuildDto(tournament);
     }
@@ -118,7 +129,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
         return dirty;
     }
 
-    private async Task<bool> SyncKnockoutResultsAsync(DomainTournament tournament, CancellationToken ct)
+    private async Task<bool> SyncKnockoutResultsAsync(DomainTournament tournament, List<Guid> newGameIds, CancellationToken ct)
     {
         var dirty = false;
 
@@ -158,11 +169,11 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
             // If all matches in this round are now complete, create games for the next round
             var roundComplete = roundMatches.All(m => m.IsCompleted);
-            if (roundComplete && round < maxRound)
-            {
-                await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, ct);
-                dirty = true;
-            }
+            if (!roundComplete || round >= maxRound)
+                continue;
+            
+            await CreateKnockoutGamesForCurrentRoundAsync(tournament, round + 1, newGameIds, ct);
+            dirty = true;
         }
 
         return dirty;
@@ -171,6 +182,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
     private async Task CreateKnockoutGamesForCurrentRoundAsync(
         DomainTournament tournament,
         int round,
+        List<Guid> newGameIds,
         CancellationToken ct)
     {
         var participantMap = tournament.Participants.ToDictionary(p => p.BotId);
@@ -208,6 +220,8 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             await _botRegistrationRepository.StageAsync(regOne, ct);
             await _botRegistrationRepository.StageAsync(regTwo, ct);
 
+            newGameIds.Add(gameId);
+
             _logger.LogInformation(
                 "Tournament {TournamentId}: knockout R{Round} match {MatchId} game {GameId} created.",
                 tournament.Id, round, match.Id, gameId);
@@ -224,6 +238,11 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
 
     private static TournamentBracketDto BuildDto(DomainTournament tournament)
     {
+        var participants = tournament.Participants
+            .Select(p => new ParticipantDto(p.BotId, p.BotName))
+            .ToList()
+            .AsReadOnly();
+
         var groupDtos = tournament.GroupMatches.Select(m => new GroupMatchDto(
             MatchId: m.Id,
             BotOne: m.BotOne,
@@ -257,6 +276,7 @@ public sealed class GetTournamentBracketQueryHandler : IRequestHandler<GetTourna
             tournament.Name,
             tournament.Status.ToString(),
             tournament.WinnerId,
+            participants,
             groupDtos.AsReadOnly(),
             knockoutRounds.AsReadOnly());
     }

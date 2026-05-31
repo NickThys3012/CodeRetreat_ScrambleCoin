@@ -25,8 +25,9 @@ public class StartTournamentCommandHandlerTests
         IBotRegistrationRepository botRegRepo,
         IUnitOfWork uow)
     {
-        var logger = Substitute.For<ILogger<StartTournamentCommandHandler>>();
-        return new StartTournamentCommandHandler(tournamentRepo, gameRepo, botRegRepo, uow, logger);
+        var logger    = Substitute.For<ILogger<StartTournamentCommandHandler>>();
+        var publisher = Substitute.For<MediatR.IPublisher>();
+        return new StartTournamentCommandHandler(tournamentRepo, gameRepo, botRegRepo, uow, publisher, logger);
     }
 
     private static DomainTournament BuildTournamentWithBots(Guid id, int botCount)

@@ -39,6 +39,21 @@ public sealed class TournamentRepository : ITournamentRepository
     }
 
     /// <inheritdoc/>
+    public async Task<Tournament> ReloadAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        // Detach any tracked instance so FindAsync is forced to hit the DB.
+        var tracked = _context.ChangeTracker.Entries<TournamentRecord>()
+            .FirstOrDefault(e => e.Entity.Id == id);
+        if (tracked is not null)
+            tracked.State = EntityState.Detached;
+
+        var record = await _context.Tournaments.FindAsync([id], cancellationToken)
+            ?? throw new TournamentNotFoundException(id);
+
+        return Hydrate(record);
+    }
+
+    /// <inheritdoc/>
     public async Task SaveAsync(Tournament tournament, CancellationToken cancellationToken = default)
     {
         var record = Dehydrate(tournament);
@@ -113,6 +128,13 @@ public sealed class TournamentRepository : ITournamentRepository
         }
 
         return null;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Tournament>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var records = await _context.Tournaments.AsNoTracking().ToListAsync(cancellationToken);
+        return records.Select(Hydrate).ToList().AsReadOnly();
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────

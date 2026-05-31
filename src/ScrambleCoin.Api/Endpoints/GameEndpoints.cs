@@ -131,28 +131,20 @@ public static class GameEndpoints
                 title: "Invalid Lineup");
         }
 
-        if (entry.Status == "conflict")
+        return entry.Status switch
         {
-            return Results.Problem(
-                detail: "Bot is already waiting in the queue or has an active game in progress.",
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Conflict");
-        }
-
-        if (entry.Status == "matched")
-        {
-            return Results.Ok(new
+            "conflict" => Results.Problem(detail: "Bot is already waiting in the queue or has an active game in progress.", statusCode: StatusCodes.Status409Conflict, title: "Conflict"),
+            "matched" => Results.Ok(new
             {
-                gameId = entry.GameId,
-                playerId = entry.PlayerId,
-                token = entry.Token
-            });
-        }
+                gameId = entry.GameId, playerId = entry.PlayerId, token = entry.Token
+            }),
+            _ => Results.Accepted($"/api/games/queue/{entry.QueueId}", new
+            {
+                queueId = entry.QueueId
+            })
+        };
 
         // 202 Accepted — bot is waiting in the queue
-        return Results.Accepted(
-            $"/api/games/queue/{entry.QueueId}",
-            new { queueId = entry.QueueId });
     }
 
     /// <summary>Polls a queue entry for matchmaking status.</summary>

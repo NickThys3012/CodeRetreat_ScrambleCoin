@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
@@ -28,7 +29,8 @@ public class JoinGameCommandHandlerTests
     {
         var logger = Substitute.For<ILogger<JoinGameCommandHandler>>();
         botRegRepo ??= Substitute.For<IBotRegistrationRepository>();
-        return new JoinGameCommandHandler(gameRepo, botRegRepo, logger);
+        var publisher = Substitute.For<IPublisher>();
+        return new JoinGameCommandHandler(gameRepo, botRegRepo, publisher, logger);
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
