@@ -46,7 +46,7 @@ public sealed class SignalRBroadcastBehaviour<TRequest, TResponse> : IPipelineBe
             await _broadcaster.NotifyActivePlayersAsync(gameCommand.GameId, cancellationToken);
 
             if (result is not null)
-                _ = CaptureSnapshotAsync(gameCommand.GameId, result, cancellationToken);
+                await CaptureSnapshotAsync(gameCommand.GameId, result);
         }
         catch (Exception ex)
         {
@@ -60,11 +60,13 @@ public sealed class SignalRBroadcastBehaviour<TRequest, TResponse> : IPipelineBe
         return response;
     }
 
-    private async Task CaptureSnapshotAsync(Guid gameId, BroadcastResult result, CancellationToken ct)
+    private async Task CaptureSnapshotAsync(Guid gameId, BroadcastResult result)
     {
         try
         {
-            await _snapshots.SaveSnapshotAsync(gameId, result.Turn, result.Phase, result.BoardStateJson, ct);
+            // Use CancellationToken.None — the HTTP request token is already cancelled
+            // by the time an unawaited task would run, and we don't want to lose the snapshot.
+            await _snapshots.SaveSnapshotAsync(gameId, result.Turn, result.Phase, result.BoardStateJson, CancellationToken.None);
         }
         catch (Exception ex)
         {
