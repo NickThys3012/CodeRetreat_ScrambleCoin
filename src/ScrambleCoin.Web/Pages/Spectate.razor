@@ -3,6 +3,7 @@
 @using ScrambleCoin.Application.Games.GetBoardState
 @using MediatR
 @inject IMediator Mediator
+@inject NavigationManager NavManager
 @implements IAsyncDisposable
 
 <style>
@@ -272,7 +273,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        const string hubUrl = "/hubs/game";
+        var hubUrl = NavManager.ToAbsoluteUri("/hubs/game").ToString();
 
         _hub = new HubConnectionBuilder()
             .WithUrl(hubUrl)
