@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using ScrambleCoin.Application.Abstractions;
@@ -16,6 +17,8 @@ public sealed class GameBroadcaster : IGameBroadcaster
     private const string GameGroupPrefix   = "game-";
     private const string PlayerGroupPrefix = "player-";
 
+    private static readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     private readonly IHubContext<GameHub> _hubContext;
     private readonly ISender _sender;
 
@@ -26,11 +29,14 @@ public sealed class GameBroadcaster : IGameBroadcaster
     }
 
     /// <inheritdoc />
-    public async Task BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
+    public async Task<BroadcastResult?> BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
     {
         var boardState = await _sender.Send(new GetSpectatorBoardStateQuery(gameId), ct);
+        if (boardState is null) return null;
         var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("BoardStateUpdated", boardState, ct);
+        var json = JsonSerializer.Serialize(boardState, _json);
+        return new BroadcastResult(boardState.Turn, boardState.Phase ?? "Unknown", json);
     }
 
     /// <inheritdoc />

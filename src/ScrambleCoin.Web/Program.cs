@@ -76,6 +76,8 @@ try
         TournamentRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IRankingRepository,
         RankingRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
+        GameSnapshotRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IUnitOfWork>(
         sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 

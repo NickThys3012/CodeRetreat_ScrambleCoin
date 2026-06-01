@@ -1,0 +1,279 @@
+@page "/replay/{GameId:guid}"
+@using MediatR
+@using ScrambleCoin.Application.Games.Replay
+@inject ISender Sender
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Replay — ScrambleCoin</PageTitle>
+
+<div class="replay-shell">
+    @if (_loading)
+    {
+        <div class="replay-loading">
+            <span class="spinner"></span> Loading replay…
+        </div>
+    }
+    else if (_frames.Count == 0)
+    {
+        <div class="replay-empty">
+            <h2>No replay data found</h2>
+            <p>This game has no recorded snapshots. Snapshots are captured automatically during live games.</p>
+            <a href="/" class="btn-secondary">← Back to lobby</a>
+        </div>
+    }
+    else
+    {
+        var frame = _frames[_index];
+        <div class="replay-header">
+            <a href="/" class="btn-secondary">← Lobby</a>
+            <h1>📼 Game Replay</h1>
+            <span class="replay-meta">@(_frames.Count) frames · @_speedLabel</span>
+        </div>
+
+        <div class="replay-score-bar">
+            <div class="replay-player-score left">
+                <span class="bot-name">Player 1</span>
+                <span class="big-score">@frame.BoardState.YourScore</span>
+            </div>
+            <div class="replay-phase-badge">
+                Turn @frame.Turn · @frame.Phase
+                <div class="replay-timestamp">@frame.CapturedAt.ToLocalTime().ToString("HH:mm:ss")</div>
+            </div>
+            <div class="replay-player-score right">
+                <span class="big-score">@frame.BoardState.OpponentScore</span>
+                <span class="bot-name">Player 2</span>
+            </div>
+        </div>
+
+        <GameBoard BoardState="frame.BoardState" />
+
+        <div class="replay-controls">
+            <button class="ctrl-btn" @onclick="GoFirst"    disabled="@(_index == 0)"              title="First">⏮</button>
+            <button class="ctrl-btn" @onclick="GoPrev"     disabled="@(_index == 0)"              title="Previous">◀</button>
+            <button class="ctrl-btn play-btn" @onclick="TogglePlay" title="@(_playing ? "Pause" : "Play")">
+                @(_playing ? "⏸" : "▶")
+            </button>
+            <button class="ctrl-btn" @onclick="GoNext"     disabled="@(_index == _frames.Count - 1)" title="Next">▶</button>
+            <button class="ctrl-btn" @onclick="GoLast"     disabled="@(_index == _frames.Count - 1)" title="Last">⏭</button>
+
+            <div class="replay-speed">
+                <label>Speed</label>
+                <select @onchange="ChangeSpeed">
+                    <option value="2000">0.5×</option>
+                    <option value="1000" selected>1×</option>
+                    <option value="500">2×</option>
+                    <option value="250">4×</option>
+                </select>
+            </div>
+
+            <div class="replay-scrubber-wrap">
+                <input type="range" min="0" max="@(_frames.Count - 1)" value="@_index"
+                       @oninput="Scrub" class="replay-scrubber" />
+                <span class="scrubber-label">@(_index + 1) / @_frames.Count</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid GameId { get; set; }
+
+    private List<ReplayFrameDto> _frames = new();
+    private int _index;
+    private bool _loading = true;
+    private bool _playing;
+    private int _intervalMs = 1000;
+    private Timer? _timer;
+
+    private string _speedLabel => _intervalMs switch
+    {
+        2000 => "0.5×",
+        500  => "2×",
+        250  => "4×",
+        _    => "1×"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Sender.Send(new GetGameReplayQuery(GameId));
+        _frames = result.ToList();
+        _loading = false;
+    }
+
+    private void GoFirst() { _index = 0; }
+    private void GoPrev()  { if (_index > 0) _index--; }
+    private void GoNext()  { if (_index < _frames.Count - 1) _index++; else StopPlay(); }
+    private void GoLast()  { _index = _frames.Count - 1; }
+
+    private void Scrub(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v))
+            _index = Math.Clamp(v, 0, _frames.Count - 1);
+    }
+
+    private void ChangeSpeed(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var ms))
+        {
+            _intervalMs = ms;
+            if (_playing) RestartTimer();
+        }
+    }
+
+    private void TogglePlay()
+    {
+        if (_playing) StopPlay();
+        else StartPlay();
+    }
+
+    private void StartPlay()
+    {
+        if (_index == _frames.Count - 1) _index = 0;
+        _playing = true;
+        _timer = new Timer(Tick, null, _intervalMs, _intervalMs);
+    }
+
+    private void StopPlay()
+    {
+        _playing = false;
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    private void RestartTimer()
+    {
+        _timer?.Dispose();
+        _timer = new Timer(Tick, null, _intervalMs, _intervalMs);
+    }
+
+    private void Tick(object? _)
+    {
+        InvokeAsync(() =>
+        {
+            if (_index < _frames.Count - 1)
+            {
+                _index++;
+                StateHasChanged();
+            }
+            else
+            {
+                StopPlay();
+                StateHasChanged();
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}
+
+<style>
+    .replay-shell {
+        min-height: 100vh;
+        background: #0f1117;
+        color: #e2e8f0;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .replay-loading, .replay-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 4rem;
+        color: #94a3b8;
+    }
+
+    .replay-header {
+        width: 100%;
+        max-width: 700px;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .replay-header h1 { flex: 1; text-align: center; margin: 0; font-size: 1.4rem; }
+    .replay-meta { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
+
+    .replay-score-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 700px;
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        gap: 1rem;
+    }
+    .replay-player-score { display: flex; flex-direction: column; align-items: center; }
+    .replay-player-score.right { align-items: center; }
+    .bot-name { font-size: 0.75rem; color: #94a3b8; }
+    .big-score { font-size: 2rem; font-weight: 700; color: #fbbf24; }
+    .replay-phase-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #94a3b8;
+    }
+    .replay-timestamp { font-size: 0.7rem; color: #475569; }
+
+    .replay-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        max-width: 700px;
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+    }
+
+    .ctrl-btn {
+        background: #334155;
+        border: none;
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: 1.2rem;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .ctrl-btn:hover:not(:disabled) { background: #475569; }
+    .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .play-btn { font-size: 1.4rem; padding: 0.4rem 1rem; background: #2563eb; }
+    .play-btn:hover:not(:disabled) { background: #3b82f6; }
+
+    .replay-speed { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+    .replay-speed select {
+        background: #334155; color: #e2e8f0; border: none; border-radius: 6px;
+        padding: 0.25rem 0.5rem; cursor: pointer;
+    }
+
+    .replay-scrubber-wrap { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 200px; }
+    .replay-scrubber { flex: 1; accent-color: #2563eb; }
+    .scrubber-label { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
+
+    .btn-secondary {
+        background: #334155; color: #e2e8f0; border: none; border-radius: 8px;
+        padding: 0.4rem 0.8rem; text-decoration: none; font-size: 0.85rem; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #475569; }
+
+    .spinner {
+        display: inline-block; width: 24px; height: 24px;
+        border: 3px solid #334155; border-top-color: #2563eb;
+        border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+</style>

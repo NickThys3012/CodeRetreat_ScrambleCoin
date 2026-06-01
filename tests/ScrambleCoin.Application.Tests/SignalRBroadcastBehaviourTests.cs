@@ -5,6 +5,7 @@ using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Behaviours;
 using ScrambleCoin.Application.Games;
+using ScrambleCoin.Application.Games.Replay;
 
 namespace ScrambleCoin.Application.Tests;
 
@@ -25,11 +26,13 @@ public class SignalRBroadcastBehaviourTests
     // ── Factory helpers ───────────────────────────────────────────────────────
 
     private static SignalRBroadcastBehaviour<TRequest, Unit> BuildBehaviour<TRequest>(
-        IGameBroadcaster broadcaster)
+        IGameBroadcaster broadcaster,
+        IGameSnapshotRepository? snapshots = null)
         where TRequest : notnull
     {
         var logger = NullLogger<SignalRBroadcastBehaviour<TRequest, Unit>>.Instance;
-        return new SignalRBroadcastBehaviour<TRequest, Unit>(broadcaster, logger);
+        var snapshotRepo = snapshots ?? Substitute.For<IGameSnapshotRepository>();
+        return new SignalRBroadcastBehaviour<TRequest, Unit>(broadcaster, snapshotRepo, logger);
     }
 
     private static RequestHandlerDelegate<Unit> SuccessDelegate()

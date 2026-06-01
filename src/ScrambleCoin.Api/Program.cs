@@ -60,6 +60,8 @@ builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
 builder.Services.AddScoped<IBotUnlocksRepository, BotUnlocksRepository>();
 builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();
 builder.Services.AddScoped<IRankingRepository, RankingRepository>();
+builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
+    ScrambleCoin.Infrastructure.Persistence.GameSnapshotRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));

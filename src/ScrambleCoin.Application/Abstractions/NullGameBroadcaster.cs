@@ -12,7 +12,7 @@ namespace ScrambleCoin.Application.Abstractions;
 /// </remarks>
 public sealed class NullGameBroadcaster : IGameBroadcaster
 {
-    public Task BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default) => Task.CompletedTask;
+    public Task<BroadcastResult?> BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default) => Task.FromResult<BroadcastResult?>(null);
 
     public Task BroadcastPhaseChangedAsync(Guid gameId, int turn, string? previousPhase, string? newPhase, CancellationToken ct = default) => Task.CompletedTask;
 

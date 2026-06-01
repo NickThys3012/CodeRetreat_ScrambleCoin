@@ -82,14 +82,24 @@ public sealed class GameRepository : IGameRepository
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
     {
-        const int inProgress    = (int)GameStatus.InProgress;
+        const int inProgress     = (int)GameStatus.InProgress;
         const int waitingForBots = (int)GameStatus.WaitingForBots;
+        const int finished       = (int)GameStatus.Finished;
 
-        var records = await _context.Games
+        // Active games + the 12 most recently completed (for replay links on the lobby)
+        var activeRecords = await _context.Games
             .AsNoTracking()
             .Where(g => g.Status == inProgress || g.Status == waitingForBots)
             .ToListAsync(cancellationToken);
 
+        var recentCompleted = await _context.Games
+            .AsNoTracking()
+            .Where(g => g.Status == finished)
+            .OrderByDescending(g => g.LastMoveAt)
+            .Take(12)
+            .ToListAsync(cancellationToken);
+
+        var records = activeRecords.Concat(recentCompleted).ToList();
         var results = new List<ActiveGameSummaryDto>(records.Count);
 
         foreach (var r in records)

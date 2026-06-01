@@ -88,6 +88,17 @@
         text-transform: uppercase;
     }
 
+    .card-status-done {
+        background: #1a237e;
+        color: #90caf9;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
     .card-game-id {
         font-size: 0.62rem;
         color: #444;
@@ -121,6 +132,10 @@
         color: #7c4dff;
         font-weight: 600;
         letter-spacing: 0.04em;
+    }
+
+    .replay-card-btn {
+        color: #2563eb;
     }
 
     .no-games {
@@ -198,12 +213,13 @@
             @foreach (var game in _activeGames)
             {
                 var g = game; // capture for lambda
+                var dest = g.Status == "Finished" ? $"/replay/{g.GameId}" : $"/spectate/{g.GameId}";
                 <MudItem xs="12" sm="6" md="4">
-                    <div class="game-card" @onclick="@(() => NavManager.NavigateTo($"/spectate/{g.GameId}"))">
+                    <div class="game-card" @onclick="@(() => NavManager.NavigateTo(dest))">
 
                         <div class="card-header">
-                            <span class="@(g.Status == "InProgress" ? "card-status-live" : "card-status-waiting")">
-                                @(g.Status == "InProgress" ? "● Live" : "⏳ Waiting")
+                            <span class="@(g.Status == "InProgress" ? "card-status-live" : g.Status == "Finished" ? "card-status-done" : "card-status-waiting")">
+                                @(g.Status == "InProgress" ? "● Live" : g.Status == "Finished" ? "✓ Done" : "⏳ Waiting")
                             </span>
                             <span class="card-game-id">@g.GameId.ToString()[..8]…</span>
                         </div>
@@ -228,7 +244,14 @@
                             P2: @g.PlayerTwo.ToString()[..8]…
                         </div>
 
-                        <div class="card-watch-btn">▶ Watch Live</div>
+                        @if (g.Status == "Finished")
+                        {
+                            <div class="card-watch-btn replay-card-btn">📼 Replay</div>
+                        }
+                        else
+                        {
+                            <div class="card-watch-btn">▶ Watch Live</div>
+                        }
 
                     </div>
                 </MudItem>

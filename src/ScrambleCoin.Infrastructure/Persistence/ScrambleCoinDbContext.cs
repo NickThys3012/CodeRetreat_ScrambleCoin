@@ -38,6 +38,9 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
     /// <summary>The RankingTracks table — one row per bot's cumulative ranking record.</summary>
     public DbSet<RankingTrackRecord> RankingTracks => Set<RankingTrackRecord>();
 
+    /// <summary>The GameSnapshots table — ordered board-state snapshots for game replay.</summary>
+    public DbSet<GameSnapshotRecord> GameSnapshots => Set<GameSnapshotRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -154,6 +157,21 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
             entity.Property(r => r.Losses).IsRequired();
             entity.Property(r => r.GamesPlayed).IsRequired();
             entity.Property(r => r.MilestonesHitJson).IsRequired().HasColumnName("MilestonesHit");
+        });
+
+        modelBuilder.Entity<GameSnapshotRecord>(entity =>
+        {
+            entity.ToTable("GameSnapshots");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedOnAdd();
+            entity.Property(s => s.GameId).IsRequired();
+            entity.Property(s => s.SequenceNumber).IsRequired();
+            entity.Property(s => s.Turn).IsRequired();
+            entity.Property(s => s.Phase).HasMaxLength(50);
+            entity.Property(s => s.BoardStateJson).IsRequired().HasColumnName("BoardState");
+            entity.Property(s => s.CapturedAt).IsRequired();
+            entity.HasIndex(s => new { s.GameId, s.SequenceNumber }).IsUnique();
+            entity.HasIndex(s => s.GameId);
         });
     }
 
