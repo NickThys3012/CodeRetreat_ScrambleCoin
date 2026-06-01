@@ -114,12 +114,18 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             var isObstacle = board.IsObstacleCovering(position);
             var occupant = MapOccupant(tile);
             var fencedEdges = GetFencedEdges(position, obstacles.Fences);
+            var obstacleType = board.HasLake(position) ? "Lake"
+                : board.HasRock(position) ? "Rock"
+                : "None";
+            var hasIcePatch = board.HasIcePatch(position);
 
             tiles.Add(new TileDto(
                 Position: new PositionDto(row, col),
                 IsObstacle: isObstacle,
                 Occupant: occupant,
-                FencedEdges: fencedEdges));
+                FencedEdges: fencedEdges,
+                ObstacleType: obstacleType,
+                HasIcePatch: hasIcePatch));
         }
 
         return tiles.AsReadOnly();

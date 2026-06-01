@@ -5,23 +5,161 @@
 @inject IMediator Mediator
 @implements IAsyncDisposable
 
+<style>
+    .spectate-page {
+        min-height: 100vh;
+        background: #0d0d1a;
+        padding: 1.5rem;
+    }
+
+    .spectate-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #7c4dff;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+
+    .game-id-label {
+        font-size: 0.72rem;
+        color: #555;
+        font-family: monospace;
+    }
+
+    .score-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #1a1a2e;
+        border: 1px solid #2a2a4a;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .score-player {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 120px;
+    }
+
+    .score-label {
+        font-size: 0.7rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.15rem;
+    }
+
+    .score-value {
+        font-size: 2.8rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .score-p1 { color: #1e88e5; }
+    .score-p2 { color: #e53935; }
+
+    .score-vs {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #444;
+    }
+
+    .info-chips {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chip {
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .chip-turn     { background: #311b92; color: #ede7f6; }
+    .chip-phase    { background: #1a237e; color: #e8eaf6; }
+    .chip-active   { background: #e65100; color: #fff3e0; }
+    .chip-waiting  { background: #1b5e20; color: #e8f5e9; }
+
+    .board-section {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        justify-content: center;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68rem;
+        color: #888;
+    }
+
+    .legend-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid rgba(255,255,255,0.1);
+        display: inline-block;
+    }
+
+    .conn-status {
+        font-size: 0.68rem;
+        color: #555;
+        text-align: right;
+        margin-top: 0.5rem;
+    }
+
+    .conn-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+
+    .waiting-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 3rem;
+        color: #555;
+    }
+
+    @@media (max-width: 600px) {
+        .score-value { font-size: 1.8rem; }
+        .spectate-title { font-size: 1.1rem; }
+    }
+</style>
+
 <PageTitle>Spectate — ScrambleCoin</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge">
+<div class="spectate-page">
 
-    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
-        👁️ Spectating Game
-    </div>
-
-    <MudText Typo="Typo.caption" Style="color:#888;" Class="mb-2">
-        Game ID: <code>@GameId</code>
-        &nbsp;|&nbsp;
-        Connection: <span style="color: @ConnectionColour">@_connectionState</span>
-    </MudText>
+    <div class="spectate-title">👁️ Spectating</div>
+    <div class="game-id-label">Game: @GameId</div>
 
     @if (_gameEnded)
     {
-        <MudAlert Severity="Severity.Success" Class="mb-4">
+        <MudAlert Severity="Severity.Success" Class="mb-3" Style="border-radius: 10px;">
             🏁 <strong>Game Over!</strong>
             @if (_isDraw)
             {
@@ -29,81 +167,87 @@
             }
             else
             {
-                <span> Winner: <strong>@(_winnerId?.ToString() ?? "Unknown")</strong></span>
+                <span> Winner: <strong>@(_winnerId?.ToString()[..8])…</strong></span>
             }
-            &nbsp;|&nbsp; P1: @_playerOneScore pts &nbsp;|&nbsp; P2: @_playerTwoScore pts
+            &nbsp; | &nbsp;
+            <strong style="color:#1e88e5;">P1: @_playerOneScore pts</strong>
+            &nbsp; | &nbsp;
+            <strong style="color:#e53935;">P2: @_playerTwoScore pts</strong>
         </MudAlert>
     }
 
     @if (_boardState is not null)
     {
-        <!-- Turn / Phase / Score bar -->
-        <MudPaper Elevation="2" Class="pa-3 mb-4 d-flex" Style="gap: 2rem; align-items: center; flex-wrap: wrap;">
-            <MudChip T="string" Color="Color.Primary" Size="Size.Medium">Turn @_boardState.Turn / 5</MudChip>
-            <MudChip T="string" Color="Color.Secondary" Size="Size.Medium">Phase: @(_boardState.Phase ?? "—")</MudChip>
-            @if (_boardState.ActivePlayer is not null)
-            {
-                <MudChip T="string" Color="Color.Warning" Size="Size.Small">Active: @_boardState.ActivePlayer[..8]…</MudChip>
-            }
-            <MudSpacer />
-            <MudText><strong>Player 1:</strong> @_boardState.YourScore pts</MudText>
-            <MudText><strong>Player 2:</strong> @_boardState.OpponentScore pts</MudText>
-        </MudPaper>
+        <!-- Score bar -->
+        <div class="score-bar">
+            <div class="score-player">
+                <div class="score-label">Player 1</div>
+                <div class="score-value score-p1">@_boardState.YourScore</div>
+                <div class="score-label">pts</div>
+            </div>
 
-        <!-- 8×8 board grid -->
-        <div style="overflow-x: auto;">
-            <table style="border-collapse: collapse; font-size: 0.7rem; min-width: 400px;">
-                <thead>
-                    <tr>
-                        <th style="width: 28px;"></th>
-                        @for (var col = 0; col < 8; col++)
-                        {
-                            <th style="width: 52px; text-align: center; padding: 2px; color: #888;">@col</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var row = 0; row < 8; row++)
-                    {
-                        var rowIndex = row;
-                        <tr>
-                            <td style="padding: 2px; color: #888; text-align: center;">@row</td>
-                            @for (var col = 0; col < 8; col++)
-                            {
-                                var tile = GetTile(rowIndex, col);
-                                <td style="@GetTileStyle(tile)" title="@GetTileTooltip(tile)">
-                                    @RenderTileContent(tile)
-                                </td>
-                            }
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            <div class="info-chips">
+                <span class="chip chip-turn">Turn @_boardState.Turn / 5</span>
+                <span class="chip chip-phase">@(_boardState.Phase ?? "—")</span>
+                @if (_boardState.ActivePlayer is not null)
+                {
+                    <span class="chip chip-active">Active: @_boardState.ActivePlayer[..8]…</span>
+                }
+                else
+                {
+                    <span class="chip chip-waiting">⏳ Waiting</span>
+                }
+            </div>
+
+            <div class="score-vs">vs</div>
+
+            <div class="score-player">
+                <div class="score-label">Player 2</div>
+                <div class="score-value score-p2">@_boardState.OpponentScore</div>
+                <div class="score-label">pts</div>
+            </div>
+        </div>
+
+        <!-- Board -->
+        <div class="board-section">
+            <GameBoard BoardState="_boardState"
+                       PlayerOneId="_playerOneId"
+                       GameEnded="_gameEnded"
+                       WinnerId="_winnerId"
+                       IsDraw="_isDraw" />
         </div>
 
         <!-- Legend -->
-        <MudPaper Elevation="1" Class="pa-2 mt-3">
-            <MudText Typo="Typo.caption" Style="color:#888;">
-                Legend: &nbsp;
-                <span style="background:#555; padding: 1px 6px; border-radius:3px;">⬛ Obstacle</span>&nbsp;
-                <span style="background:#b8860b; color:#fff; padding: 1px 6px; border-radius:3px;">🪙 Gold Coin</span>&nbsp;
-                <span style="background:#aaa; color:#000; padding: 1px 6px; border-radius:3px;">🥈 Silver Coin</span>&nbsp;
-                <span style="background:#1565c0; color:#fff; padding: 1px 6px; border-radius:3px;">🟦 P1 Piece</span>&nbsp;
-                <span style="background:#b71c1c; color:#fff; padding: 1px 6px; border-radius:3px;">🟥 P2 Piece</span>
-            </MudText>
-        </MudPaper>
+        <div class="legend">
+            <span class="legend-item"><span class="legend-swatch" style="background:#1a1a2e;"></span> Empty</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#1565c0;"></span> Lake</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#455a64;"></span> Rock</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#e65100;"></span> Gold Coin</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#37474f;"></span> Silver Coin</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#0d47a1; border-radius: 50%;"></span> P1 Piece</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#b71c1c; border-radius: 50%;"></span> P2 Piece</span>
+            <span class="legend-item"><span class="legend-swatch" style="background: rgba(179,229,252,0.5);"></span> Ice Patch</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#ff9800;"></span> Fence</span>
+        </div>
 
-        <MudText Typo="Typo.caption" Style="color:#666;" Class="mt-2">
-            Last update: @_lastUpdate.ToString("HH:mm:ss.fff")
-        </MudText>
+        <div class="conn-status">
+            <span class="conn-dot" style="background: @ConnectionDotColour;"></span>
+            @_connectionState &nbsp;|&nbsp; Last update: @_lastUpdate.ToString("HH:mm:ss")
+        </div>
     }
     else if (!_gameEnded)
     {
-        <MudProgressCircular Indeterminate="true" Class="my-4" />
-        <MudText>Waiting for the game to start…</MudText>
+        <div class="waiting-section">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Style="color:#666;">Waiting for the game to start…</MudText>
+            <div class="conn-status">
+                <span class="conn-dot" style="background: @ConnectionDotColour;"></span>
+                @_connectionState
+            </div>
+        </div>
     }
 
-</MudContainer>
+</div>
 
 @code {
     [Parameter] public string GameId { get; set; } = string.Empty;
@@ -117,10 +261,11 @@
     private int _playerOneScore;
     private int _playerTwoScore;
     private DateTime _lastUpdate = DateTime.Now;
+    private Guid _playerOneId;
 
-    private string ConnectionColour => _connectionState switch
+    private string ConnectionDotColour => _connectionState switch
     {
-        "Connected" => "#4caf50",
+        "Connected"    => "#4caf50",
         "Reconnecting…" => "#ff9800",
         _ => "#f44336"
     };
@@ -141,11 +286,7 @@
             InvokeAsync(StateHasChanged);
         });
 
-        _hub.On<object>("PhaseChanged", _ =>
-        {
-            // Board state is also pushed via BoardStateUpdated, which carries phase info.
-            // Nothing extra to do here — StateHasChanged triggered by BoardStateUpdated.
-        });
+        _hub.On<object>("PhaseChanged", _ => { /* Phase info arrives via BoardStateUpdated */ });
 
         _hub.On<GameEndedPayload>("GameEnded", payload =>
         {
@@ -168,7 +309,7 @@
         {
             _connectionState = "Connected";
             await _hub.InvokeAsync("JoinGame", GameId);
-            await LoadCurrentBoardStateAsync();   // re-sync after reconnection
+            await LoadCurrentBoardStateAsync();
             await InvokeAsync(StateHasChanged);
         };
 
@@ -182,7 +323,7 @@
         await _hub.StartAsync();
         _connectionState = "Connected";
         await _hub.InvokeAsync("JoinGame", GameId);
-        await LoadCurrentBoardStateAsync();   // populate board on initial load
+        await LoadCurrentBoardStateAsync();
     }
 
     private async Task LoadCurrentBoardStateAsync()
@@ -192,100 +333,29 @@
         try
         {
             _boardState = await Mediator.Send(new GetSpectatorBoardStateQuery(gameId));
+            // YourPieces in spectator view always = PlayerOne pieces
+            // Derive PlayerOneId from the first placed piece's PlayerId if available
+            var p1Piece = _boardState.YourPieces.FirstOrDefault(p => p.IsOnBoard);
+            if (p1Piece is not null && _boardState.Board.Tiles
+                    .FirstOrDefault(t => t.Occupant?.PieceId == p1Piece.PieceId)?.Occupant?.PlayerId is { } pid)
+                _playerOneId = pid;
             _lastUpdate = DateTime.Now;
             await InvokeAsync(StateHasChanged);
         }
         catch
         {
-            // Game may not have started yet — ignore and wait for the first push.
+            // Game may not have started yet — wait for SignalR push.
         }
     }
-
-    // ── Board rendering helpers ───────────────────────────────────────────────
-
-    private TileDto? GetTile(int row, int col)
-    {
-        return _boardState?.Board.Tiles.FirstOrDefault(t => t.Position.Row == row && t.Position.Col == col);
-    }
-
-    private static string GetTileStyle(TileDto? tile)
-    {
-        const string border = "border: 1px solid #333;";
-        const string size = "width: 52px; height: 52px; text-align: center; vertical-align: middle;";
-
-        if (tile is null)
-            return $"{border}{size} background: #1e1e1e;";
-
-        if (tile.IsObstacle)
-            return $"{border}{size} background: #555; color: #aaa;";
-
-        switch (tile.Occupant?.Type)
-        {
-            case "coin":
-            {
-                var bg = tile.Occupant.CoinType == "Gold" ? "#b8860b" : "#9e9e9e";
-                return $"{border}{size} background: {bg};";
-            }
-
-            case "piece":
-                // We treat YourPieces as P1 and OpponentPieces as P2 (the broadcaster always sends P1 first).
-                // Since we don't know which PlayerId is P1 here, use the piece's PlayerId colour from the board's YourPieces list.
-                return $"{border}{size} background: #263238; color: #fff;";
-            default:
-                return $"{border}{size} background: #1a1a2e;";
-        }
-    }
-
-    private static string GetTileTooltip(TileDto? tile)
-    {
-        if (tile is null) return "";
-        if (tile.IsObstacle) return "Obstacle";
-        if (tile.Occupant is null) return "Empty";
-
-        return tile.Occupant.Type switch
-        {
-            "coin" => $"{tile.Occupant.CoinType} coin ({tile.Occupant.Value} pts)",
-            "piece" => $"Piece: {tile.Occupant.Name} (owner: {tile.Occupant.PlayerId?.ToString()[..8]}…)",
-            _ => ""
-        };
-    }
-
-    private static RenderFragment RenderTileContent(TileDto? tile) => builder =>
-    {
-        if (tile is null || tile.Occupant is null && !tile.IsObstacle)
-            return;
-
-        if (tile.IsObstacle)
-        {
-            builder.AddContent(0, "⬛");
-            return;
-        }
-
-        switch (tile.Occupant?.Type)
-        {
-            case "coin":
-            {
-                var emoji = tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈";
-                builder.AddContent(0, $"{emoji} {tile.Occupant.Value}");
-                return;
-            }
-
-            case "piece":
-                builder.AddContent(0, $"♟ {tile.Occupant.Name?[..Math.Min(4, tile.Occupant.Name?.Length ?? 0)]}");
-                break;
-        }
-    };
 
     public async ValueTask DisposeAsync()
     {
         if (_hub is not null)
         {
-            try { await _hub.InvokeAsync("LeaveGame", GameId); } catch { /* ignore on dispose */ }
+            try { await _hub.InvokeAsync("LeaveGame", GameId); } catch { /* ignore */ }
             await _hub.DisposeAsync();
         }
     }
-
-    // ── Payload record for GameEnded SignalR event ────────────────────────────
 
     private sealed record GameEndedPayload(
         Guid GameId,
@@ -294,3 +364,4 @@
         Guid? WinnerId,
         bool IsDraw);
 }
+
