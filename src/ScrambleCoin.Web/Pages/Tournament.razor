@@ -686,14 +686,14 @@
         (CardH + CardGap) * (1 << roundIndex);
 
     /// <summary>Top pixel offset for match [roundIndex, matchIndex].</summary>
-    private int MatchTop(int roundIndex, int matchIndex, int firstCount)
+    private static int MatchTop(int roundIndex, int matchIndex, int firstCount)
     {
         var slotH = SlotH(roundIndex, firstCount);
         return matchIndex * slotH + (slotH - CardH) / 2;
     }
 
     /// <summary>Vertical centre pixel for match [roundIndex, matchIndex].</summary>
-    private int MatchCenterY(int roundIndex, int matchIndex, int firstCount)
+    private static int MatchCenterY(int roundIndex, int matchIndex, int firstCount)
     {
         var slotH = SlotH(roundIndex, firstCount);
         return matchIndex * slotH + slotH / 2;
