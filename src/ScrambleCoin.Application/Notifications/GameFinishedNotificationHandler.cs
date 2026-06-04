@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using ScrambleCoin.Application.Games.SoloMode;
+using ScrambleCoin.Application.Games.SoloMode.RecordVillainDefeated;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Enums;
 

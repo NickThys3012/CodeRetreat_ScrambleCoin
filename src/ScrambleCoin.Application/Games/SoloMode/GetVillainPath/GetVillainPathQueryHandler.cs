@@ -1,8 +1,7 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Factories;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.GetVillainPath;
 
 /// <summary>
 /// Handles <see cref="GetVillainPathQuery"/>.

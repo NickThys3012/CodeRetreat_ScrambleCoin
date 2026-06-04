@@ -630,7 +630,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
     public async Task Move_AfterP1Moves_ActivePlayerSwitchesToP2()
     {
         // Arrange: both players have one piece on board
-        var (game, tokenP1, tokenP2, p1PieceId, _) = await SeedGameInMovePhaseWithBothPiecesAsync();
+        var (game, tokenP1, _, p1PieceId, _) = await SeedGameInMovePhaseWithBothPiecesAsync();
 
         var clientP1 = _factory.CreateClient();
         clientP1.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());

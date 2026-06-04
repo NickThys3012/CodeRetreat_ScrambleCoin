@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.CancelTournament;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;

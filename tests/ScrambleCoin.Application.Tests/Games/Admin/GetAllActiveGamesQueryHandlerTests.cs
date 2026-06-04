@@ -37,12 +37,12 @@ public sealed class GetAllActiveGamesQueryHandlerTests
                 Phase:         null,
                 ScorePlayerOne: 0,
                 ScorePlayerTwo: 0,
-                LastMoveAt:    DateTimeOffset.UtcNow),
+                LastMoveAt:    DateTimeOffset.UtcNow)
         }.AsReadOnly();
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetAllActiveAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<ActiveGameSummaryDto>)expected);
+            .Returns(expected);
 
         var handler = BuildHandler(repo);
 
@@ -61,7 +61,7 @@ public sealed class GetAllActiveGamesQueryHandlerTests
         // Arrange
         var repo = Substitute.For<IGameRepository>();
         repo.GetAllActiveAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<ActiveGameSummaryDto>)new List<ActiveGameSummaryDto>().AsReadOnly());
+            .Returns(new List<ActiveGameSummaryDto>().AsReadOnly());
 
         var handler = BuildHandler(repo);
 
@@ -78,7 +78,7 @@ public sealed class GetAllActiveGamesQueryHandlerTests
         // Arrange
         var repo = Substitute.For<IGameRepository>();
         repo.GetAllActiveAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<ActiveGameSummaryDto>)new List<ActiveGameSummaryDto>().AsReadOnly());
+            .Returns(new List<ActiveGameSummaryDto>().AsReadOnly());
 
         var handler = BuildHandler(repo);
 
@@ -111,7 +111,7 @@ public sealed class GetAllActiveGamesQueryHandlerTests
 
         var repo = Substitute.For<IGameRepository>();
         repo.GetAllActiveAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<ActiveGameSummaryDto>)new List<ActiveGameSummaryDto> { summary }.AsReadOnly());
+            .Returns(new List<ActiveGameSummaryDto> { summary }.AsReadOnly());
 
         var handler = BuildHandler(repo);
 

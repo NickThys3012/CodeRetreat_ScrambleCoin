@@ -1,8 +1,7 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Exceptions;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.RecordVillainDefeated;
 
 /// <summary>
 /// Handles <see cref="RecordVillainDefeatedCommand"/>.

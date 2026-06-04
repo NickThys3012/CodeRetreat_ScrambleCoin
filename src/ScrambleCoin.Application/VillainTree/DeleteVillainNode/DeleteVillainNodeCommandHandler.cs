@@ -1,7 +1,6 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
-
-namespace ScrambleCoin.Application.VillainTree;
+namespace ScrambleCoin.Application.VillainTree.DeleteVillainNode;
 
 public sealed class DeleteVillainNodeCommandHandler : IRequestHandler<DeleteVillainNodeCommand, Unit>
 {

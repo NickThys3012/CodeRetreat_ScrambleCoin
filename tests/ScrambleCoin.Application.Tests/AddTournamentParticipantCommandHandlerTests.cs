@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.AddParticipant;
 using ScrambleCoin.Domain.Exceptions;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;

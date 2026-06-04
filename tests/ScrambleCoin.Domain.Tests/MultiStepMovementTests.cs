@@ -66,7 +66,7 @@ public class MultiStepMovementTests
     public void CogsworthValidSequence_Any1ThenOrthogonal2_Succeeds()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1 (Any direction): 1 tile right → (0, 4)
         //      Segment 2 (Orthogonal): 2 tiles down → (2, 4)
@@ -85,7 +85,7 @@ public class MultiStepMovementTests
     public void CogsworthWrongTypeSegment2_Diagonal2InsteadOfOrthogonal_Throws()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (should be Orthogonal, but we try Diagonal)
@@ -105,7 +105,7 @@ public class MultiStepMovementTests
     public void CogsworthExceedsMaxDistanceSegment2_Orthogonal3InsteadOf2_Throws()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1: 1 tile right → (0, 4)
         //      Segment 2: Attempt 3 orthogonal tiles down (max is 2)
@@ -125,7 +125,7 @@ public class MultiStepMovementTests
     public void LumiereValidSequence_Any1ThenDiagonal2_Succeeds()
     {
         // Arrange: Lumiere at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Lumiere");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Lumiere");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (Diagonal): 2 diagonal → (2, 6)
@@ -144,7 +144,7 @@ public class MultiStepMovementTests
     public void LumiereWrongTypeSegment2_Orthogonal2InsteadOfDiagonal_Throws()
     {
         // Arrange: Lumiere at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Lumiere");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Lumiere");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (should be Diagonal, but we try Orthogonal)
@@ -164,7 +164,7 @@ public class MultiStepMovementTests
     public void RemyValidSequence_Diagonal2ThenDiagonal2_Succeeds()
     {
         // Arrange: Remy at (0, 3) [Borders]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Remy");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Remy");
 
         // Act: Segment 1 (Diagonal): 2 tiles diagonal → (2, 5)
         //      Segment 2 (Diagonal): 2 tiles diagonal → (4, 7)
@@ -183,7 +183,7 @@ public class MultiStepMovementTests
     public void AnnaValidSequence_Orthogonal1x3_Succeeds()
     {
         // Arrange: Anna at (0, 3) [Borders]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Anna");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Anna");
 
         // Act: All 3 segments of 1 orthogonal tile each
         var segments = BuildSegments(
@@ -202,7 +202,7 @@ public class MultiStepMovementTests
     public void AnnaIncompleteSequence_Only2Of3Segments_Throws()
     {
         // Arrange: Anna at (0, 3) — requires all 3 moves
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Anna");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Anna");
 
         // Act: Try to submit only 2 of 3 required segments
         var segments = BuildSegments(
@@ -223,7 +223,7 @@ public class MultiStepMovementTests
     public void OlafValidSequence_Any1x2_Succeeds()
     {
         // Arrange: Olaf at (0, 3) [Anywhere entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Olaf");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Olaf");
 
         // Act: 2 segments of 1 any-direction tile each
         var segments = BuildSegments(
@@ -369,7 +369,7 @@ public class MultiStepMovementTests
     public void RemyWrongTypeSegment1_Orthogonal2InsteadOfDiagonal_Throws()
     {
         // Arrange: Remy at (0, 3)
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Remy");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Remy");
 
         // Act: Segment 1 should be diagonal, but we try orthogonal
         var segments = BuildSegments(

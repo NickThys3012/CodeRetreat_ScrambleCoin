@@ -4,8 +4,7 @@ using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.CreateSoloGame;
 
 /// <summary>
 /// Handles <see cref="CreateSoloGameCommand"/>.

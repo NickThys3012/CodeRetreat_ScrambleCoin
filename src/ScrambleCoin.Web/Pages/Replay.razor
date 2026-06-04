@@ -2,7 +2,6 @@
 @using MediatR
 @using ScrambleCoin.Application.Games.Replay
 @inject ISender Sender
-@inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Replay — ScrambleCoin</PageTitle>
@@ -28,7 +27,7 @@
         <div class="replay-header">
             <a href="/" class="btn-secondary">← Lobby</a>
             <h1>📼 Game Replay</h1>
-            <span class="replay-meta">@(_frames.Count) frames · @_speedLabel</span>
+            <span class="replay-meta">@(_frames.Count) frames · @SpeedLabel</span>
         </div>
 
         <div class="replay-score-bar">
@@ -79,14 +78,14 @@
 @code {
     [Parameter] public Guid GameId { get; set; }
 
-    private List<ReplayFrameDto> _frames = new();
+    private List<ReplayFrameDto> _frames = [];
     private int _index;
     private bool _loading = true;
     private bool _playing;
     private int _intervalMs = 1000;
     private Timer? _timer;
 
-    private string _speedLabel => _intervalMs switch
+    private string SpeedLabel => _intervalMs switch
     {
         2000 => "0.5×",
         500  => "2×",
@@ -114,11 +113,10 @@
 
     private void ChangeSpeed(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out var ms))
-        {
-            _intervalMs = ms;
-            if (_playing) RestartTimer();
-        }
+        if (!int.TryParse(e.Value?.ToString(), out var ms))
+            return;
+        _intervalMs = ms;
+        if (_playing) RestartTimer();
     }
 
     private void TogglePlay()
@@ -149,18 +147,16 @@
 
     private void Tick(object? _)
     {
-        InvokeAsync(() =>
-        {
+        InvokeAsync(() => {
             if (_index < _frames.Count - 1)
             {
                 _index++;
-                StateHasChanged();
             }
             else
             {
                 StopPlay();
-                StateHasChanged();
             }
+            StateHasChanged();
         });
     }
 

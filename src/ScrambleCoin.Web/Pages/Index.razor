@@ -218,7 +218,12 @@
                     <div class="game-card" @onclick="@(() => NavManager.NavigateTo(dest))">
 
                         <div class="card-header">
-                            <span class="@(g.Status == "InProgress" ? "card-status-live" : g.Status == "Finished" ? "card-status-done" : "card-status-waiting")">
+                            <span class="@(g.Status switch
+                                         {
+                                             "InProgress" => "card-status-live",
+                                             "Finished" => "card-status-done",
+                                             _ => "card-status-waiting"
+                                         })">
                                 @(g.Status == "InProgress" ? "● Live" : g.Status == "Finished" ? "✓ Done" : "⏳ Waiting")
                             </span>
                             <span class="card-game-id">@g.GameId.ToString()[..8]…</span>
@@ -268,14 +273,14 @@
 @code {
     private List<ActiveGameSummaryDto> _activeGames = new();
     private List<TournamentSummaryDto> _activeTournaments = new();
-    private System.Threading.Timer? _refreshTimer;
+    private Timer? _refreshTimer;
     private DateTime _lastRefresh = DateTime.Now;
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
 
-        _refreshTimer = new System.Threading.Timer(async _ =>
+        _refreshTimer = new Timer(async void (_) =>
         {
             await RefreshAsync();
             await InvokeAsync(StateHasChanged);

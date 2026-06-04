@@ -1,7 +1,6 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
-
-namespace ScrambleCoin.Application.VillainTree;
+namespace ScrambleCoin.Application.VillainTree.GetVillainTree;
 
 public sealed class GetVillainTreeQueryHandler : IRequestHandler<GetVillainTreeQuery, VillainTreeDto>
 {

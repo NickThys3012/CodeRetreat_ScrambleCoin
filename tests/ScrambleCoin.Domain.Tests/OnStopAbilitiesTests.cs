@@ -190,7 +190,7 @@ public class OnStopAbilitiesTests
     public void WallE_PushesMultipleAdjacentPieces()
     {
         // Arrange: WALL•E at (3,3), pieces at (2,3), (4,3), (3,2), (3,4)
-        var (game, p1, p2, wallEPiece, p2Piece) = GameWithPiecesInMovePhase("WALL•E", new Position(3, 0));
+        var (game, p1, p2, wallEPiece, _) = GameWithPiecesInMovePhase("WALL•E", new Position(3, 0));
         var board = game.Board;
 
         // Place WALL•E in the middle area
@@ -208,14 +208,12 @@ public class OnStopAbilitiesTests
             new Position(3, 4)  // East
         };
 
-        var piecesToMove = new List<Piece>();
         foreach (var pos in pieces)
         {
             var p = new Piece(Guid.NewGuid(), $"Opponent{pos}", p2,
                 EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
             p.PlaceAt(pos);
             board.GetTile(pos).SetOccupant(p);
-            piecesToMove.Add(p);
         }
 
         // Act: WALL•E charges (simulating being in the middle)
@@ -257,7 +255,7 @@ public class OnStopAbilitiesTests
     public void Sulley_PushesOpponentPiece_OnlyToFirstObstacle()
     {
         // Arrange: Sulley at (0,3)
-        var (game, p1, p2, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
+        var (game, p1, _, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
         var board = game.Board;
 
         // Add rock at the destination area
@@ -274,7 +272,7 @@ public class OnStopAbilitiesTests
     public void Sulley_DoesNotPushAllyPieces()
     {
         // Arrange: Sulley at (0,3)
-        var (game, p1, p2, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
+        var (game, p1, _, sulleyPiece, _) = GameWithPiecesInMovePhase("Sulley", new Position(0, 3));
         var board = game.Board;
 
         // Add ally elsewhere

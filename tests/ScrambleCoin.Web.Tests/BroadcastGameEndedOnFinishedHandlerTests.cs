@@ -5,7 +5,6 @@ using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Application.Notifications;
 
 namespace ScrambleCoin.Web.Tests;
 
@@ -31,10 +30,10 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     }
 
     /// <summary>Creates a minimal <see cref="Game"/> with two players and a zeroed board.</summary>
-    private static Game CreateGame(out Guid playerOneId, out Guid playerTwoId)
+    private static Game CreateGame()
     {
-        playerOneId = Guid.NewGuid();
-        playerTwoId = Guid.NewGuid();
+        var playerOneId = Guid.NewGuid();
+        var playerTwoId = Guid.NewGuid();
         return new Game(playerOneId, playerTwoId, new Board());
     }
 
@@ -45,7 +44,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var winnerId = Guid.NewGuid();
@@ -72,7 +71,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var notification = new GameFinished(
@@ -98,7 +97,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var winnerId = Guid.NewGuid();
@@ -125,7 +124,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var notification = new GameFinished(
@@ -151,7 +150,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, _, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var notification = new GameFinished(
@@ -172,7 +171,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
         // Arrange — fresh game has zero scores; verify that broadcast is called
         // with playerOneScore=0 and playerTwoScore=0 (mapping from Scores dictionary)
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         var notification = new GameFinished(
@@ -198,7 +197,7 @@ public class BroadcastGameEndedOnFinishedHandlerTests
     {
         // Arrange
         var (handler, broadcaster, repo) = BuildHandler();
-        var game = CreateGame(out _, out _);
+        var game = CreateGame();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
 
         broadcaster

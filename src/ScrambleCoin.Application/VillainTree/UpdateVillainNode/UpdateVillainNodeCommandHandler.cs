@@ -1,8 +1,7 @@
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
-
-namespace ScrambleCoin.Application.VillainTree;
+namespace ScrambleCoin.Application.VillainTree.UpdateVillainNode;
 
 public sealed class UpdateVillainNodeCommandHandler : IRequestHandler<UpdateVillainNodeCommand, Unit>
 {

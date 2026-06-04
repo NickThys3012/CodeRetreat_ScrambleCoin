@@ -64,7 +64,7 @@ public class VillainStrategyTests
     [Fact]
     public void Strategy_DecideAction_MovePhase_ReturnsMovementOrSkip()
     {
-        var (game, p1, villainId) = StartedGameWithVillain();
+        var (game, _, villainId) = StartedGameWithVillain();
         var strategy = new ElsaStrategy();
 
         // Advance to move phase and place a piece for the villain

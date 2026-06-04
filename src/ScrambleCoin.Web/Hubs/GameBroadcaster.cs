@@ -17,7 +17,7 @@ public sealed class GameBroadcaster : IGameBroadcaster
     private const string GameGroupPrefix   = "game-";
     private const string PlayerGroupPrefix = "player-";
 
-    private static readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     private readonly IHubContext<GameHub> _hubContext;
     private readonly ISender _sender;
@@ -35,7 +35,7 @@ public sealed class GameBroadcaster : IGameBroadcaster
         if (boardState is null) return null;
         var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("BoardStateUpdated", boardState, ct);
-        var json = JsonSerializer.Serialize(boardState, _json);
+        var json = JsonSerializer.Serialize(boardState, Json);
         return new BroadcastResult(boardState.Turn, boardState.Phase ?? "Unknown", json);
     }
 

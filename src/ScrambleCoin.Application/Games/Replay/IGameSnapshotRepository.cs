@@ -1,5 +1,3 @@
-using ScrambleCoin.Application.Games.Replay;
-
 namespace ScrambleCoin.Application.Games.Replay;
 
 /// <summary>

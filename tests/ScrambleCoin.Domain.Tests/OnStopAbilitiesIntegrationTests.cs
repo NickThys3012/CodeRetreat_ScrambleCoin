@@ -146,7 +146,7 @@ public class OnStopAbilitiesIntegrationTests
         // Pumbaa's ability differs from Ralph: destroys only fences, not rocks
         // Integration test verifies the piece can be created and placed successfully
         // Detailed ability testing is done in unit tests (OnStopAbilitiesTests.cs)
-        var (game, p1, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
+        var (_, _, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
 
         // Assert: Pumbaa piece was created successfully
         Assert.NotNull(pumbaaPiece);
@@ -162,7 +162,7 @@ public class OnStopAbilitiesIntegrationTests
         // WALL•E's ability is to push adjacent pieces in move direction
         // Integration test verifies the piece can be created and placed successfully
         // Detailed ability testing is done in unit tests
-        var (game, p1, _, wallePiece, _) = GameWithPiecesInMovePhase("WALL•E", new Position(0, 3));
+        var (_, _, _, wallePiece, _) = GameWithPiecesInMovePhase("WALL•E", new Position(0, 3));
 
         // Assert: WALL•E piece was created successfully
         Assert.NotNull(wallePiece);

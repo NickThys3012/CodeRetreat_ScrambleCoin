@@ -14,9 +14,8 @@ namespace ScrambleCoin.Api.Endpoints;
 /// <summary>
 /// Minimal API endpoints for tournament management.
 /// </summary>
-public static class TournamentEndpoints
+internal static class TournamentEndpoints
 {
-
     public static void MapTournamentEndpoints(this WebApplication app)
     {
         // POST /api/tournament — organiser creates a tournament
@@ -133,7 +132,7 @@ public static class TournamentEndpoints
         }
     }
 
-    /// <summary>Bot self-registers for the tournament. No admin key required.</summary>
+    /// <summary>Bot self-registers for the tournament. No admin key is required.</summary>
     private static async Task<IResult> JoinTournament(
         Guid id,
         AddParticipantRequest body,

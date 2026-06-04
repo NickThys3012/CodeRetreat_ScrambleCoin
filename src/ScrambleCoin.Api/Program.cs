@@ -6,7 +6,6 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Application.Services.Villains;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Infrastructure.Services;
 using ScrambleCoin.Api.Endpoints;
@@ -61,7 +60,7 @@ builder.Services.AddScoped<IBotUnlocksRepository, BotUnlocksRepository>();
 builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();
 builder.Services.AddScoped<IRankingRepository, RankingRepository>();
 builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
-    ScrambleCoin.Infrastructure.Persistence.GameSnapshotRepository>();
+    GameSnapshotRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));

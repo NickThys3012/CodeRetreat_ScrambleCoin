@@ -54,7 +54,7 @@ public sealed class GameLoopPlacementTests
             if (request.Method == HttpMethod.Get && path.EndsWith("/state"))
             {
                 // After the first placement is recorded, switch to ended so RunAsync exits
-                var phase = placeCallCount == 0 ? "PlacePhase" : (string?)null;
+                var phase = placeCallCount == 0 ? "PlacePhase" : null;
 
                 return JsonResponse(new BoardState
                 {
@@ -121,7 +121,7 @@ public sealed class GameLoopPlacementTests
 
             if (request.Method == HttpMethod.Get && path.EndsWith("/state"))
             {
-                var phase = placeCallCount == 0 ? "PlacePhase" : (string?)null;
+                var phase = placeCallCount == 0 ? "PlacePhase" : null;
                 return JsonResponse(new BoardState
                 {
                     Turn       = 1,
@@ -171,7 +171,7 @@ public sealed class GameLoopPlacementTests
 
             if (request.Method == HttpMethod.Get && path.EndsWith("/state"))
             {
-                var phase = placeCallCount == 0 ? "PlacePhase" : (string?)null;
+                var phase = placeCallCount == 0 ? "PlacePhase" : null;
                 return JsonResponse(new BoardState
                 {
                     Turn       = 1,
@@ -215,14 +215,13 @@ public sealed class GameLoopPlacementTests
         {
             var path = request.RequestUri!.AbsolutePath;
 
-            if (request.Method == HttpMethod.Get && path.EndsWith("/state"))
-            {
-                callCount++;
-                // Phase = null, Turn = 0 → "waiting for game to start"
-                return JsonResponse(new BoardState { Turn = 0, Phase = null });
-            }
+            if (request.Method != HttpMethod.Get || !path.EndsWith("/state"))
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            
+            callCount++;
+            // Phase = null, Turn = 0 → "waiting for game to start"
+            return JsonResponse(new BoardState { Turn = 0, Phase = null });
 
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://fake-server/") };

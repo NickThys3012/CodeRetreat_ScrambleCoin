@@ -192,7 +192,7 @@
     private string? _previousPhase;
     private bool _showBanner;
     private string _bannerText = string.Empty;
-    private System.Threading.Timer? _bannerTimer;
+    private Timer? _bannerTimer;
 
     protected override void OnParametersSet()
     {
@@ -204,7 +204,7 @@
             _bannerText = PhaseBannerText(currentPhase);
             _showBanner = true;
             _bannerTimer?.Dispose();
-            _bannerTimer = new System.Threading.Timer(_ =>
+            _bannerTimer = new Timer(_ =>
             {
                 _showBanner = false;
                 InvokeAsync(StateHasChanged);
@@ -237,7 +237,7 @@
     private TileDto? GetTile(int row, int col) =>
         BoardState?.Board.Tiles.FirstOrDefault(t => t.Position.Row == row && t.Position.Col == col);
 
-    private string TileCssClass(TileDto? tile)
+    private static string TileCssClass(TileDto? tile)
     {
         if (tile is null) return "board-cell tile-empty";
 
@@ -266,9 +266,9 @@
     private IEnumerable<PieceDto> AllPlacedPieces()
     {
         if (BoardState is null) yield break;
-        foreach (var p in BoardState.YourPieces.Where(p => p.IsOnBoard && p.Position is not null))
+        foreach (var p in BoardState.YourPieces.Where(p => p is { IsOnBoard: true, Position: not null }))
             yield return p;
-        foreach (var p in BoardState.OpponentPieces.Where(p => p.IsOnBoard && p.Position is not null))
+        foreach (var p in BoardState.OpponentPieces.Where(p => p is { IsOnBoard: true, Position: not null }))
             yield return p;
     }
 
@@ -303,18 +303,23 @@
                         }
 
                         <div class="cell-content">
-                            @if (tile?.ObstacleType == "Rock")
+                            @switch (tile?.ObstacleType)
                             {
-                                <span class="cell-emoji">🪨</span>
-                            }
-                            else if (tile?.ObstacleType == "Lake")
-                            {
-                                <span class="cell-emoji">🌊</span>
-                            }
-                            else if (tile?.Occupant?.Type == "coin")
-                            {
-                                <span class="cell-emoji">@(tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈")</span>
-                                <span class="cell-label">@tile.Occupant.Value pts</span>
+                                case "Rock":
+                                    <span class="cell-emoji">🪨</span>
+                                    break;
+                                case "Lake":
+                                    <span class="cell-emoji">🌊</span>
+                                    break;
+                                default:
+                                {
+                                    if (tile?.Occupant?.Type == "coin")
+                                    {
+                                        <span class="cell-emoji">@(tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈")</span>
+                                        <span class="cell-label">@tile.Occupant.Value pts</span>
+                                    }
+                                    break;
+                                }
                             }
                         </div>
                     </div>
@@ -326,8 +331,8 @@
                 @foreach (var piece in AllPlacedPieces())
                 {
                     var isP1 = IsPlayerOnePiece(piece);
-                    var top  = (piece.Position!.Row * 68);
-                    var left = (piece.Position!.Col * 68);
+                    var top  = piece.Position!.Row * 68;
+                    var left = piece.Position!.Col * 68;
                     <div class="piece-token"
                          @key="piece.PieceId"
                          style="top: @(top)px; left: @(left)px;">
@@ -367,8 +372,13 @@
     private static string TileTooltip(TileDto? tile)
     {
         if (tile is null) return "";
-        if (tile.ObstacleType == "Rock") return "Rock obstacle";
-        if (tile.ObstacleType == "Lake") return "Lake (impassable)";
+        switch (tile.ObstacleType)
+        {
+            case "Rock":
+                return "Rock obstacle";
+            case "Lake":
+                return "Lake (impassable)";
+        }
         if (tile.Occupant is null) return tile.HasIcePatch ? "Ice patch" : "Empty";
         return tile.Occupant.Type switch
         {

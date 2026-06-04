@@ -1,4 +1,4 @@
-namespace ScrambleCoin.Application.Tournament;
+namespace ScrambleCoin.Application.Interfaces;
 
 /// <summary>
 /// Stable bot identity information resolved from a tournament match.

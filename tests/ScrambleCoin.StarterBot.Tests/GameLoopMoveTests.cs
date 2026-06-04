@@ -60,7 +60,7 @@ public sealed class GameLoopMoveTests
                 // Second poll: game has ended so RunAsync exits cleanly.
                 var (phase, activePid) = statePollCount == 1
                     ? ("MovePhase", OtherPlayerId.ToString())
-                    : ((string?)null, (string?)null);
+                    : (null, null);
 
                 return JsonResponse(new BoardState
                 {
@@ -129,7 +129,7 @@ public sealed class GameLoopMoveTests
                 // Poll 3+: game ended so the loop exits
                 var (phase, activePid) = statePollCount <= 2
                     ? ("MovePhase", PlayerId.ToString())
-                    : ((string?)null, (string?)null);
+                    : (null, null);
 
                 return JsonResponse(new BoardState
                 {

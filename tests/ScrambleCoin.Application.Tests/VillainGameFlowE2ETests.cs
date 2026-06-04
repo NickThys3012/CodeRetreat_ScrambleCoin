@@ -166,7 +166,7 @@ public class VillainGameFlowE2ETests
     public async Task VillainAutomationService_PlacePhase_CanBeInvoked()
     {
         // Arrange
-        var (game, botPlayerId, villainPlayerId) = CreateSoloGame();
+        var (game, _, villainPlayerId) = CreateSoloGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var (repo, factory, dispatcher) = CreateMockedDependencies(game);
@@ -196,7 +196,7 @@ public class VillainGameFlowE2ETests
     public async Task VillainAutomationService_NonSoloGame_SkipsAutomation()
     {
         // Arrange: Create a game without villain ID
-        var (game, botPlayerId, villainPlayerId) = CreateSoloGame();
+        var (game, _, _) = CreateSoloGame();
         game.VillainId = null; // Make it non-solo
 
         var (repo, factory, dispatcher) = CreateMockedDependencies(game);
@@ -225,7 +225,7 @@ public class VillainGameFlowE2ETests
     public async Task VillainPlacePieceCommand_ValidPlacement_PlacesPieceAndAdvancesPhase()
     {
         // Arrange
-        var (game, botPlayerId, villainPlayerId) = CreateSoloGame();
+        var (game, _, villainPlayerId) = CreateSoloGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var villainPiece = game.LineupPlayerTwo!.Pieces[0];
@@ -255,7 +255,7 @@ public class VillainGameFlowE2ETests
     public async Task VillainSkipPlacementCommand_SkipsPlacementPhase()
     {
         // Arrange
-        var (game, botPlayerId, villainPlayerId) = CreateSoloGame();
+        var (game, _, villainPlayerId) = CreateSoloGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var repo = Substitute.For<IGameRepository>();

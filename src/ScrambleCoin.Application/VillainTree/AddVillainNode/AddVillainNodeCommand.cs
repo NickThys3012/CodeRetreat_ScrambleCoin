@@ -1,6 +1,5 @@
 using MediatR;
-
-namespace ScrambleCoin.Application.VillainTree;
+namespace ScrambleCoin.Application.VillainTree.AddVillainNode;
 
 public sealed record AddVillainNodeCommand(
     string VillainId,

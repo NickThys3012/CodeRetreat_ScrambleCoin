@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using ScrambleCoin.Application.Games.SoloMode;
+using ScrambleCoin.Application.Games.SoloMode.CreateSoloGame;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;

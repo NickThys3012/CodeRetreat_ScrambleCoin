@@ -286,14 +286,14 @@ public class GameTests
     [Fact]
     public void Start_WhenAlreadyInProgress_ThrowsDomainException()
     {
-        var (game, p1, p2) = StartedGame();
+        var (game, _, _) = StartedGame();
         Assert.Throws<DomainException>(() => game.Start());
     }
 
     [Fact]
     public void Start_WhenFinished_ThrowsDomainException()
     {
-        var (game, p1, p2) = StartedGame();
+        var (game, _, _) = StartedGame();
         game.End();
         Assert.Throws<DomainException>(() => game.Start());
     }

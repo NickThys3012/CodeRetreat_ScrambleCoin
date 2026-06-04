@@ -1,6 +1,5 @@
 using MediatR;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.CreateSoloGame;
 
 /// <summary>
 /// Command to create a solo game where a bot challenges a specific villain.

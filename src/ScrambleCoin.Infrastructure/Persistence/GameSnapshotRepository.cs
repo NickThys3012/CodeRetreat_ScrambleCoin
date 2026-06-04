@@ -9,7 +9,7 @@ namespace ScrambleCoin.Infrastructure.Persistence;
 public sealed class GameSnapshotRepository : IGameSnapshotRepository
 {
     private readonly ScrambleCoinDbContext _context;
-    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public GameSnapshotRepository(ScrambleCoinDbContext context)
     {
@@ -48,7 +48,7 @@ public sealed class GameSnapshotRepository : IGameSnapshotRepository
         return records
             .Select(r =>
             {
-                var boardState = JsonSerializer.Deserialize<AppBoardStateDto>(r.BoardStateJson, _json)
+                var boardState = JsonSerializer.Deserialize<AppBoardStateDto>(r.BoardStateJson, Json)
                     ?? throw new InvalidOperationException($"Failed to deserialise snapshot {r.Id}");
                 return new ReplayFrameDto(r.SequenceNumber, r.Turn, r.Phase, r.CapturedAt, boardState);
             })

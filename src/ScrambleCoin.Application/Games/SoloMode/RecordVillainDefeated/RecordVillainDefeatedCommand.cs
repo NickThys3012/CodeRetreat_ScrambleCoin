@@ -1,6 +1,5 @@
 using MediatR;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.RecordVillainDefeated;
 
 /// <summary>
 /// Command to record that a bot defeated a villain and unlocked a piece.

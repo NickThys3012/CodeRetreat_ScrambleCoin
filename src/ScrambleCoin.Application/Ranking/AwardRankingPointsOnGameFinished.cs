@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Notifications;
 using ScrambleCoin.Application.Ranking.AwardRankingPoints;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament;
 
 namespace ScrambleCoin.Application.Ranking;
 

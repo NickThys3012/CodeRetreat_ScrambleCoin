@@ -106,7 +106,7 @@ public class EtherealMovementTests
     public void Ethereal_PassThroughOpponentPiece_ReachesDestination()
     {
         // Arrange: Ethereal piece at (0,0), opponent piece at (0,1), destination at (0,2)
-        var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, p1Piece, p2Piece) = GameInMovePhaseWithEtherealPiece(
             p1MaxDistance: 2,
             p1StartPos: new Position(0, 0),
             p2StartPos: new Position(0, 1));
@@ -149,7 +149,7 @@ public class EtherealMovementTests
     public void Ethereal_EndOnPieceTile_Throws()
     {
         // Arrange: Ethereal piece at (0,0), opponent piece at (0,1)
-        var (game, p1, p2, p1Piece, _) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithEtherealPiece(
             p1MaxDistance: 1,
             p1StartPos: new Position(0, 0),
             p2StartPos: new Position(0, 1));
@@ -312,7 +312,7 @@ public class EtherealMovementTests
     public void Ethereal_MultipleRocksAndPieces_PassesThrough()
     {
         // Arrange: Ethereal at (0,0), path with rock at (0,1), opponent at (0,2), rock at (0,3), destination (0,4)
-        var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, p1Piece, p2Piece) = GameInMovePhaseWithEtherealPiece(
             p1MaxDistance: 4,
             p1StartPos: new Position(0, 0),
             p2StartPos: new Position(0, 2)); // Opponent at (0,2)

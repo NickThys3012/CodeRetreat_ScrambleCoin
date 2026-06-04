@@ -503,7 +503,6 @@ public class MultiStepMovementIntegrationTests
     {
         // Arrange: Cogsworth moves 2 segments
         var (game, p1, _, cogsworth, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
-        var initialTurn = game.TurnNumber;
 
         var token = Guid.NewGuid();
         var gameRepo = MockGameRepository(game);

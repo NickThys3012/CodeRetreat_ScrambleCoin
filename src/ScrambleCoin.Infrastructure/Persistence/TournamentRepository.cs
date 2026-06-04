@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using ScrambleCoin.Application.Tournament;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Tournaments;

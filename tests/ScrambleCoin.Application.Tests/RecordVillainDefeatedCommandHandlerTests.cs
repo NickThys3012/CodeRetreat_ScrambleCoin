@@ -1,5 +1,5 @@
 using NSubstitute;
-using ScrambleCoin.Application.Games.SoloMode;
+using ScrambleCoin.Application.Games.SoloMode.RecordVillainDefeated;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Exceptions;
@@ -282,7 +282,7 @@ public class RecordVillainDefeatedCommandHandlerTests
         var command = new RecordVillainDefeatedCommand(botId, "nonexistent", null);
 
         // Act
-        var ex = await Assert.ThrowsAsync<DomainException>(() => handler.Handle(command, CancellationToken.None));
+        await Assert.ThrowsAsync<DomainException>(() => handler.Handle(command, CancellationToken.None));
 
         // Assert: Repository RecordDefeatAsync should NOT be called
         await unlocksRepo.DidNotReceive().RecordDefeatAsync(

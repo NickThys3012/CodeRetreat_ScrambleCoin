@@ -1,7 +1,6 @@
 using MediatR;
 using ScrambleCoin.Domain.Factories;
-
-namespace ScrambleCoin.Application.Games.SoloMode;
+namespace ScrambleCoin.Application.Games.SoloMode.GetStarterPieces;
 
 /// <summary>
 /// Handles <see cref="GetStarterPiecesQuery"/>.

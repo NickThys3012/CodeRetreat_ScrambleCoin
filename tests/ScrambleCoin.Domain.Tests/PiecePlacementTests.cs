@@ -48,7 +48,7 @@ public class PiecePlacementTests
     [Fact]
     public void PlacePiece_HappyPath_PlacesPieceOnBoard()
     {
-        var (game, p1, p2, p1Pieces, _) = GameInPlacePhase();
+        var (game, p1, _, p1Pieces, _) = GameInPlacePhase();
         var piece = p1Pieces[0];
         var pos = new Position(0, 0);
 
@@ -82,7 +82,7 @@ public class PiecePlacementTests
     [Fact]
     public void PlacePiece_OnCoinTile_CollectsCoinAndScores()
     {
-        var (game, p1, p2, p1Pieces, _) = GameInPlacePhase();
+        var (game, p1, _, p1Pieces, _) = GameInPlacePhase();
 
         // Put coin on an edge tile by using SpawnCoins during CoinSpawn phase.
         // We can't spawn in PlacePhase, so place a coin manually on the tile.
@@ -648,7 +648,6 @@ public class PiecePlacementTests
     [InlineData(1, 6, false)]
     public void Board_IsEdgeTile_ReturnsCorrectly(int row, int col, bool expected)
     {
-        var board = new Board();
         Assert.Equal(expected, Board.IsEdgeTile(new Position(row, col)));
     }
 
@@ -662,7 +661,6 @@ public class PiecePlacementTests
     [InlineData(4, 4, false)]
     public void Board_IsCornerTile_ReturnsCorrectly(int row, int col, bool expected)
     {
-        var board = new Board();
         Assert.Equal(expected, Board.IsCornerTile(new Position(row, col)));
     }
 

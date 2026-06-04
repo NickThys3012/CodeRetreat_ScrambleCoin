@@ -1,6 +1,4 @@
-using ScrambleCoin.StarterBot.Models;
-
-namespace ScrambleCoin.StarterBot;
+namespace ScrambleCoin.StarterBot.Models;
 
 // ── Placement decision ────────────────────────────────────────────────────────
 

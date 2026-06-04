@@ -448,7 +448,6 @@
                     <span style="font-size:1.1rem; font-weight:600;">⚡ Knockout Bracket</span>
                     @{
                         var allKo = rounds.SelectMany(r => r.Matches).ToList();
-                        var doneKo = allKo.Count(m => m.IsCompleted);
                         var liveKo = allKo.Count(m => m is { GameId: not null, IsCompleted: false, IsBye: false });
                         if (liveKo > 0)
                         {
@@ -466,7 +465,7 @@
                         {
                             var round = rounds[ri];
                             var roundLeft = ri * (CardW + ConnW + RoundPad * 2) + RoundPad;
-                            var slotH = SlotH(ri, firstCount);
+                            SlotH(ri, firstCount);
                             var isFinal = ri == rounds.Count - 1;
 
                             <!-- Round column label -->
@@ -526,7 +525,7 @@
                                 continue;
                             
                             var svgLeft = roundLeft + CardW;
-                            var nextSlotH = SlotH(ri + 1, firstCount);
+                            SlotH(ri + 1, firstCount);
 
                             <svg style="position:absolute; left:@(svgLeft)px; top:0; overflow:visible;"
                                  width="@(ConnW + RoundPad * 2)" height="@totalH"

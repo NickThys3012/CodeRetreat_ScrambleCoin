@@ -110,7 +110,7 @@ public class IcePatchesTests
 
     // ── Elsa Ice Patch Placement Tests ─────────────────────────────────────────
 
-    private static (Game game, Guid p1, Guid p2) CreateGameInMovePhase()
+    private static (Game game, Guid p1) CreateGameInMovePhase()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -135,14 +135,14 @@ public class IcePatchesTests
         game.PlacePiece(p1, elsaPiece.Id, new Position(0, 0));
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
-        return (game, p1, p2);
+        return (game, p1);
     }
 
     [Fact]
     public void ElsaMove_PlacesIcePatchesOnExitTiles()
     {
         // Arrange
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa from (0,0) to (0,3) via (0,1), (0,2), (0,3)
         IReadOnlyList<Position> segment = new List<Position> 
@@ -167,7 +167,7 @@ public class IcePatchesTests
     public void ElsaMove_SingleStepMove_NoIcePatchesPlaced()
     {
         // Arrange
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa from (0,0) to (0,1) - only 1 step
         IReadOnlyList<Position> segment = new List<Position> { new(0, 1) }.AsReadOnly();
@@ -272,7 +272,7 @@ public class IcePatchesTests
     public void IcePatches_PersistAcrossTurns()
     {
         // Arrange: Elsa places ice patches
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa to place ice patches
         IReadOnlyList<Position> segment = new List<Position> 

@@ -27,7 +27,7 @@ public class CreateGameCommandHandlerTests
         var command = new CreateGameCommand();
 
         // Act
-        var result = await handler.Handle(command, CancellationToken.None);
+        await handler.Handle(command, CancellationToken.None);
 
         // Assert: SaveAsync was called once with a non-null game.
         await repo.Received(1).SaveAsync(Arg.Is<Game>(g => g != null), Arg.Any<CancellationToken>());

@@ -1,4 +1,5 @@
 using MediatR;
+using ScrambleCoin.Application.Interfaces;
 
 namespace ScrambleCoin.Application.Tournament.GetAllTournaments;
 

@@ -97,7 +97,7 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // 3. Check that a player lineup is updated
 
         // Assert: Page loads successfully
-        var isVisible = await page.IsVisibleAsync("text=/board/i");
+        await page.IsVisibleAsync("text=/board/i");
         // Can be true or false depending on page content
 
         await page.CloseAsync();
@@ -186,7 +186,7 @@ public class PassiveAbilitiesE2ETests : IAsyncLifetime
         // 3. Verify spectator view updates via SignalR push
 
         // Assert: Page loads
-        var isVisible = await page.IsVisibleAsync("main");
+        await page.IsVisibleAsync("main");
 
         await page.CloseAsync();
     }

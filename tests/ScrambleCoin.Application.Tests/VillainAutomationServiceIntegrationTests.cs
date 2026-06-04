@@ -42,7 +42,7 @@ public class VillainAutomationServiceIntegrationTests
     public async Task EnsureVillainActsIfNeeded_NonSoloGame_DoesNotTriggerVillain()
     {
         // Arrange: Create a non-solo game (no VillainId)
-        var (game, botPlayerId, villainPlayerId, _) = CreateGameWithVillain();
+        var (game, _, _, _) = CreateGameWithVillain();
         game.VillainId = null; // Clear villain ID to make it non-solo
 
         var repo = Substitute.For<IGameRepository>();
@@ -71,7 +71,7 @@ public class VillainAutomationServiceIntegrationTests
     public async Task EnsureVillainActsIfNeeded_PlacePhase_CallsStrategyAndDispatchesAction()
     {
         // Arrange: Game in PlacePhase with villain ready to act
-        var (game, botPlayerId, villainPlayerId, villainId) = CreateGameWithVillain();
+        var (game, _, villainPlayerId, villainId) = CreateGameWithVillain();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var expectedAction = new SkipPlacementAction();
@@ -154,7 +154,7 @@ public class VillainAutomationServiceIntegrationTests
     public async Task EnsureVillainActsIfNeeded_SkipActionStopsProcessing()
     {
         // Arrange: Villain decides to skip
-        var (game, botPlayerId, villainPlayerId, villainId) = CreateGameWithVillain();
+        var (game, _, villainPlayerId, villainId) = CreateGameWithVillain();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var skipAction = new SkipPlacementAction();
@@ -190,7 +190,7 @@ public class VillainAutomationServiceIntegrationTests
     public async Task VillainPlacePieceCommand_ValidPlacement_PlacesPieceAndReturnsResult()
     {
         // Arrange
-        var (game, botPlayerId, villainPlayerId, _) = CreateGameWithVillain();
+        var (game, _, villainPlayerId, _) = CreateGameWithVillain();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var piece = game.LineupPlayerTwo!.Pieces[0];
@@ -216,7 +216,7 @@ public class VillainAutomationServiceIntegrationTests
     public async Task VillainSkipPlacementCommand_SkipsPlacement()
     {
         // Arrange
-        var (game, botPlayerId, villainPlayerId, _) = CreateGameWithVillain();
+        var (game, _, villainPlayerId, _) = CreateGameWithVillain();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         var repo = Substitute.For<IGameRepository>();

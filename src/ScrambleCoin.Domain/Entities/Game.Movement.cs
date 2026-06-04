@@ -121,7 +121,7 @@ public partial class Game
         // (excluding start and destination).
         if (piece.IsElsa && startPosition != currentPosition)
         {
-            PlaceElsaIcePatches(startPosition, fullPath);
+            PlaceElsaIcePatches(fullPath);
         }
 
         // Execute on-stop abilities (Issue #49)

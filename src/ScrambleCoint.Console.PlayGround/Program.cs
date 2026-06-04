@@ -4,6 +4,7 @@ using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
+using ScrambleCoint.Console.PlayGround;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 var rng = new Random(42); // change to new Random(42) for a reproducible run
@@ -226,33 +227,36 @@ void Step(string message)
 
 // ── In-memory repository (playground only) ────────────────────────────────────
 
-/// <summary>
-/// Minimal IGameRepository that keeps a single game in memory.
-/// No EF Core or SQL — used only by the Playground console app.
-/// </summary>
-sealed class InMemoryGameRepository(Game initial) : IGameRepository
+namespace ScrambleCoint.Console.PlayGround
 {
-    private Game _game = initial;
-
-    public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        => Task.FromResult(_game);
-
-    public Task SaveAsync(Game game, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Minimal IGameRepository that keeps a single game in memory.
+    /// No EF Core or SQL — used only by the Playground console app.
+    /// </summary>
+    sealed class InMemoryGameRepository(Game initial) : IGameRepository
     {
-        _game = game;
-        game.ClearDomainEvents();
-        return Task.CompletedTask;
+        private Game _game = initial;
+
+        public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_game);
+
+        public Task SaveAsync(Game game, CancellationToken cancellationToken = default)
+        {
+            _game = game;
+            game.ClearDomainEvents();
+            return Task.CompletedTask;
+        }
+
+        public Task StageAsync(Game game, CancellationToken cancellationToken = default)
+        {
+            _game = game;
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>>([]);
     }
-
-    public Task StageAsync(Game game, CancellationToken cancellationToken = default)
-    {
-        _game = game;
-        return Task.CompletedTask;
-    }
-
-    public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
-        => Task.FromResult(false);
-
-    public Task<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>>([]);
 }
