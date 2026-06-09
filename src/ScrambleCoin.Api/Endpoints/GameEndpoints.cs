@@ -153,7 +153,7 @@ internal static class GameEndpoints
         IQueueService queueService,
         CancellationToken ct)
     {
-        var entry = await queueService.PollAsync(queueId, ct);
+        var entry = await queueService.PollAsync(queueId);
 
         if (entry is null)
         {

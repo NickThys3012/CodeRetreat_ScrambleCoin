@@ -34,10 +34,9 @@ public interface IQueueService
     /// Polls for the current status of a queue entry.
     /// </summary>
     /// <param name="queueId">The queue ID returned by <see cref="EnqueueAsync"/>.</param>
-    /// <param name="cancellationToken"></param>
     /// <returns>
     /// The <see cref="QueueEntry"/> (status may be <c>"waiting"</c>, <c>"matched"</c>, or <c>"timed_out"</c>),
     /// or <c>null</c> if the ID is not recognized.
     /// </returns>
-    public Task<QueueEntry?> PollAsync(Guid queueId, CancellationToken cancellationToken = default);
+    public Task<QueueEntry?> PollAsync(Guid queueId);
 }

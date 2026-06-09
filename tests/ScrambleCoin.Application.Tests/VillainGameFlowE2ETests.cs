@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using ScrambleCoin.Application.Games.VillainActions;
+using ScrambleCoin.Application.Games.VillainActions.VillainPlacePiece;
+using ScrambleCoin.Application.Games.VillainActions.VillainSkipPlacement;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Application.Services.Villains;

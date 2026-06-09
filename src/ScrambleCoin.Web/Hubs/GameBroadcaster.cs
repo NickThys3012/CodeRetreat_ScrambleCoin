@@ -32,7 +32,6 @@ public sealed class GameBroadcaster : IGameBroadcaster
     public async Task<BroadcastResult?> BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
     {
         var boardState = await _sender.Send(new GetSpectatorBoardStateQuery(gameId), ct);
-        if (boardState is null) return null;
         var group = _hubContext.Clients.Group(GameGroupPrefix + gameId);
         await group.SendAsync("BoardStateUpdated", boardState, ct);
         var json = JsonSerializer.Serialize(boardState, Json);

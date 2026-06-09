@@ -175,7 +175,7 @@ public class ScrambleCoinDbContext : DbContext, IUnitOfWork
         });
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc cref="IUnitOfWork.SaveChangesAsync" />
     /// <remarks>
     /// Wraps <see cref="DbUpdateConcurrencyException"/> as <see cref="ConcurrencyConflictException"/>
     /// so the Application layer can handle concurrency conflicts without referencing EF Core.

@@ -119,7 +119,7 @@ public class VillainStrategyTests
     [Fact]
     public void VillainStrategyFactory_GetDisplayName_ReturnsCorrectName()
     {
-        var factory = new VillainStrategyFactory();
+        IVillainStrategyFactory factory = new VillainStrategyFactory();
 
         Assert.Equal("Elsa", factory.GetDisplayName(VillainRegistry.Elsa.Id));
         Assert.Equal("Ursula", factory.GetDisplayName(VillainRegistry.Ursula.Id));
@@ -129,7 +129,7 @@ public class VillainStrategyTests
     [Fact]
     public void VillainStrategyFactory_GetVillainLineup_ReturnsValidLineup()
     {
-        var factory = new VillainStrategyFactory();
+        IVillainStrategyFactory factory = new VillainStrategyFactory();
         var playerId = Guid.NewGuid();
 
         var elsaLineup = factory.GetVillainLineup(VillainRegistry.Elsa.Id, playerId);

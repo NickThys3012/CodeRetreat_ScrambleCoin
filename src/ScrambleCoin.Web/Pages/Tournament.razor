@@ -465,7 +465,7 @@
                         {
                             var round = rounds[ri];
                             var roundLeft = ri * (CardW + ConnW + RoundPad * 2) + RoundPad;
-                            SlotH(ri, firstCount);
+                            SlotH(ri);
                             var isFinal = ri == rounds.Count - 1;
 
                             <!-- Round column label -->
@@ -477,7 +477,7 @@
 
                             @foreach (var (match, mi) in round.Matches.Select((m, i) => (m, i)))
                             {
-                                var cardTop = MatchTop(ri, mi, firstCount);
+                                var cardTop = MatchTop(ri, mi);
                                 var b1 = match.BotOne.HasValue ? names.GetValueOrDefault(match.BotOne.Value, ShortId(match.BotOne.Value)) : null;
                                 var b2 = match.BotTwo.HasValue ? names.GetValueOrDefault(match.BotTwo.Value, ShortId(match.BotTwo.Value)) : null;
                                 var w1 = match.WinnerId.HasValue && match.WinnerId == match.BotOne;
@@ -525,7 +525,7 @@
                                 continue;
                             
                             var svgLeft = roundLeft + CardW;
-                            SlotH(ri + 1, firstCount);
+                            SlotH(ri + 1);
 
                             <svg style="position:absolute; left:@(svgLeft)px; top:0; overflow:visible;"
                                  width="@(ConnW + RoundPad * 2)" height="@totalH"
@@ -682,20 +682,20 @@
     // ── Bracket layout helpers ────────────────────────────────────────────────
 
     /// <summary>Slot height for a given round index (doubles each round).</summary>
-    private static int SlotH(int roundIndex, int firstCount) =>
+    private static int SlotH(int roundIndex) =>
         (CardH + CardGap) * (1 << roundIndex);
 
     /// <summary>Top pixel offset for match [roundIndex, matchIndex].</summary>
-    private static int MatchTop(int roundIndex, int matchIndex, int firstCount)
+    private static int MatchTop(int roundIndex, int matchIndex)
     {
-        var slotH = SlotH(roundIndex, firstCount);
+        var slotH = SlotH(roundIndex);
         return matchIndex * slotH + (slotH - CardH) / 2;
     }
 
     /// <summary>Vertical centre pixel for match [roundIndex, matchIndex].</summary>
     private static int MatchCenterY(int roundIndex, int matchIndex, int firstCount)
     {
-        var slotH = SlotH(roundIndex, firstCount);
+        var slotH = SlotH(roundIndex);
         return matchIndex * slotH + slotH / 2;
     }
 

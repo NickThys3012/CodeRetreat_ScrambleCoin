@@ -66,7 +66,9 @@ public sealed class GreedyStrategy : IStrategy
     /// <inheritdoc />
     public PlacementDecision DecidePlacement(BoardState state, PieceState piece)
     {
-        // Collect all positions blocked by obstacles or existing pieces (coins are NOT blocking)
+        // Collect all positions blocked by obstacles, existing pieces, or coins.
+        // Coins are excluded from movement blocking, but during placement we treat them as
+        // occupied so the piece doesn't sit on a coin (placement does not collect).
         var occupied = GetOccupiedPositions(state);
 
         // Choose candidate tiles based on the piece's entry-point type
@@ -240,9 +242,18 @@ public sealed class GreedyStrategy : IStrategy
         return blocked;
     }
 
-    /// <summary>All positions currently occupied by obstacles or pieces (coins are collectible, not blocking).</summary>
-    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state) =>
-        GetBlockedPositions(state);
+    /// <summary>
+    /// All positions unsuitable for placement: obstacles, existing pieces, and tiles holding a coin.
+    /// Coins are excluded from movement blocking (they are collectible) but excluded here from
+    /// placement because placing on a coin does not collect it and wastes the tile.
+    /// </summary>
+    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state)
+    {
+        var occupied = GetBlockedPositions(state);
+        foreach (var coin in state.AvailableCoins)
+            occupied.Add((coin.Position.Row, coin.Position.Col));
+        return occupied;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

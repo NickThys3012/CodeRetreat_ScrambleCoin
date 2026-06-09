@@ -19,6 +19,8 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         {
             TurnPhase.PlacePhase => DecidePlacement(game, villainPlayerId),
             TurnPhase.MovePhase => DecideMovement(game, villainPlayerId),
+            TurnPhase.CoinSpawn => throw new DomainException($"Invalid phase for villain action: {game.CurrentPhase}"),
+            null => throw new DomainException($"Invalid phase for villain action: {game.CurrentPhase}"),
             _ => throw new DomainException($"Invalid phase for villain action: {game.CurrentPhase}")
         };
     }

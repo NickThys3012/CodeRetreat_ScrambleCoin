@@ -63,6 +63,11 @@ public partial class Game
                 case MovementType.AnyDirection:
                     // Any direction is allowed
                     break;
+                case MovementType.Jump:
+                case MovementType.Charge:
+                case MovementType.Ethereal:
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(movementType), movementType, null);
             }
         }
 

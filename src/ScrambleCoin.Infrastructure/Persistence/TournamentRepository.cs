@@ -220,8 +220,9 @@ public sealed class TournamentRepository : ITournamentRepository
         var participantDtos = JsonSerializer.Deserialize<List<TournamentParticipantDto>>(
             record.ParticipantsJson, JsonOptions) ?? [];
 
-        foreach (var p in participantDtos)
-            participantsList.Add(new TournamentParticipant(p.BotId, p.BotName, p.Lineup));
+        participantsList.AddRange(
+            participantDtos.Select(p => 
+                new TournamentParticipant(p.BotId, p.BotName, p.Lineup)));
 
         // Group matches list
         var groupMatchesField = type.GetField("_groupMatches", flags)!;

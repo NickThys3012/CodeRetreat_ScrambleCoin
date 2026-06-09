@@ -224,7 +224,12 @@
                                              "Finished" => "card-status-done",
                                              _ => "card-status-waiting"
                                          })">
-                                @(g.Status == "InProgress" ? "● Live" : g.Status == "Finished" ? "✓ Done" : "⏳ Waiting")
+                                @(g.Status switch
+                                {
+                                    "InProgress" => "● Live",
+                                    "Finished" => "✓ Done",
+                                    _ => "⏳ Waiting"
+                                })
                             </span>
                             <span class="card-game-id">@g.GameId.ToString()[..8]…</span>
                         </div>
@@ -271,8 +276,8 @@
 </div>
 
 @code {
-    private List<ActiveGameSummaryDto> _activeGames = new();
-    private List<TournamentSummaryDto> _activeTournaments = new();
+    private List<ActiveGameSummaryDto> _activeGames = [];
+    private List<TournamentSummaryDto> _activeTournaments = [];
     private Timer? _refreshTimer;
     private DateTime _lastRefresh = DateTime.Now;
 

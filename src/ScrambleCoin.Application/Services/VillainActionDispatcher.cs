@@ -1,5 +1,8 @@
 using MediatR;
-using ScrambleCoin.Application.Games.VillainActions;
+using ScrambleCoin.Application.Games.VillainActions.VillainMovePiece;
+using ScrambleCoin.Application.Games.VillainActions.VillainPlacePiece;
+using ScrambleCoin.Application.Games.VillainActions.VillainSkipMovement;
+using ScrambleCoin.Application.Games.VillainActions.VillainSkipPlacement;
 using ScrambleCoin.Domain.Exceptions;
 
 namespace ScrambleCoin.Application.Services;
