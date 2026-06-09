@@ -33,11 +33,15 @@ public sealed record BoardDto(IReadOnlyList<TileDto> Tiles);
 /// <param name="IsObstacle">True when the tile is covered by a Rock or Lake (impassable).</param>
 /// <param name="Occupant">Current occupant (coin or piece info), or null if empty.</param>
 /// <param name="FencedEdges">Directions ("North","South","East","West") where a fence blocks movement out of this tile.</param>
+/// <param name="ObstacleType">Discriminated obstacle kind: "None", "Rock", or "Lake".</param>
+/// <param name="HasIcePatch">True when Elsa has placed an ice patch on this tile.</param>
 public sealed record TileDto(
     PositionDto Position,
     bool IsObstacle,
     TileOccupantDto? Occupant,
-    IReadOnlyList<string> FencedEdges);
+    IReadOnlyList<string> FencedEdges,
+    string ObstacleType = "None",
+    bool HasIcePatch = false);
 
 /// <summary>A position on the board.</summary>
 public sealed record PositionDto(int Row, int Col);

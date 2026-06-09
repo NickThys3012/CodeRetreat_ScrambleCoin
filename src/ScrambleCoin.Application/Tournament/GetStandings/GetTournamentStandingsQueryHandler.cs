@@ -74,7 +74,7 @@ public sealed class GetTournamentStandingsQueryHandler : IRequestHandler<GetTour
     /// For each incomplete group match that has an assigned game, checks if that game
     /// has finished and records the result. Returns true if any match was updated.
     /// </summary>
-    internal async Task<bool> SyncGroupResultsAsync(DomainTournament tournament, CancellationToken cancellationToken)
+    private async Task<bool> SyncGroupResultsAsync(DomainTournament tournament, CancellationToken cancellationToken)
     {
         var dirty = false;
 

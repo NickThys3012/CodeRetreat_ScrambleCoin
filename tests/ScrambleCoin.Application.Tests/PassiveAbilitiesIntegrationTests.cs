@@ -351,7 +351,6 @@ public class PassiveAbilitiesIntegrationTests
         var handler = new GetBoardStateQueryHandler(gameRepo, botRegRepo, logger);
 
         // Act
-        var query = new GetBoardStateQuery(game.Id, game.PlayerOne);
         // Note: Not calling handler.Handle() directly since it requires IHubContext
         // This test just verifies the handler can be instantiated with passive ability games
 

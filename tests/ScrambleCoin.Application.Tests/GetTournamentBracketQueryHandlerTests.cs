@@ -4,7 +4,6 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.GetBracket;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;

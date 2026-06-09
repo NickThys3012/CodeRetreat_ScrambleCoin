@@ -1,5 +1,5 @@
 using NSubstitute;
-using ScrambleCoin.Application.Games.SoloMode;
+using ScrambleCoin.Application.Games.SoloMode.GetUnlockedPieces;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 

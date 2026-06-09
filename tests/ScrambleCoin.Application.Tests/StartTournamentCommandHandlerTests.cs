@@ -3,7 +3,6 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Tournament;
 using ScrambleCoin.Application.Tournament.StartTournament;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;

@@ -1,4 +1,5 @@
 using MediatR;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Tournament.GetBracket;
 
 namespace ScrambleCoin.Application.Tournament.GetBotGames;

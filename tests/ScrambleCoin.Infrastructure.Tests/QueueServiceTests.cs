@@ -71,9 +71,15 @@ public class QueueServiceTests
     /// expire immediately (any positive elapsed time satisfies <c>elapsed &gt; TimeSpan.Zero</c>).
     /// Used for timeout and lazy-eviction tests.
     /// </summary>
-    private static (QueueService service, IGameRepository gameRepo, IBotRegistrationRepository botRegRepo, ISender sender)
+    private static (QueueService service, ISender sender)
         BuildQueueServiceWithZeroTimeout()
-        => BuildQueueService(Options.Create(new QueueOptions { TimeoutMinutes = 0 }));
+    {
+       var (service,_,_,sender)= BuildQueueService(Options.Create(new QueueOptions
+       {
+           TimeoutMinutes = 0
+       }));
+        return (service, sender);
+    }
 
     /// <summary>
     /// Returns the private <c>_waitingTokens</c> field of the given service instance via
@@ -310,7 +316,7 @@ public class QueueServiceTests
     public async Task Poll_AfterTimeoutElapses_ReturnsTimedOutStatus()
     {
         // Arrange: build service with TimeoutMinutes = 0 → TimeSpan.Zero timeout.
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
         var entry = await service.EnqueueAsync(DefaultLineup);
 
         // Allow at least one tick so elapsed > TimeSpan.Zero is satisfied.
@@ -327,7 +333,7 @@ public class QueueServiceTests
     [Fact]
     public async Task Poll_AfterTimeoutElapses_TimedOutEntryPreservesQueueId()
     {
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
         var entry = await service.EnqueueAsync(DefaultLineup);
         await Task.Delay(1);
 
@@ -342,7 +348,7 @@ public class QueueServiceTests
     {
         // After the entry is marked timed_out, the record is removed, so further polls
         // must return null (not timed_out again).
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
         var entry = await service.EnqueueAsync(DefaultLineup);
         await Task.Delay(1);
 
@@ -517,7 +523,7 @@ public class QueueServiceTests
     public async Task Enqueue_WhenWaitingBotIsExpired_IncomingBotReceivesWaitingStatus()
     {
         // Arrange: zero-minute timeout so Bot A's entry is stale after any delay.
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
 
         await service.EnqueueAsync(DefaultLineup); // Bot A parks
         await Task.Delay(1);                        // Bot A entry expires
@@ -532,7 +538,7 @@ public class QueueServiceTests
     [Fact]
     public async Task Enqueue_WhenWaitingBotIsExpired_IncomingBotHasNullGameId()
     {
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
 
         await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire)
         await Task.Delay(1);
@@ -547,7 +553,7 @@ public class QueueServiceTests
     public async Task Enqueue_WhenWaitingBotIsExpired_NoGameIsCreated()
     {
         // The expired waiting bot must be discarded, not matched.
-        var (service, _, _, sender) = BuildQueueServiceWithZeroTimeout();
+        var (service, sender) = BuildQueueServiceWithZeroTimeout();
 
         await service.EnqueueAsync(DefaultLineup); // Bot A parks
         await Task.Delay(1);
@@ -562,7 +568,7 @@ public class QueueServiceTests
     {
         // After lazy eviction, polling the expired bot's QueueId should return null (evicted)
         // or timed_out — either way the entry must not be "waiting".
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
 
         var expiredEntry = await service.EnqueueAsync(DefaultLineup); // Bot A
         await Task.Delay(1);
@@ -581,7 +587,7 @@ public class QueueServiceTests
     public async Task Enqueue_WhenExpiredBotEvictedAndFreshBotArrives_TheyCanMatch()
     {
         // Arrange: zero-timeout service — every entry expires after any positive elapsed time.
-        var (service, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (service, _) = BuildQueueServiceWithZeroTimeout();
 
         await service.EnqueueAsync(DefaultLineup); // Bot A parks (will expire immediately)
         await Task.Delay(1);                        // ensure Bot A's timeout elapses
@@ -615,7 +621,7 @@ public class QueueServiceTests
     public async Task Enqueue_AfterTokenTimedOutViaPoll_SameBotCanRequeue()
     {
         // Arrange: zero-timeout so any elapsed time triggers expiry.
-        var (svc, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (svc, _) = BuildQueueServiceWithZeroTimeout();
         var token = Guid.NewGuid();
         var entry = await svc.EnqueueAsync(DefaultLineup, token);
         await Task.Delay(1); // ensure timeout elapses
@@ -639,7 +645,7 @@ public class QueueServiceTests
     public async Task Enqueue_AfterLazyEviction_SameBotTokenCanRequeue()
     {
         // Arrange: Bot A enqueues with a specific token on a zero-timeout service.
-        var (svc, _, _, _) = BuildQueueServiceWithZeroTimeout();
+        var (svc, _) = BuildQueueServiceWithZeroTimeout();
         var botAToken = Guid.NewGuid();
         await svc.EnqueueAsync(DefaultLineup, botAToken);
         await Task.Delay(1); // ensure Bot A expires

@@ -1,12 +1,13 @@
-using MudBlazor.Services;
-using Serilog;
-using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
 using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.Behaviours;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
 using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Web.Hubs;
+using Serilog;
+using Serilog.Events;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -64,19 +65,21 @@ try
         opts.UseSqlServer(connectionString));
 
     // ── Repositories ──────────────────────────────────────────────────────────
-    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IGameRepository,
+    builder.Services.AddScoped<IGameRepository,
         GameRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IBotUnlocksRepository,
+    builder.Services.AddScoped<IBotUnlocksRepository,
         BotUnlocksRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IVillainTreeRepository,
+    builder.Services.AddScoped<IVillainTreeRepository,
         VillainTreeRepository>();
     builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
         BotRegistrationRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Tournament.ITournamentRepository,
+    builder.Services.AddScoped<ITournamentRepository,
         TournamentRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IRankingRepository,
+    builder.Services.AddScoped<IRankingRepository,
         RankingRepository>();
-    builder.Services.AddScoped<ScrambleCoin.Application.Interfaces.IUnitOfWork>(
+    builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
+        GameSnapshotRepository>();
+    builder.Services.AddScoped<IUnitOfWork>(
         sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 
     // ── Application Services ───────────────────────────────────────────────────
@@ -131,4 +134,7 @@ finally
 }
 
 
-public partial class Program;
+namespace ScrambleCoin.Web
+{
+    internal partial class Program;
+}

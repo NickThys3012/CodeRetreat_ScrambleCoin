@@ -189,6 +189,45 @@ namespace ScrambleCoin.Infrastructure.Migrations
                     b.ToTable("Games", (string)null);
                 });
 
+            modelBuilder.Entity("ScrambleCoin.Infrastructure.Persistence.Records.GameSnapshotRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BoardStateJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("BoardState");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Phase")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Turn")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("GameId", "SequenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("GameSnapshots", (string)null);
+                });
+
             modelBuilder.Entity("ScrambleCoin.Infrastructure.Persistence.Records.RankingTrackRecord", b =>
                 {
                     b.Property<Guid>("BotId")

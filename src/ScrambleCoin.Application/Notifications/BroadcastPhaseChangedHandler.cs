@@ -13,7 +13,7 @@ namespace ScrambleCoin.Application.Notifications;
 /// <remarks>
 /// <see cref="Behaviours.SignalRBroadcastBehaviour{TRequest,TResponse}"/> already calls
 /// <see cref="IGameBroadcaster.NotifyActivePlayersAsync"/> after every
-/// <see cref="IGameStateChangingCommand"/>, so this handler deliberately does NOT repeat
+/// <see cref="Games.IGameStateChangingCommand"/>, so this handler deliberately does NOT repeat
 /// that call to avoid duplicate <c>ActionRequired</c> events.
 /// </remarks>
 public sealed class BroadcastPhaseChangedHandler : INotificationHandler<TurnPhaseChangedNotification>

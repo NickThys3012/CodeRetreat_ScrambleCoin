@@ -87,7 +87,7 @@ else
 
 // Authenticate all later requests with the assigned bot token
 client.SetBotToken(token);
-Console.WriteLine($"Bot token set. Ready to play.");
+Console.WriteLine("Bot token set. Ready to play.");
 Console.WriteLine();
 
 // ── Play the game ─────────────────────────────────────────────────────────────

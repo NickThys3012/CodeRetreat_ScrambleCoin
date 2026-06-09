@@ -6,7 +6,7 @@ namespace ScrambleCoin.Api.Swagger;
 /// <summary>
 /// Applies the <c>X-Admin-Key</c> security requirement to operations that need it.
 /// </summary>
-public sealed class AdminKeyOperationFilter : IOperationFilter
+internal sealed class AdminKeyOperationFilter : IOperationFilter
 {
     private static readonly string[] AdminKeyOperations =
     [

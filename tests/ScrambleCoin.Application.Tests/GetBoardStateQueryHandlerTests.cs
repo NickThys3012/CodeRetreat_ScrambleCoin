@@ -432,7 +432,7 @@ public class GetBoardStateQueryHandlerTests
     public async Task Handle_CalledByPlayerTwo_YourPiecesContainsPlayerTwoPieces()
     {
         // Arrange: player 2 issues the query
-        var (game, p1, p2) = NewStartedGame();
+        var (game, _, p2) = NewStartedGame();
         var reg2 = MakeRegistration(game.Id, p2);
 
         var gameRepo = Substitute.For<IGameRepository>();
@@ -453,7 +453,7 @@ public class GetBoardStateQueryHandlerTests
     public async Task Handle_CalledByPlayerTwo_OpponentPiecesContainsPlayerOnePieces()
     {
         // Arrange
-        var (game, p1, p2) = NewStartedGame();
+        var (game, _, p2) = NewStartedGame();
         var p2pieces = game.LineupPlayerTwo!.Pieces.Select(p => p.Id).ToHashSet();
         var reg2 = MakeRegistration(game.Id, p2);
 

@@ -7,10 +7,11 @@ namespace ScrambleCoin.Application.Abstractions;
 public interface IGameBroadcaster
 {
     /// <summary>
-    /// Fetches the current board state and broadcasts a <c>BoardStateUpdated</c> message
-    /// to all spectators watching <paramref name="gameId"/>.
+    /// Fetches the current board state, broadcasts a <c>BoardStateUpdated</c> message
+    /// to all spectators watching <paramref name="gameId"/>, and returns the serialized
+    /// board-state JSON for snapshot capture. Returns <c>null</c> when no state is available.
     /// </summary>
-    Task BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default);
+    Task<BroadcastResult?> BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default);
 
     /// <summary>
     /// Broadcasts a <c>PhaseChanged</c> message to all spectators watching <paramref name="gameId"/>.
@@ -34,3 +35,9 @@ public interface IGameBroadcaster
     /// </summary>
     Task NotifyActivePlayersAsync(Guid gameId, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Data returned by <see cref="IGameBroadcaster.BroadcastBoardStateAsync"/> so the caller
+/// can capture a replay snapshot without an extra DB round-trip.
+/// </summary>
+public sealed record BroadcastResult(int Turn, string Phase, string BoardStateJson);

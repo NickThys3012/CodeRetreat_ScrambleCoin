@@ -66,19 +66,21 @@ public sealed class GreedyStrategy : IStrategy
     /// <inheritdoc />
     public PlacementDecision DecidePlacement(BoardState state, PieceState piece)
     {
-        // Collect all positions blocked by obstacles or existing pieces (coins are NOT blocking)
+        // Collect all positions blocked by obstacles, existing pieces, or coins.
+        // Coins are excluded from movement blocking, but during placement we treat them as
+        // occupied so the piece doesn't sit on a coin (placement does not collect).
         var occupied = GetOccupiedPositions(state);
 
         // Choose candidate tiles based on the piece's entry-point type
-        var candidates = GetCandidateTiles(state, piece);
+        var candidates = GetCandidateTiles(piece);
 
         foreach (var pos in candidates)
         {
-            if (!occupied.Contains((pos.Row, pos.Col)))
-            {
-                Console.WriteLine($"  → Placing {piece.Name} at {pos}");
-                return new PlacementDecision.Place(piece.PieceId, pos);
-            }
+            if (occupied.Contains((pos.Row, pos.Col)))
+                continue;
+            
+            Console.WriteLine($"  → Placing {piece.Name} at {pos}");
+            return new PlacementDecision.Place(piece.PieceId, pos);
         }
 
         // No free tile found — skip this piece for now
@@ -111,7 +113,7 @@ public sealed class GreedyStrategy : IStrategy
             else
             {
                 // Stay still for this segment
-                segments.Add(Array.Empty<Position>());
+                segments.Add([]);
             }
         }
 
@@ -141,11 +143,9 @@ public sealed class GreedyStrategy : IStrategy
             .Where(p => !blocked.Contains((p.Row, p.Col)))
             .ToList();
 
-        if (valid.Count == 0)
-            return null;
-
-        // Pick the step closest to the target coin
-        return valid.OrderBy(p => p.DistanceTo(target)).First();
+        return valid.Count == 0 ? null :
+            // Pick the step closest to the target coin
+            valid.OrderBy(p => p.DistanceTo(target)).First();
     }
 
     /// <summary>Returns all adjacent positions the piece can step to in one action.</summary>
@@ -190,7 +190,7 @@ public sealed class GreedyStrategy : IStrategy
     ///   <item><b>Anywhere</b>: all board tiles, border first for faster collection.</item>
     /// </list>
     /// </summary>
-    private static IEnumerable<Position> GetCandidateTiles(BoardState state, PieceState piece)
+    private static IEnumerable<Position> GetCandidateTiles(PieceState piece)
     {
         var entryType = PieceEntryPoints.GetValueOrDefault(piece.Name, "Borders");
 
@@ -242,9 +242,18 @@ public sealed class GreedyStrategy : IStrategy
         return blocked;
     }
 
-    /// <summary>All positions currently occupied by obstacles or pieces (coins are collectible, not blocking).</summary>
-    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state) =>
-        GetBlockedPositions(state);
+    /// <summary>
+    /// All positions unsuitable for placement: obstacles, existing pieces, and tiles holding a coin.
+    /// Coins are excluded from movement blocking (they are collectible) but excluded here from
+    /// placement because placing on a coin does not collect it and wastes the tile.
+    /// </summary>
+    private static HashSet<(int, int)> GetOccupiedPositions(BoardState state)
+    {
+        var occupied = GetBlockedPositions(state);
+        foreach (var coin in state.AvailableCoins)
+            occupied.Add((coin.Position.Row, coin.Position.Col));
+        return occupied;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

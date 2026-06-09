@@ -345,7 +345,7 @@ public class PassiveAbilitiesTests
     public void Cinderella_AutoRemovedAtTurn5Start()
     {
         // Arrange: Create a game at turn 1, MovePhase with Cinderella placed
-        var (game, p1, _, cinderellaPiece, _) = GameWithPiecesInMovePhase("Cinderella", new Position(0, 0));
+        var (game, _, _, cinderellaPiece, _) = GameWithPiecesInMovePhase("Cinderella", new Position(0, 0));
         
         var initialLineup = game.LineupPlayerOne;
         var initialAvailableSlots = initialLineup!.Pieces.Count(p => !p.IsOnBoard);
@@ -425,7 +425,7 @@ public class PassiveAbilitiesTests
     public void FairyGodmother_BuffsAdjacentAllies_TemporaryMoveAdjustment()
     {
         // Arrange: FG at (0,3), we'll use one of the fill pieces as an ally
-        var (game, p1, p2, fgPiece, _) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3));
+        var (game, p1, _, fgPiece, _) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3));
         var board = game.Board;
         
         // Get one of the filler allay pieces and place it adjacent to where FG will move
@@ -470,11 +470,9 @@ public class PassiveAbilitiesTests
     public void Ursula_DebuffsAdjacentOpponents_TemporaryMoveAdjustment()
     {
         // Arrange: Ursula at (0,3), opponent piece to debuff
-        var (game, p1, p2, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3));
+        var (game, p1, _, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3));
         var board = game.Board;
-        
-        var movesBeforeDebuff = opponentPiece.MovesPerTurn;
-        
+
         // Place the opponent piece at (1,3) - adjacent to where Ursula will move to (1,4)
         board.GetTile(new Position(7, 3)).ClearOccupant();  // Remove from the default position
         opponentPiece.PlaceAt(new Position(1, 3));
@@ -509,7 +507,7 @@ public class PassiveAbilitiesTests
     public void MikeWazowski_ApplisCoinBuffToRandomAlly()
     {
         // Arrange: Mike in (0,0) [corner], ally at (0,1)
-        var (game, p1, p2, mikePiece, _) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 0));
+        var (game, p1, _, mikePiece, _) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 0));
         var board = game.Board;
         
         var allyPiece = new Piece(Guid.NewGuid(), "AllyTest", p1,

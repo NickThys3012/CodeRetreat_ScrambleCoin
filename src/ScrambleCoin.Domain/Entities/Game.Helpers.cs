@@ -63,6 +63,11 @@ public partial class Game
                 case MovementType.AnyDirection:
                     // Any direction is allowed
                     break;
+                case MovementType.Jump:
+                case MovementType.Charge:
+                case MovementType.Ethereal:
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(movementType), movementType, null);
             }
         }
 
@@ -187,7 +192,7 @@ public partial class Game
     /// Places ice patches on all intermediate positions that Elsa passed through.
     /// Excludes the starting position and the final destination.
     /// </summary>
-    private void PlaceElsaIcePatches(Position startPosition, List<Position> fullPath)
+    private void PlaceElsaIcePatches(List<Position> fullPath)
     {
         // Ice patches are placed in all positions except the final destination.
         // fullPath contains the visited positions in order (not including the starting position).

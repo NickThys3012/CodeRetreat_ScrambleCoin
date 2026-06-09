@@ -188,7 +188,7 @@ public class MovePieceCommandHandlerTests
     {
         // Arrange: P1 has already moved; P2's move will complete the turn.
         var (game, p1, p2, p1Piece, p2Piece) = GameInMovePhaseWithPieces();
-        var p1Token = Guid.NewGuid();
+        Guid.NewGuid();
         var p2Token = Guid.NewGuid();
 
         IReadOnlyList<IReadOnlyList<Position>> p1Segments = new List<IReadOnlyList<Position>>

@@ -1,5 +1,5 @@
-@using ScrambleCoin.Application.VillainTree
 @using System.Globalization
+@using ScrambleCoin.Application.VillainTree.GetVillainTree
 
 @* Renders the villain DAG as a top-down path the player "walks".
    Branches split left/right; multiple branches can converge back to one node.
@@ -78,7 +78,7 @@
         @* ── Start markers ───────────────────────────────────────── *@
         @foreach (var root in positioned.Where(n => n.Row == 0))
         {
-            var markerX = NodeLeft(root.Col, colStep, nodeW, padX) + nodeW / 2 - 18;
+            var markerX = NodeLeft(root.Col, colStep, padX) + nodeW / 2 - 18;
             const double markerY = padY - 24;
             <div style="position:absolute;left:@Px(markerX);top:@Px(markerY);
                         font-size:0.65rem;color:#555;text-align:center;width:36px;">
@@ -93,7 +93,7 @@
             var onPath = IsOnSelectedPath(pos.Node.VillainId, byId);
             var isMerge = pos.Node.RequiredParentVillainIds.Count() > 1;
 
-            var left = NodeLeft(pos.Col, colStep, nodeW, padX);
+            var left = NodeLeft(pos.Col, colStep, padX);
             var top  = pos.Row * rowStep + padY;
 
             var border = sel    ? "2px solid #f5a623"
@@ -260,7 +260,7 @@
 
     // ── Coordinate helpers ────────────────────────────────────────────────────
 
-    private static double NodeLeft(double col, double colStep, double nodeW, double padX)  => col * colStep + padX;
+    private static double NodeLeft(double col, double colStep, double padX)  => col * colStep + padX;
     private static double NodeCx(double col, double colStep, double nodeW, double padX)    => col * colStep + nodeW / 2 + padX;
     private static double NodeBottom(int row, double rowStep, double nodeH, double padY)   => row * rowStep + nodeH + padY;
     private static double NodeTop(int row, double rowStep, double padY)                    => row * rowStep + padY;

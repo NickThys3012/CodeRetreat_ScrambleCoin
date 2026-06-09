@@ -39,13 +39,13 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         var unlocks = new List<BotUnlock>
         {
             Unlock(botId, "villain-a", "piece-mickey"),
-            Unlock(botId, "villain-b", null),          // no piece reward
+            Unlock(botId, "villain-b") // no piece reward
         };
 
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(unlocks.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -66,13 +66,13 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         var unlocks = new List<BotUnlock>
         {
             Unlock(botId, "villain-a", "piece-one"),
-            Unlock(botId, "villain-a", "piece-two"),   // duplicate villain
+            Unlock(botId, "villain-a", "piece-two") // duplicate villain
         };
 
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(unlocks.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -95,7 +95,7 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { Unlock(botId, "villain-a") }.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack> { Track(botId, "AlphaBot") }.AsReadOnly());
+            .Returns(new List<RankingTrack> { Track(botId, "AlphaBot") }.AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -113,7 +113,7 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new[] { Unlock(botId, "villain-a") }.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -137,13 +137,13 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         {
             Unlock(botA, "v1"), Unlock(botA, "v2"), Unlock(botA, "v3"),
             Unlock(botB, "v1"),
-            Unlock(botC, "v1"), Unlock(botC, "v2"),
+            Unlock(botC, "v1"), Unlock(botC, "v2")
         };
 
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(unlocks.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -165,13 +165,13 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         {
             Unlock(botA, "v1", "piece-1"),
             Unlock(botA, "v1", "piece-2"), // duplicate villain but another piece
-            Unlock(botB, "v1", "piece-x"),
+            Unlock(botB, "v1", "piece-x")
         };
 
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(unlocks.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -188,9 +188,9 @@ public sealed class GetAllBotsProgressQueryHandlerTests
     {
         // Arrange
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<BotUnlock>());
+            .Returns([]);
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);
@@ -211,13 +211,13 @@ public sealed class GetAllBotsProgressQueryHandlerTests
         var unlocks = new List<BotUnlock>
         {
             Unlock(botA, "villain-shared"),
-            Unlock(botB, "villain-shared"),
+            Unlock(botB, "villain-shared")
         };
 
         _unlocksRepo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(unlocks.AsEnumerable());
         _rankingRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns((IReadOnlyList<RankingTrack>)new List<RankingTrack>().AsReadOnly());
+            .Returns(new List<RankingTrack>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllBotsProgressQuery(), CancellationToken.None);

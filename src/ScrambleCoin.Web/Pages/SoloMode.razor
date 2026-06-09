@@ -1,8 +1,8 @@
 @page "/solo-mode"
 @using MediatR
-@using ScrambleCoin.Application.Games.SoloMode
-@using ScrambleCoin.Application.VillainTree
-@using VillainNodeDto = ScrambleCoin.Application.VillainTree.VillainNodeDto
+@using ScrambleCoin.Application.Games.SoloMode.CreateSoloGame
+@using ScrambleCoin.Application.VillainTree.GetVillainTree
+@using VillainNodeDto = ScrambleCoin.Application.VillainTree.GetVillainTree.VillainNodeDto
 @inject IMediator Mediator
 
 <MudContainer MaxWidth="MaxWidth.Large">
@@ -68,7 +68,6 @@
 
 @code {
     private List<VillainNodeDto> _allNodes = [];
-    private List<VillainNodeDto> _rootNodes = [];
     private bool _isLoadingTree = true;
 
     private string? _selectedVillainId;
@@ -82,7 +81,6 @@
         {
             var result = await Mediator.Send(new GetVillainTreeQuery());
             _allNodes  = result.AllNodes.ToList();
-            _rootNodes = result.RootNodes.ToList();
         }
         catch (Exception ex)
         {

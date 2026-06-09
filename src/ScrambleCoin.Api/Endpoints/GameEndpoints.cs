@@ -14,7 +14,7 @@ namespace ScrambleCoin.Api.Endpoints;
 /// <summary>
 /// Minimal API endpoints for game session management and bot registration.
 /// </summary>
-public static class GameEndpoints
+internal static class GameEndpoints
 {
 
     public static void MapGameEndpoints(this WebApplication app)
@@ -153,7 +153,7 @@ public static class GameEndpoints
         IQueueService queueService,
         CancellationToken ct)
     {
-        var entry = await queueService.PollAsync(queueId, ct);
+        var entry = await queueService.PollAsync(queueId);
 
         if (entry is null)
         {

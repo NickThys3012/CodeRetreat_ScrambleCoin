@@ -76,7 +76,7 @@ public class TournamentEndpointTests : IClassFixture<TournamentEndpointTests.Tes
     }
 
     /// <summary>Creates a tournament via the API and returns its ID.</summary>
-    private async Task<Guid> CreateTournamentAsync(
+    private static async Task<Guid> CreateTournamentAsync(
         HttpClient client,
         string name = "Test Cup",
         int maxParticipants = 8,
@@ -92,7 +92,7 @@ public class TournamentEndpointTests : IClassFixture<TournamentEndpointTests.Tes
     }
 
     /// <summary>Registers a bot for a tournament via the API.</summary>
-    private async Task AddParticipantAsync(HttpClient client, Guid tournamentId, Guid botId, string botName)
+    private static async Task AddParticipantAsync(HttpClient client, Guid tournamentId, Guid botId, string botName)
     {
         var body = new { BotId = botId, BotName = botName, Lineup = DefaultLineup };
         var response = await client.PostAsJsonAsync($"/api/tournament/{tournamentId}/participants", body);

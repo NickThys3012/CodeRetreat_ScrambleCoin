@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using ScrambleCoin.Application.Abstractions;
@@ -10,10 +11,12 @@ namespace ScrambleCoin.Api.Hubs;
 /// Identical logic to the one in <c>ScrambleCoin.Web</c> but wired to
 /// <see cref="GameHub"/> (the Api project's own hub type).
 /// </summary>
-public sealed class GameBroadcaster : IGameBroadcaster
+internal sealed class GameBroadcaster : IGameBroadcaster
 {
     private const string GameGroupPrefix   = "game-";
     private const string PlayerGroupPrefix = "player-";
+
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     private readonly IHubContext<GameHub> _hubContext;
     private readonly ISender _sender;
@@ -24,11 +27,13 @@ public sealed class GameBroadcaster : IGameBroadcaster
         _sender     = sender;
     }
 
-    public async Task BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
+    public async Task<BroadcastResult?> BroadcastBoardStateAsync(Guid gameId, CancellationToken ct = default)
     {
         var boardState = await _sender.Send(new GetSpectatorBoardStateQuery(gameId), ct);
         await _hubContext.Clients.Group(GameGroupPrefix + gameId)
             .SendAsync("BoardStateUpdated", boardState, ct);
+        var json = JsonSerializer.Serialize(boardState, Json);
+        return new BroadcastResult(boardState.Turn, boardState.Phase ?? "Unknown", json);
     }
 
     public async Task BroadcastPhaseChangedAsync(

@@ -15,7 +15,7 @@ namespace ScrambleCoin.Application.Games.SpawnCoins;
 /// This handler is for internal use only (e.g. triggered automatically when a game enters
 /// the CoinSpawn phase). It is NOT exposed as a bot-accessible REST endpoint.
 /// Note: games cannot end during the CoinSpawn phase — game-over is only possible at the
-/// end of MovePhase, which is handled by <see cref="MovePieceCommandHandler"/>.
+/// end of MovePhase, which is handled by <see cref="MovePiece.MovePieceCommandHandler"/>.
 /// </remarks>
 public sealed class SpawnCoinsCommandHandler : IRequestHandler<SpawnCoinsCommand>
 {

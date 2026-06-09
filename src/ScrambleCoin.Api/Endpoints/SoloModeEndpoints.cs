@@ -1,5 +1,8 @@
 using MediatR;
-using ScrambleCoin.Application.Games.SoloMode;
+using ScrambleCoin.Application.Games.SoloMode.CreateSoloGame;
+using ScrambleCoin.Application.Games.SoloMode.GetStarterPieces;
+using ScrambleCoin.Application.Games.SoloMode.GetUnlockedPieces;
+using ScrambleCoin.Application.Games.SoloMode.GetVillainPath;
 using ScrambleCoin.Domain.Exceptions;
 
 namespace ScrambleCoin.Api.Endpoints;
@@ -7,7 +10,7 @@ namespace ScrambleCoin.Api.Endpoints;
 /// <summary>
 /// Minimal API endpoints for solo mode: villain path, unlocked pieces, and solo game creation.
 /// </summary>
-public static class SoloModeEndpoints
+internal static class SoloModeEndpoints
 {
     public static void MapSoloModeEndpoints(this WebApplication app)
     {

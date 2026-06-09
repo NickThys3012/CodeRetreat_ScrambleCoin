@@ -1,6 +1,9 @@
 @page "/admin/villains"
 @using MediatR
-@using ScrambleCoin.Application.VillainTree
+@using ScrambleCoin.Application.VillainTree.AddVillainNode
+@using ScrambleCoin.Application.VillainTree.DeleteVillainNode
+@using ScrambleCoin.Application.VillainTree.GetVillainTree
+@using ScrambleCoin.Application.VillainTree.UpdateVillainNode
 
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
@@ -96,7 +99,6 @@
 
 @code {
     private List<VillainNodeDto> _allNodes = [];
-    private List<VillainNodeDto> @_rootNodes = [];
     private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync() => await LoadTree();
@@ -108,7 +110,6 @@
         {
             var result = await Mediator.Send(new GetVillainTreeQuery());
             _allNodes = result.AllNodes.ToList();
-            _rootNodes = result.RootNodes.ToList();
         }
         catch (Exception ex)
         {

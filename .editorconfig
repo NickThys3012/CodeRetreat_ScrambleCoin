@@ -516,3 +516,26 @@ resharper_inconsistent_naming_highlighting = none
 [src/ScrambleCoin.Infrastructure/Migrations/*.cs]
 dotnet_diagnostic.IDE1006.severity = none
 resharper_inconsistent_naming_highlighting = none
+
+
+[src/ScrambleCoin.Domain/Events/*.cs]
+dotnet_diagnostic.CS8907.severity = none
+resharper_not_accessed_positional_property_global_highlighting = none
+dotnet_diagnostic.IDE0051.severity = none
+csharp_style_unused_value_assignment_preference = discard_variable:none
+
+
+[{src/ScrambleCoin.Application/**/*Dto.cs,src/ScrambleCoin.Infrastructure/Persistence/Records/*Dtos.cs}]
+dotnet_diagnostic.CS8907.severity = none
+resharper_not_accessed_positional_property_global_highlighting = none
+dotnet_diagnostic.IDE0051.severity = none
+csharp_style_unused_value_assignment_preference = discard_variable:none
+
+
+[src/ScrambleCoin.Domain/Exceptions/*.cs]
+resharper_unused_auto_property_accessor_global_highlighting  = none
+resharper_unused_auto_property_accessor_local_highlighting = none
+
+
+[src/ScrambleCoin.Infrastructure/Persistence/Records/*.cs]
+resharper_entity_framework_model_validation_unlimited_string_length_highlighting = none

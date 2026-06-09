@@ -133,12 +133,11 @@ public sealed class BotClient : IDisposable
             return new QueuePollResponse { Status = "timed_out" };
         }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            await PrintApiErrorAsync(response, "PollQueue");
-            return null;
-        }
-        return await response.Content.ReadFromJsonAsync<QueuePollResponse>(JsonOptions, ct);
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<QueuePollResponse>(JsonOptions, ct);
+        
+        await PrintApiErrorAsync(response, "PollQueue");
+        return null;
     }
 
     // ── Game state ────────────────────────────────────────────────────────────

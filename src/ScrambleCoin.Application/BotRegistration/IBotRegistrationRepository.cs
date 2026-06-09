@@ -1,3 +1,4 @@
+using ScrambleCoin.Application.Interfaces;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 
 namespace ScrambleCoin.Application.BotRegistration;

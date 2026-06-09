@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.BotRegistration;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Infrastructure.Persistence;
 
@@ -299,7 +301,7 @@ public class BotUnlocksRepositoryTests
         // Act
         await using (var context = new ScrambleCoinDbContext(options))
         {
-            var repository = new BotUnlocksRepository(context);
+            IBotUnlocksRepository repository = new BotUnlocksRepository(context);
             var result = await repository.GetUnlockedPieceIdsAsync(botId);
 
             // Assert: Only pieces with non-null values
@@ -351,7 +353,7 @@ public class BotUnlocksRepositoryTests
 
         // Act
         await using var context = new ScrambleCoinDbContext(options);
-        var repository = new BotUnlocksRepository(context);
+        IBotUnlocksRepository repository = new BotUnlocksRepository(context);
         var result = await repository.HasDefeatedVillainAsync(botId, "nonexistent");
 
         // Assert

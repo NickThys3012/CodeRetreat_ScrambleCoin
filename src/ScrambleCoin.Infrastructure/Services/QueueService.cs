@@ -244,7 +244,7 @@ public sealed class QueueService : IQueueService
     }
 
     /// <inheritdoc />
-    public Task<QueueEntry?> PollAsync(Guid queueId, CancellationToken cancellationToken = default)
+    public Task<QueueEntry?> PollAsync(Guid queueId)
     {
         if (!_entries.TryGetValue(queueId, out var entry))
             return Task.FromResult<QueueEntry?>(null);

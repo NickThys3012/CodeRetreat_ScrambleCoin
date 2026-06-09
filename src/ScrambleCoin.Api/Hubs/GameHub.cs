@@ -9,7 +9,7 @@ namespace ScrambleCoin.Api.Hubs;
 /// Identical in protocol to the one in <c>ScrambleCoin.Web</c> — same group names,
 /// same client-method names — so bots can connect to whichever host they target.
 /// </summary>
-public sealed class GameHub : Hub
+internal sealed class GameHub : Hub
 {
     private const string GameGroupPrefix   = "game-";
     private const string PlayerGroupPrefix = "player-";

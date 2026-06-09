@@ -16,7 +16,7 @@ public sealed class GameLoop
     private readonly string _botName;
 
     // Fallback: if no SignalR event arrives within this window, do a one-off REST poll
-    // to recover from a potentially missed event (e.g. after a brief reconnect).
+    // to recover from a potentially missed event (e.g. after a brief reconnection).
     private static readonly TimeSpan FallbackPollTimeout = TimeSpan.FromSeconds(5);
 
     // How long to wait between matchmaking queue polls (unchanged)
@@ -49,8 +49,6 @@ public sealed class GameLoop
         // Channel bridges SignalR callbacks (background thread) into the async loop below.
         var events = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
 
-        void Push(string reason) => events.Writer.TryWrite(reason);
-
         // ActionRequired is sent only to THIS player's private group — zero noise from opponent actions.
         hub.On("ActionRequired", (object _) => Push("action-required"));
         hub.On("GameEnded",      (object _) => Push("game-ended"));
@@ -61,8 +59,8 @@ public sealed class GameLoop
             // Re-join groups — auto-reconnect creates a new connection that has left all groups.
             try
             {
-                await hub.InvokeAsync("JoinGame",         gameId.ToString());
-                await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(),   playerId.ToString());
+                await hub.InvokeAsync("JoinGame",         gameId.ToString(), cancellationToken: ct);
+                await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(),   playerId.ToString(), cancellationToken: ct);
             }
             catch { /* best-effort: may fail if the hub is still settling */ }
         };
@@ -107,22 +105,20 @@ public sealed class GameLoop
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(FallbackPollTimeout);
 
-                string signal;
                 try
                 {
-                    signal = await events.Reader.ReadAsync(timeoutCts.Token);
+                    await events.Reader.ReadAsync(timeoutCts.Token);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
                     // Timeout — no event in 5 s; poll once as a safety net.
                     Console.WriteLine($"[{_botName}]  ⏱ No SignalR event for 5 s — polling once.");
-                    // Re-register in case a reconnect silently dropped us from the player group.
+                    // Re-register in case a reconnection silently dropped us from the player group.
                     try
                     {
                         await hub.InvokeAsync("RegisterAsPlayer", gameId.ToString(), playerId.ToString(), ct);
                     }
                     catch { /* best-effort: hub may be reconnecting */ }
-                    signal = "timeout-poll";
                 }
 
                 // Fetch fresh player-specific state via REST (the SignalR payload is spectator-only).
@@ -157,11 +153,11 @@ public sealed class GameLoop
                     lastPhase = state.Phase ?? "";
                 }
 
-                // ── Game not started yet ───────────────────────────────────────
+                // ── Game isn't started yet ───────────────────────────────────────
                 if (state.Phase is null && state.Turn == 0)
                 {
                     Console.WriteLine($"[{_botName}]  Waiting for game to start…");
-                    continue; // wait for next SignalR event
+                    continue; // wait for the next SignalR event
                 }
 
                 // ── Game ended ────────────────────────────────────────────────
@@ -174,14 +170,14 @@ public sealed class GameLoop
                 // ── CoinSpawn ─────────────────────────────────────────────────
                 if (state.Phase == "CoinSpawn")
                 {
-                    // Server handles this; next SignalR event will show PlacePhase.
+                    // Server handles this; the next SignalR event will show PlacePhase.
                     continue;
                 }
 
                 // ── PlacePhase ────────────────────────────────────────────────
                 if (state.Phase == "PlacePhase")
                 {
-                    if (!placedThisTurn.Any())
+                    if (placedThisTurn.Count == 0)
                         await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
                     // If already placed, just wait for the next event (opponent placing).
                     continue;
@@ -191,7 +187,6 @@ public sealed class GameLoop
                 if (state.Phase == "MovePhase")
                 {
                     await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
-                    continue;
                 }
             }
         }
@@ -200,6 +195,9 @@ public sealed class GameLoop
             await hub.StopAsync(CancellationToken.None);
             await hub.DisposeAsync();
         }
+        return;
+
+        void Push(string reason) => events.Writer.TryWrite(reason);
     }
 
     // ── Phase handlers ────────────────────────────────────────────────────────
@@ -212,7 +210,7 @@ public sealed class GameLoop
         HashSet<Guid> placedThisTurn,
         CancellationToken ct)
     {
-        if (placedThisTurn.Any()) return;
+        if (placedThisTurn.Count != 0) return;
 
         var piecesOnBoard = state.YourPieces.Count(p => p.IsOnBoard);
 
@@ -220,11 +218,12 @@ public sealed class GameLoop
         {
             Console.WriteLine($"[{_botName}]  → Already at max pieces ({MaxPiecesOnBoard}) on board — skipping placement");
             var r = await _client.SkipPlacementAsync(gameId, ct);
-            if (r is not null)
+            if (r is null)
             {
-                placedThisTurn.Add(Guid.Empty);
-                Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+                return;
             }
+            placedThisTurn.Add(Guid.Empty);
+            Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
             return;
         }
 
@@ -234,11 +233,12 @@ public sealed class GameLoop
         {
             Console.WriteLine($"[{_botName}]  → No pieces in hand — skipping placement");
             var r = await _client.SkipPlacementAsync(gameId, ct);
-            if (r is not null)
+            if (r is null)
             {
-                placedThisTurn.Add(Guid.Empty);
-                Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
+                return;
             }
+            placedThisTurn.Add(Guid.Empty);
+            Console.WriteLine($"[{_botName}]  ✓ Placement skipped. Phase after: {r.Phase ?? "ended"}");
             return;
         }
 
@@ -390,23 +390,24 @@ public sealed class GameLoop
                 lastPhase = state.Phase ?? "";
             }
 
-            if (state.Phase is null && state.Turn == 0) { await Task.Delay(TimeSpan.FromSeconds(1), ct); continue; }
-            if (state.Phase is null && state.Turn > 0)  { await PrintFinalResultAsync(gameId, playerId, state, ct); return; }
-            if (state.Phase == "CoinSpawn")              { await Task.Delay(TimeSpan.FromSeconds(1), ct); continue; }
-
-            if (state.Phase == "PlacePhase")
+            switch (state.Phase)
             {
-                if (!placedThisTurn.Any())
-                    await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
-                await Task.Delay(TimeSpan.FromSeconds(1), ct);
-                continue;
-            }
+                case null when state.Turn == 0:
+                    break;
+                case null when state.Turn > 0:
+                    await PrintFinalResultAsync(gameId, playerId, state, ct); return;
+                case "CoinSpawn":
+                    break;
+                case "PlacePhase":
+                    {
+                        if (placedThisTurn.Count == 0)
+                            await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
+                        break;
+                    }
 
-            if (state.Phase == "MovePhase")
-            {
-                await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
-                await Task.Delay(TimeSpan.FromSeconds(1), ct);
-                continue;
+                case "MovePhase":
+                    await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
+                    break;
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
@@ -425,39 +426,41 @@ public sealed class GameLoop
     {
         Console.WriteLine("Joining matchmaking queue…");
         var queueResponse = await _client.EnqueueAsync(lineup, ct);
-        if (queueResponse is null) return null;
-
-        if (queueResponse is { GameId: not null, PlayerId: not null, Token: not null })
+        switch (queueResponse)
         {
-            Console.WriteLine($"Matched immediately! GameId: {queueResponse.GameId}");
-            return (queueResponse.GameId.Value, queueResponse.PlayerId.Value, queueResponse.Token.Value);
-        }
-
-        if (queueResponse is { Status: "waiting", QueueId: not null })
-        {
-            var queueId = queueResponse.QueueId.Value;
-            Console.WriteLine($"Waiting in queue (QueueId: {queueId})…");
-
-            while (!ct.IsCancellationRequested)
-            {
-                await Task.Delay(QueuePollInterval, ct);
-                var poll = await _client.PollQueueAsync(queueId, ct);
-                if (poll is null) continue;
-
-                Console.WriteLine($"  Queue status: {poll.Status}");
-
-                if (poll is { Status: "matched", GameId: not null, PlayerId: not null, Token: not null })
+            case null:
+                break;
+            case { GameId: not null, PlayerId: not null, Token: not null }:
+                Console.WriteLine($"Matched immediately! GameId: {queueResponse.GameId}");
+                return (queueResponse.GameId.Value, queueResponse.PlayerId.Value, queueResponse.Token.Value);
+            case { Status: "waiting", QueueId: not null }:
                 {
-                    Console.WriteLine($"Matched! GameId: {poll.GameId}");
-                    return (poll.GameId.Value, poll.PlayerId.Value, poll.Token.Value);
-                }
+                    var queueId = queueResponse.QueueId.Value;
+                    Console.WriteLine($"Waiting in queue (QueueId: {queueId})…");
 
-                if (poll.Status == "timed_out")
-                {
-                    Console.WriteLine("Queue timed out — no opponent found. Restart the bot to try again.");
-                    return null;
+                    while (!ct.IsCancellationRequested)
+                    {
+                        await Task.Delay(QueuePollInterval, ct);
+                        var poll = await _client.PollQueueAsync(queueId, ct);
+                        if (poll is null) continue;
+
+                        Console.WriteLine($"  Queue status: {poll.Status}");
+
+                        if (poll is { Status: "matched", GameId: not null, PlayerId: not null, Token: not null })
+                        {
+                            Console.WriteLine($"Matched! GameId: {poll.GameId}");
+                            return (poll.GameId.Value, poll.PlayerId.Value, poll.Token.Value);
+                        }
+
+                        if (poll.Status != "timed_out")
+                        {
+                            continue;
+                        }
+                        Console.WriteLine("Queue timed out — no opponent found. Restart the bot to try again.");
+                        return null;
+                    }
+                    break;
                 }
-            }
         }
 
         return null;

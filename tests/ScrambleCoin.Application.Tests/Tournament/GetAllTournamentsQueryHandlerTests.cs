@@ -1,5 +1,5 @@
 using NSubstitute;
-using ScrambleCoin.Application.Tournament;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Tournament.GetAllTournaments;
 using ScrambleCoin.Domain.Enums;
 using DomainTournament = ScrambleCoin.Domain.Tournaments.Tournament;
@@ -45,7 +45,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
 
         // Repository returns them in arbitrary order.
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new[] { oldest, newest, middle }.ToList().AsReadOnly());
+             .Returns(new[] { oldest, newest, middle }.ToList().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllTournamentsQuery(), CancellationToken.None);
@@ -63,7 +63,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
     {
         // Arrange
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new List<DomainTournament>().AsReadOnly());
+             .Returns(new List<DomainTournament>().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllTournamentsQuery(), CancellationToken.None);
@@ -82,7 +82,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
         var tournament = MakeTournament("Grand Prix", maxParticipants: 16, topN: 4, createdAt: now);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new[] { tournament }.ToList().AsReadOnly());
+             .Returns(new[] { tournament }.ToList().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllTournamentsQuery(), CancellationToken.None);
@@ -91,7 +91,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
         var dto = result.Single();
         Assert.Equal(tournament.Id,             dto.TournamentId);
         Assert.Equal("Grand Prix",              dto.Name);
-        Assert.Equal(TournamentStatus.Pending.ToString(), dto.Status);
+        Assert.Equal(nameof(TournamentStatus.Pending), dto.Status);
         Assert.Equal(0,                         dto.ParticipantCount); // no participants added
         Assert.Equal(16,                        dto.MaxParticipants);
         Assert.Equal(now,                       dto.CreatedAtUtc);
@@ -104,7 +104,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
         var tournament = MakeTournament();
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new[] { tournament }.ToList().AsReadOnly());
+             .Returns(new[] { tournament }.ToList().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllTournamentsQuery(), CancellationToken.None);
@@ -120,7 +120,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
     {
         // Arrange
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new List<DomainTournament>().AsReadOnly());
+             .Returns(new List<DomainTournament>().AsReadOnly());
 
         var handler = BuildHandler();
 
@@ -138,7 +138,7 @@ public sealed class GetAllTournamentsQueryHandlerTests
         var tournament = MakeTournament(maxParticipants: 8, topN: 4);
 
         _repo.GetAllAsync(Arg.Any<CancellationToken>())
-             .Returns((IReadOnlyList<DomainTournament>)new[] { tournament }.ToList().AsReadOnly());
+             .Returns(new[] { tournament }.ToList().AsReadOnly());
 
         // Act
         var result = await BuildHandler().Handle(new GetAllTournamentsQuery(), CancellationToken.None);
