@@ -103,7 +103,7 @@ public class PieceTurnAvailabilityEndpointTests : IClassFixture<PieceTurnAvailab
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", token.ToString());
 
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state", UriKind.Relative));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

@@ -58,8 +58,7 @@ public class PassiveAbilitiesTests
         {
             game.SkipPlacement(p1);
             game.SkipPlacement(p2);
-            game.AdvancePhase(); // MovePhase → next-turn CoinSpawn
-            game.AdvancePhase(); // CoinSpawn → PlacePhase
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
         }
 
         var actualP1Pos = p1Position ?? new Position(0, 3);

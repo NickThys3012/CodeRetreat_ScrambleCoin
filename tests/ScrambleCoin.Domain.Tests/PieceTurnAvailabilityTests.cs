@@ -161,8 +161,7 @@ public class PieceTurnAvailabilityTests
             game.SkipPlacement(p2);
             // SkipPlacement auto-advances PlacePhase → MovePhase when both players act.
             // From MovePhase advance → next turn CoinSpawn → PlacePhase.
-            game.AdvancePhase(); // MovePhase → next-turn CoinSpawn
-            game.AdvancePhase(); // CoinSpawn → PlacePhase
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
         }
 
         game.ClearDomainEvents();
@@ -187,10 +186,11 @@ public class PieceTurnAvailabilityTests
         var existing = p1Pieces[0]; // unrestricted starter
         game.PlacePiece(p1, existing.Id, new Position(0, 0));
         game.SkipPlacement(p2);
-        // Now in MovePhase. Advance to next turn's PlacePhase if needed.
+        // p1 placed (has a piece on board), p2 skipped (no pieces). PlacePhase → MovePhase auto-fired.
+        // p1 still has an unmoved piece, so MovePhase does NOT auto-advance. Need 2 manual phase advances.
         if (currentTurn > seedTurn)
         {
-            game.AdvancePhase(); // MovePhase → next-turn CoinSpawn
+            game.SkipMovement(p1);
             game.AdvancePhase(); // CoinSpawn → PlacePhase
         }
 
