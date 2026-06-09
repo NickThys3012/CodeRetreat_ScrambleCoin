@@ -291,7 +291,8 @@ public sealed class GameRepository : IGameRepository
             MaxDistance: p.MaxDistance,
             MovesPerTurn: p.MovesPerTurn,
             PositionRow: p.Position?.Row,
-            PositionCol: p.Position?.Col)).ToList();
+            PositionCol: p.Position?.Col,
+            AvailableFromTurn: p.AvailableFromTurn)).ToList();
 
         return JsonSerializer.Serialize(dtos, JsonOptions);
     }
@@ -367,7 +368,8 @@ public sealed class GameRepository : IGameRepository
             entryPointType: (EntryPointType)dto.EntryPointType,
             movementType: (MovementType)dto.MovementType,
             maxDistance: dto.MaxDistance,
-            movesPerTurn: dto.MovesPerTurn);
+            movesPerTurn: dto.MovesPerTurn,
+            availableFromTurn: dto.AvailableFromTurn);
     }
 
     // ── Reflection helpers ────────────────────────────────────────────────────

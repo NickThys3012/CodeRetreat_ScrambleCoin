@@ -41,6 +41,15 @@ public class MultiStepMovementTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (p1Piece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // MovePhase → next-turn CoinSpawn
+            game.AdvancePhase(); // CoinSpawn → PlacePhase
+        }
+
         // Choose the appropriate starting position based on an entry point type
         var p1StartPos = p1Piece.EntryPointType == EntryPointType.Corners ? new Position(0, 0) : new Position(0, 3);
         var p2StartPos = new Position(7, 3);

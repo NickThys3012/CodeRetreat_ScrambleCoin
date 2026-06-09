@@ -132,6 +132,11 @@ public class IcePatchesTests
         game.Start();
 
         game.AdvancePhase(); // CoinSpawn → PlacePhase
+        // Elsa is restricted to turn ≥ 2 (Issue #59); skip turn 1 placement.
+        game.SkipPlacement(p1);
+        game.SkipPlacement(p2);
+        game.AdvancePhase(); // MovePhase → CoinSpawn (turn 2)
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
         game.PlacePiece(p1, elsaPiece.Id, new Position(0, 0));
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
@@ -204,6 +209,11 @@ public class IcePatchesTests
         game.SetLineup(p2, new Lineup(new List<Piece> { p2Piece }.Concat(p2Fillers).ToList()));
         game.Start();
 
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        // Elsa is restricted to turn ≥ 2 (Issue #59); skip turn 1 placement.
+        game.SkipPlacement(p1);
+        game.SkipPlacement(p2);
+        game.AdvancePhase(); // MovePhase → CoinSpawn (turn 2)
         game.AdvancePhase(); // CoinSpawn → PlacePhase
         // Place Elsa at (0,0) on the border, move to (0,2)
         game.PlacePiece(p1, elsaPiece.Id, new Position(0, 0));

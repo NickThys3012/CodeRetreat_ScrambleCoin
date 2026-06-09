@@ -190,6 +190,10 @@ public partial class Game
         if (piece.IsOnBoard)
             throw new DomainException($"Piece {pieceId} is already on the board. Use ReplacePiece to swap it.");
 
+        if (piece.AvailableFromTurn is { } availableFromTurn && TurnNumber < availableFromTurn)
+            throw new DomainException(
+                $"Piece '{piece.Name}' ({pieceId}) cannot be placed before turn {availableFromTurn}. Current turn: {TurnNumber}.");
+
         if (!Board.IsValidEntryPoint(position, piece.EntryPointType))
             throw new DomainException($"Position {position} is not a valid entry point for entry type {piece.EntryPointType}.");
 
@@ -263,6 +267,10 @@ public partial class Game
 
         if (newPiece.IsOnBoard)
             throw new DomainException($"Piece {newPieceId} is already on the board; cannot use it as the replacement.");
+
+        if (newPiece.AvailableFromTurn is { } availableFromTurn && TurnNumber < availableFromTurn)
+            throw new DomainException(
+                $"Piece '{newPiece.Name}' ({newPieceId}) cannot be placed before turn {availableFromTurn}. Current turn: {TurnNumber}.");
 
         // Remove the existing piece — this clears the tile the new piece will occupy.
         var existingTile = Board.GetTile(targetPosition);

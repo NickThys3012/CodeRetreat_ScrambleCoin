@@ -100,7 +100,8 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             MovementType: piece.MovementType.ToString(),
             MaxDistance: piece.MaxDistance,
             MovesPerTurn: piece.MovesPerTurn,
-            IsOnBoard: piece.IsOnBoard);
+            IsOnBoard: piece.IsOnBoard,
+            AvailableFromTurn: piece.AvailableFromTurn);
 
     private static ReadOnlyCollection<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
     {
