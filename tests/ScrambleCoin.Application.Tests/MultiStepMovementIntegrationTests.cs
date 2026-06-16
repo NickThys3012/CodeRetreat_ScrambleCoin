@@ -111,7 +111,7 @@ public class MultiStepMovementIntegrationTests
             Substitute.For<IPublisher>(),
             Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>(),
-            Substitute.For<ScrambleCoin.Application.Abstractions.IMoveMetrics>());
+            Substitute.For<Abstractions.IMoveMetrics>());
 
     /// <summary>
     /// Builds a multi-segment move list from individual segment paths.

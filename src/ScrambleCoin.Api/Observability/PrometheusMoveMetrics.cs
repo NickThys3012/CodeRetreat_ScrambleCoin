@@ -13,7 +13,8 @@ public sealed class PrometheusMoveMetrics : IMoveMetrics
     private static readonly Counter MoveCounter = Metrics.CreateCounter(
         "scramblecoin_moves_total",
         "Total moves submitted",
-        new CounterConfiguration { LabelNames = new[] { "game_id", "player_id" } });
+        new CounterConfiguration { LabelNames = ["game_id", "player_id"]
+        });
 
     public void RecordMove(Guid gameId, Guid playerId)
         => MoveCounter.WithLabels(gameId.ToString(), playerId.ToString()).Inc();

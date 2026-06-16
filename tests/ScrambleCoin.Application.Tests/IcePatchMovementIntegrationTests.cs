@@ -253,7 +253,7 @@ public class IcePatchMovementIntegrationTests
             Substitute.For<IPublisher>(),
             Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>(),
-            Substitute.For<ScrambleCoin.Application.Abstractions.IMoveMetrics>());
+            Substitute.For<Abstractions.IMoveMetrics>());
 
     /// <summary>
     /// Builds a segment list for orthogonal movement (one step).
