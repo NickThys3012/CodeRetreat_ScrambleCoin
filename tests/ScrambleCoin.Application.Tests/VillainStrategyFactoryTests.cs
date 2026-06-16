@@ -11,7 +11,8 @@ namespace ScrambleCoin.Application.Tests;
 /// </summary>
 public class VillainStrategyFactoryTests
 {
-    private readonly VillainStrategyFactory _factory = new();
+    private readonly IVillainStrategyFactory _factory = new VillainStrategyFactory();
+    private static readonly string[] expected = ["Mickey", "Donald", "WALL•E", "Merlin", "Scrooge"];
 
     [Fact]
     public void CreateStrategy_Elsa_ReturnsElsaStrategy()
@@ -44,9 +45,9 @@ public class VillainStrategyFactoryTests
     [InlineData("elsa", "Elsa")]
     [InlineData("ursula", "Ursula")]
     [InlineData("gaston", "Gaston")]
-    public void GetDisplayName_ReturnsExpectedName(string villainId, string expected)
+    public void GetDisplayName_ReturnsExpectedName(string villainId, string expectedVillain)
     {
-        Assert.Equal(expected, _factory.GetDisplayName(villainId));
+        Assert.Equal(expectedVillain, _factory.GetDisplayName(villainId));
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public class VillainStrategyFactoryTests
         var lineup = _factory.GetVillainLineup("elsa", playerId);
 
         Assert.Equal(
-            new[] { "Mickey", "Donald", "WALL•E", "Merlin", "Scrooge" },
+            expected,
             lineup.Pieces.Select(p => p.Name).ToList());
         Assert.All(lineup.Pieces, p => Assert.Equal(playerId, p.PlayerId));
     }

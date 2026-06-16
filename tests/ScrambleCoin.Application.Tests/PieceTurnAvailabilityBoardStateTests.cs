@@ -16,13 +16,13 @@ namespace ScrambleCoin.Application.Tests;
 /// </summary>
 public class PieceTurnAvailabilityBoardStateTests
 {
-    private static (Game game, Guid p1, Guid p2) NewStartedGameWithRestrictedLineup()
+    private static (Game game, Guid p1) NewStartedGameWithRestrictedLineup()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
 
         // Mix unrestricted starter pieces with restricted ones so we can assert both branches.
-        // Lineup must contain exactly Lineup.RequiredPieceCount (= 5) pieces.
+        // Lineup must contain exact Lineup.RequiredPieceCount (= 5) pieces.
         string[] lineup1 = ["Mickey", "Elsa", "Scar", "Merlin", "Goofy"];
         string[] lineup2 = ["Mickey", "Minnie", "Donald", "Goofy", "Scrooge"];
 
@@ -34,7 +34,7 @@ public class PieceTurnAvailabilityBoardStateTests
         game.SetLineup(p2, new Lineup(pieces2));
         game.Start();
 
-        return (game, p1, p2);
+        return (game, p1);
     }
 
     private static GetBoardStateQueryHandler BuildHandlerFor(Game game, DomainBotReg reg)
@@ -51,7 +51,7 @@ public class PieceTurnAvailabilityBoardStateTests
     [Fact]
     public async Task Handle_YourPieces_IncludesAvailableFromTurnForRestrictedPiece()
     {
-        var (game, p1, _) = NewStartedGameWithRestrictedLineup();
+        var (game, p1) = NewStartedGameWithRestrictedLineup();
         var reg = new DomainBotReg(Guid.NewGuid(), p1, game.Id);
         var handler = BuildHandlerFor(game, reg);
 
@@ -64,7 +64,7 @@ public class PieceTurnAvailabilityBoardStateTests
     [Fact]
     public async Task Handle_YourPieces_NullAvailableFromTurnForUnrestrictedPiece()
     {
-        var (game, p1, _) = NewStartedGameWithRestrictedLineup();
+        var (game, p1) = NewStartedGameWithRestrictedLineup();
         var reg = new DomainBotReg(Guid.NewGuid(), p1, game.Id);
         var handler = BuildHandlerFor(game, reg);
 
@@ -79,7 +79,7 @@ public class PieceTurnAvailabilityBoardStateTests
     [InlineData("Merlin", 4)]
     public async Task Handle_YourPieces_ExposesEachRestrictedPieceCorrectly(string name, int expected)
     {
-        var (game, p1, _) = NewStartedGameWithRestrictedLineup();
+        var (game, p1) = NewStartedGameWithRestrictedLineup();
         var reg = new DomainBotReg(Guid.NewGuid(), p1, game.Id);
         var handler = BuildHandlerFor(game, reg);
 
@@ -92,7 +92,7 @@ public class PieceTurnAvailabilityBoardStateTests
     [Fact]
     public async Task Handle_OpponentPieces_AlsoExposesAvailableFromTurn()
     {
-        var (game, p1, _) = NewStartedGameWithRestrictedLineup();
+        var (game, p1) = NewStartedGameWithRestrictedLineup();
         var reg = new DomainBotReg(Guid.NewGuid(), p1, game.Id);
         var handler = BuildHandlerFor(game, reg);
 

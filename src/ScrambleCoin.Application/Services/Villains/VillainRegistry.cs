@@ -115,6 +115,6 @@ public static class VillainRegistry
     /// Normalises an arbitrary villain identifier to the canonical slug form
     /// (e.g. "Elsa", "ELSA", "elsa" all map to "elsa").
     /// </summary>
-    public static string Normalize(string villainId) =>
+    public static string Normalize(string? villainId) =>
         VillainCatalogue.ToId((villainId ?? string.Empty).Trim());
 }

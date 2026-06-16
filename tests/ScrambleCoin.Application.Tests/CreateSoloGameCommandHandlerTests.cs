@@ -348,6 +348,8 @@ public class CreateSoloGameCommandHandlerTests
         Assert.Equal("stitch", result.VillainId);
     }
 
+    private static readonly string[] expected = ["Mickey", "Donald", "WALL•E", "Merlin", "Scrooge"];
+
     [Fact]
     public async Task Handle_RegistersVillainLineupForPlayerTwo()
     {
@@ -397,7 +399,7 @@ public class CreateSoloGameCommandHandlerTests
         Assert.NotNull(capturedGame);
         Assert.NotNull(capturedGame.LineupPlayerTwo);
         Assert.Equal(
-            new[] { "Mickey", "Donald", "WALL•E", "Merlin", "Scrooge" },
+            expected,
             capturedGame.LineupPlayerTwo!.Pieces.Select(p => p.Name).ToList());
         Assert.All(capturedGame.LineupPlayerTwo.Pieces,
             p => Assert.Equal(capturedGame.PlayerTwo, p.PlayerId));

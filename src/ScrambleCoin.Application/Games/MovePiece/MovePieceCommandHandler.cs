@@ -99,9 +99,9 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
         // No-op for non-solo games (the service early-returns when VillainId is null).
         await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
-        var yourScore = game.Scores.TryGetValue(playerId, out var s) ? s : 0;
+        var yourScore = game.Scores.GetValueOrDefault(playerId, 0);
         var opponentId = game.PlayerOne == playerId ? game.PlayerTwo : game.PlayerOne;
-        var opponentScore = game.Scores.TryGetValue(opponentId, out var os) ? os : 0;
+        var opponentScore = game.Scores.GetValueOrDefault(opponentId, 0);
 
         return new MoveResult(
             game.CurrentPhase?.ToString(),

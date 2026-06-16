@@ -66,7 +66,7 @@ public class GreedyVillainStrategyTests
     /// <see cref="TurnPhase.MovePhase"/>. The bot places nothing, so the villain becomes the active mover.
     /// Returns the live <see cref="Game"/>, the player ids, and the placed villain piece.
     /// </summary>
-    private static (Game game, Guid bot, Guid villain, Piece villainPiece) NewGameInVillainMovePhase(
+    private static (Game game, Guid villain, Piece villainPiece) NewGameInVillainMovePhase(
         Func<Guid, Piece> villainPieceFactory,
         Position villainStart,
         IEnumerable<(Position Position, CoinType CoinType)> coins)
@@ -98,7 +98,7 @@ public class GreedyVillainStrategyTests
         game.PlacePiece(villain, villainPiece.Id, villainStart);
         game.SkipPlacement(bot); // → MovePhase (bot has 0 pieces; villain becomes the active mover)
 
-        return (game, bot, villain, villainPiece);
+        return (game, villain, villainPiece);
     }
 
     // ── 1. Placement ──────────────────────────────────────────────────────────
@@ -184,12 +184,14 @@ public class GreedyVillainStrategyTests
             $"Destination {destination} (dist {ManhattanDistance(destination, coin)}) must be closer " +
             $"to coin {coin} than start {start} (dist {ManhattanDistance(start, coin)}).");
 
-        // Round-trip through the real domain engine: the produced single-segment move must be legal to
-        // apply, and the piece must actually land on the destination tile the strategy reported.
-        var applyMove = () => game.MovePiece(villain, movement.PieceId, movement.Segments);
-        var exception = Record.Exception(applyMove);
+        var exception = Record.Exception((Action?)ApplyMove);
         Assert.Null(exception);
         Assert.Equal(destination, mickey.Position);
+        return;
+
+        // Round-trip through the real domain engine: the produced single-segment move must be legal to
+        // apply, and the piece must actually land on the destination tile, the strategy reported.
+        void ApplyMove() => game.MovePiece(villain, movement.PieceId, movement.Segments);
     }
 
     // ── 3b. Multi-segment move stays domain-legal across an ice-patch slide ──────
@@ -207,7 +209,7 @@ public class GreedyVillainStrategyTests
         var icePatch = new Position(0, 1);
         var start = new Position(0, 0);
 
-        var (game, _, villain, anna) = NewGameInVillainMovePhase(
+        var (game, villain, anna) = NewGameInVillainMovePhase(
             owner => PieceFactory.Create("Anna", owner),
             start,
             [(coin, CoinType.Silver)]);
@@ -224,14 +226,16 @@ public class GreedyVillainStrategyTests
         Assert.Equal(anna.Id, movement.PieceId);
         Assert.Equal(icePatch, movement.Segments[0][^1]);
 
-        // The whole point: applying the strategy's move to the real domain must NOT throw, proving the
-        // ice-slide simulation kept every inter-segment cursor aligned with the domain's resolution.
-        var applyMove = () => game.MovePiece(villain, movement.PieceId, movement.Segments);
-        var exception = Record.Exception(applyMove);
+        var exception = Record.Exception((Action?)ApplyMove);
         Assert.Null(exception);
 
         // After: step 1 (0,0)→(0,1) slides to (0,2); step 2 → (0,3); step 3 → (0,4).
         Assert.Equal(new Position(0, 4), anna.Position);
+        return;
+
+        // The whole point: applying the strategy's move to the real domain must NOT throw, proving the
+        // ice-slide simulation kept every inter-segment cursor aligned with the domain's resolution.
+        void ApplyMove() => game.MovePiece(villain, movement.PieceId, movement.Segments);
     }
 
 

@@ -15,7 +15,7 @@ using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 namespace ScrambleCoin.Application.Tests;
 
 /// <summary>
-/// Integration tests for multi-step movement sequences (Issue #48).
+/// Integration tests for multistep movement sequences (Issue #48).
 /// Tests full Application layer flow for pieces with multiple movement segments:
 /// Cogsworth (Any→Orthogonal), Lumiere (Any→Diagonal), Anna (Orthogonal×3),
 /// Remy (Diagonal×2), Olaf (Any×2), Kristoff (Diagonal×3).
@@ -31,8 +31,8 @@ public class MultiStepMovementIntegrationTests
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Creates a game in MovePhase with a specific multi-step piece.
-    /// Returns (game, p1, p2, piece, startPos).
+    /// Creates a game in MovePhase with a specific multistep piece.
+    /// Returns (game, p. 1, p. 2, piece, startPos).
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece piece, Position startPos)
         GameInMovePhaseWithMultiStepPiece(string pieceName)
@@ -109,7 +109,7 @@ public class MultiStepMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             Substitute.For<IPublisher>(),
-            Substitute.For<ScrambleCoin.Application.Services.IVillainAutomationService>(),
+            Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
@@ -140,8 +140,8 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, cogsworth.Id,
                 BuildSegments(
-                    new[] { new Position(0, 4) },  // Segment 1: Any direction 1
-                    new[] { new Position(1, 4), new Position(2, 4) }  // Segment 2: Orthogonal 2
+                    [new Position(0, 4)],                    // Segment 1: Any direction 1
+                    [new Position(1, 4), new Position(2, 4)] // Segment 2: Orthogonal 2
                 )),
             CancellationToken.None);
 
@@ -168,8 +168,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, cogsworth.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1: OK
-                        new[] { new Position(1, 5) }   // Segment 2: Diagonal (wrong)
+                        [new Position(0, 4)], // Segment 1: OK
+                        [new Position(1, 5)]  // Segment 2: Diagonal (wrong)
                     )),
                 CancellationToken.None));
 
@@ -182,7 +182,7 @@ public class MultiStepMovementIntegrationTests
     [Fact]
     public async Task LumiereTwoSegmentMove_ValidSequence_BothSegmentsExecute()
     {
-        // Arrange: Lumiere at (0,3), will move Any 1 right → (0,4), then Diagonal 2 NE → (2,6)
+        // Arrange: Lumiere at (0,3) will move Any 1 right → (0,4), then Diagonal 2 NE → (2,6)
         var (game, p1, _, lumiere, _) = GameInMovePhaseWithMultiStepPiece("Lumiere");
 
         var token = Guid.NewGuid();
@@ -194,8 +194,8 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, lumiere.Id,
                 BuildSegments(
-                    new[] { new Position(0, 4) },  // Segment 1: Any direction 1
-                    new[] { new Position(1, 5), new Position(2, 6) }  // Segment 2: Diagonal 2
+                    [new Position(0, 4)],                    // Segment 1: Any direction 1
+                    [new Position(1, 5), new Position(2, 6)] // Segment 2: Diagonal 2
                 )),
             CancellationToken.None);
 
@@ -222,8 +222,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, lumiere.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1: OK
-                        new[] { new Position(1, 4), new Position(2, 4) }  // Segment 2: Orthogonal (wrong)
+                        [new Position(0, 4)],                    // Segment 1: OK
+                        [new Position(1, 4), new Position(2, 4)] // Segment 2: Orthogonal (wrong)
                     )),
                 CancellationToken.None));
 
@@ -234,9 +234,9 @@ public class MultiStepMovementIntegrationTests
     // ── Test 5: Anna 3-Segment Move (All Required) ────────────────────────────
 
     [Fact]
-    public async Task AnnaThrreeSegmentMove_ValidSequence_AllSegmentsExecute()
+    public async Task AnnaThreeSegmentMove_ValidSequence_AllSegmentsExecute()
     {
-        // Arrange: Anna at (0,3), will move Orthogonal 1 three times
+        // Arrange: Anna at (0,3) will move Orthogonal 1 three times
         var (game, p1, _, anna, _) = GameInMovePhaseWithMultiStepPiece("Anna");
 
         var token = Guid.NewGuid();
@@ -248,9 +248,9 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, anna.Id,
                 BuildSegments(
-                    new[] { new Position(0, 4) },  // Segment 1: Orthogonal 1
-                    new[] { new Position(1, 4) },  // Segment 2: Orthogonal 1
-                    new[] { new Position(1, 5) }   // Segment 3: Orthogonal 1
+                    [new Position(0, 4)], // Segment 1: Orthogonal 1
+                    [new Position(1, 4)], // Segment 2: Orthogonal 1
+                    [new Position(1, 5)]  // Segment 3: Orthogonal 1
                 )),
             CancellationToken.None);
 
@@ -277,8 +277,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, anna.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1
-                        new[] { new Position(1, 4) }   // Segment 2 (missing 3)
+                        [new Position(0, 4)], // Segment 1
+                        [new Position(1, 4)]  // Segment 2 (missing 3)
                     )),
                 CancellationToken.None));
 
@@ -304,9 +304,9 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, anna.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1: OK
-                        new[] { new Position(1, 5) },  // Segment 2: Diagonal (wrong)
-                        new[] { new Position(1, 5) }   // Segment 3
+                        [new Position(0, 4)], // Segment 1: OK
+                        [new Position(1, 5)], // Segment 2: Diagonal (wrong)
+                        [new Position(1, 5)]  // Segment 3
                     )),
                 CancellationToken.None));
 
@@ -319,7 +319,7 @@ public class MultiStepMovementIntegrationTests
     [Fact]
     public async Task RemyTwoSegmentMove_DiagonalThenDiagonal_BothSegmentsExecute()
     {
-        // Arrange: Remy at (0,3), will move Diagonal 2 SE → (2,5), then Diagonal 2 SW → (4,3)
+        // Arrange: Remy at (0,3) will move Diagonal 2 SE → (2,5), then Diagonal 2 SW → (4,3)
         var (game, p1, _, remy, _) = GameInMovePhaseWithMultiStepPiece("Remy");
 
         var token = Guid.NewGuid();
@@ -331,8 +331,8 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, remy.Id,
                 BuildSegments(
-                    new[] { new Position(1, 4), new Position(2, 5) },  // Segment 1: Diagonal 2
-                    new[] { new Position(3, 4), new Position(4, 3) }   // Segment 2: Diagonal 2
+                    [new Position(1, 4), new Position(2, 5)], // Segment 1: Diagonal 2
+                    [new Position(3, 4), new Position(4, 3)]  // Segment 2: Diagonal 2
                 )),
             CancellationToken.None);
 
@@ -346,7 +346,7 @@ public class MultiStepMovementIntegrationTests
     [Fact]
     public async Task OlafTwoSegmentMove_AnyThenAny_BothSegmentsExecute()
     {
-        // Arrange: Olaf at (0,3), will move Any 1 east → (0,4), then Any 1 north → (1,4)
+        // Arrange: Olaf at (0,3) will move Any 1 east → (0,4), then Any 1 north → (1,4)
         var (game, p1, _, olaf, _) = GameInMovePhaseWithMultiStepPiece("Olaf");
 
         var token = Guid.NewGuid();
@@ -358,8 +358,8 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, olaf.Id,
                 BuildSegments(
-                    new[] { new Position(0, 4) },  // Segment 1: Any 1
-                    new[] { new Position(1, 4) }   // Segment 2: Any 1
+                    [new Position(0, 4)], // Segment 1: Any 1
+                    [new Position(1, 4)]  // Segment 2: Any 1
                 )),
             CancellationToken.None);
 
@@ -385,9 +385,9 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, kristoff.Id,
                 BuildSegments(
-                    new[] { new Position(1, 4) },  // Segment 1: Diagonal 1
-                    new[] { new Position(2, 5) },  // Segment 2: Diagonal 1
-                    new[] { new Position(3, 6) }   // Segment 3: Diagonal 1
+                    [new Position(1, 4)], // Segment 1: Diagonal 1
+                    [new Position(2, 5)], // Segment 2: Diagonal 1
+                    [new Position(3, 6)]  // Segment 3: Diagonal 1
                 )),
             CancellationToken.None);
 
@@ -414,8 +414,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, remy.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4), new Position(0, 5) },  // Segment 1: Orthogonal (wrong)
-                        new[] { new Position(1, 6), new Position(2, 7) }   // Segment 2
+                        [new Position(0, 4), new Position(0, 5)], // Segment 1: Orthogonal (wrong)
+                        [new Position(1, 6), new Position(2, 7)]  // Segment 2
                     )),
                 CancellationToken.None));
 
@@ -441,8 +441,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, kristoff.Id,
                     BuildSegments(
-                        new[] { new Position(1, 4) },  // Segment 1
-                        new[] { new Position(2, 5) }   // Segment 2 (missing 3)
+                        [new Position(1, 4)], // Segment 1
+                        [new Position(2, 5)]  // Segment 2 (missing 3)
                     )),
                 CancellationToken.None));
 
@@ -468,8 +468,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, cogsworth.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1: OK
-                        new[] { new Position(1, 4), new Position(2, 4), new Position(3, 4) }  // Segment 2: 3 (max is 2)
+                        [new Position(0, 4)],                                        // Segment 1: OK
+                        [new Position(1, 4), new Position(2, 4), new Position(3, 4)] // Segment 2: 3 (max is 2)
                     )),
                 CancellationToken.None));
 
@@ -495,8 +495,8 @@ public class MultiStepMovementIntegrationTests
             handler.Handle(
                 new MovePieceCommand(game.Id, token, lumiere.Id,
                     BuildSegments(
-                        new[] { new Position(0, 4) },  // Segment 1: OK
-                        new[] { new Position(1, 5), new Position(2, 6), new Position(3, 7) }  // Segment 2: 3 (max is 2)
+                        [new Position(0, 4)],                                        // Segment 1: OK
+                        [new Position(1, 5), new Position(2, 6), new Position(3, 7)] // Segment 2: 3 (max is 2)
                     )),
                 CancellationToken.None));
 
@@ -521,8 +521,8 @@ public class MultiStepMovementIntegrationTests
         await handler.Handle(
             new MovePieceCommand(game.Id, token, cogsworth.Id,
                 BuildSegments(
-                    new[] { new Position(0, 4) },
-                    new[] { new Position(1, 4), new Position(2, 4) }
+                    [new Position(0, 4)],
+                    [new Position(1, 4), new Position(2, 4)]
                 )),
             CancellationToken.None);
 
@@ -555,25 +555,25 @@ public class MultiStepMovementIntegrationTests
         var segments = pieceName switch
         {
             "Cogsworth" => BuildSegments(
-                new[] { new Position(0, 4) },
-                new[] { new Position(1, 4), new Position(2, 4) }),
+                [new Position(0, 4)],
+                [new Position(1, 4), new Position(2, 4)]),
             "Lumiere" => BuildSegments(
-                new[] { new Position(0, 4) },
-                new[] { new Position(1, 5), new Position(2, 6) }),
+                [new Position(0, 4)],
+                [new Position(1, 5), new Position(2, 6)]),
             "Remy" => BuildSegments(
-                new[] { new Position(1, 4), new Position(2, 5) },
-                new[] { new Position(3, 4), new Position(4, 3) }),
+                [new Position(1, 4), new Position(2, 5)],
+                [new Position(3, 4), new Position(4, 3)]),
             "Anna" => BuildSegments(
-                new[] { new Position(0, 4) },
-                new[] { new Position(1, 4) },
-                new[] { new Position(1, 5) }),
+                [new Position(0, 4)],
+                [new Position(1, 4)],
+                [new Position(1, 5)]),
             "Olaf" => BuildSegments(
-                new[] { new Position(0, 4) },
-                new[] { new Position(1, 4) }),
+                [new Position(0, 4)],
+                [new Position(1, 4)]),
             "Kristoff" => BuildSegments(
-                new[] { new Position(1, 4) },
-                new[] { new Position(2, 5) },
-                new[] { new Position(3, 6) }),
+                [new Position(1, 4)],
+                [new Position(2, 5)],
+                [new Position(3, 6)]),
             _ => throw new ArgumentException($"Unknown piece: {pieceName}")
         };
 

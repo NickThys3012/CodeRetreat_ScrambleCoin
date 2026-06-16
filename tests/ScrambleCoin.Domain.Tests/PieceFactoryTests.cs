@@ -106,15 +106,8 @@ public class PieceFactoryTests
 
     // ── Parameterized: all starter pieces return a non-null Piece ────────────
 
-    public static IEnumerable<object[]> StarterPieceNames =>
-        new List<object[]>
-        {
-            new object[] { "Mickey"  },
-            new object[] { "Minnie"  },
-            new object[] { "Donald"  },
-            new object[] { "Goofy"   },
-            new object[] { "Scrooge" }
-        };
+    public static TheoryData<string> StarterPieceNames =>
+    ["Mickey", "Minnie", "Donald", "Goofy", "Scrooge"];
 
     [Theory]
     [MemberData(nameof(StarterPieceNames))]

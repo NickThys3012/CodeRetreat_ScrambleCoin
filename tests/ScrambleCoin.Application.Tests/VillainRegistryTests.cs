@@ -10,7 +10,7 @@ namespace ScrambleCoin.Application.Tests;
 /// </summary>
 public class VillainRegistryTests
 {
-    private static IReadOnlyList<string> PieceNames(Lineup lineup) =>
+    private static List<string> PieceNames(Lineup lineup) =>
         lineup.Pieces.Select(p => p.Name).ToList();
 
     [Fact]
@@ -21,7 +21,7 @@ public class VillainRegistryTests
         var lineup = VillainRegistry.GetLineupForVillain(VillainRegistry.Elsa.Id, playerId);
 
         Assert.Equal(
-            new[] { "Mickey", "Donald", "WALL•E", "Merlin", "Scrooge" },
+            ["Mickey", "Donald", "WALL•E", "Merlin", "Scrooge"],
             PieceNames(lineup));
         Assert.All(lineup.Pieces, p => Assert.Equal(playerId, p.PlayerId));
     }
@@ -34,7 +34,7 @@ public class VillainRegistryTests
         var lineup = VillainRegistry.GetLineupForVillain(VillainRegistry.Ursula.Id, playerId);
 
         Assert.Equal(
-            new[] { "Mickey", "Donald", "Anna", "Goofy", "Cinderella" },
+            ["Mickey", "Donald", "Anna", "Goofy", "Cinderella"],
             PieceNames(lineup));
     }
 
@@ -46,7 +46,7 @@ public class VillainRegistryTests
         var lineup = VillainRegistry.GetLineupForVillain(VillainRegistry.Gaston.Id, playerId);
 
         Assert.Equal(
-            new[] { "Minnie", "Goofy", "Donald", "Scrooge", "Mickey" },
+            ["Minnie", "Goofy", "Donald", "Scrooge", "Mickey"],
             PieceNames(lineup));
     }
 
@@ -61,7 +61,7 @@ public class VillainRegistryTests
         var lineup = VillainRegistry.GetLineupForVillain(villainId, playerId);
 
         Assert.Equal(
-            new[] { "Mickey", "Donald", "WALL•E", "Merlin", "Scrooge" },
+            ["Mickey", "Donald", "WALL•E", "Merlin", "Scrooge"],
             PieceNames(lineup));
     }
 
@@ -93,7 +93,7 @@ public class VillainRegistryTests
         var lineup = VillainRegistry.GetLineupForVillainOrDefault(VillainRegistry.Gaston.Id, playerId);
 
         Assert.Equal(
-            new[] { "Minnie", "Goofy", "Donald", "Scrooge", "Mickey" },
+            ["Minnie", "Goofy", "Donald", "Scrooge", "Mickey"],
             PieceNames(lineup));
     }
 

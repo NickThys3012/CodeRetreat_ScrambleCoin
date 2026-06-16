@@ -23,7 +23,7 @@ public class VillainAutomationServiceTests
     /// Builds a real solo game (bot = PlayerOne, villain = PlayerTwo) advanced to the villain's
     /// MovePhase with one Mickey on the board and the bot holding no on-board pieces.
     /// </summary>
-    private static (Game game, Guid bot, Guid villain) SoloGameInVillainMovePhase()
+    private static (Game game, Guid villain) SoloGameInVillainMovePhase()
     {
         var bot = Guid.NewGuid();
         var villain = Guid.NewGuid();
@@ -43,7 +43,7 @@ public class VillainAutomationServiceTests
         game.PlacePiece(villain, villainLineup.Pieces[0].Id, new Position(0, 0));
         game.SkipPlacement(bot); // → MovePhase; bot has 0 pieces, so the villain becomes active
 
-        return (game, bot, villain);
+        return (game, villain);
     }
 
     private static VillainAutomationService BuildService(
@@ -84,7 +84,7 @@ public class VillainAutomationServiceTests
     public async Task EnsureVillainActsIfNeededAsync_VillainMovePhase_DispatchesActionAndReturnsControl()
     {
         // Arrange
-        var (game, _, villain) = SoloGameInVillainMovePhase();
+        var (game, villain) = SoloGameInVillainMovePhase();
         Assert.Equal(villain, game.MovePhaseActivePlayer); // sanity: it is the villain's turn
 
         var gameRepo = Substitute.For<IGameRepository>();
@@ -121,7 +121,7 @@ public class VillainAutomationServiceTests
     public async Task EnsureVillainActsIfNeededAsync_DispatchThrows_FallsBackToSkipAndDoesNotRethrow()
     {
         // Arrange
-        var (game, _, villain) = SoloGameInVillainMovePhase();
+        var (game, villain) = SoloGameInVillainMovePhase();
 
         var gameRepo = Substitute.For<IGameRepository>();
         gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);

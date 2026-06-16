@@ -24,6 +24,10 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
         {
             TurnPhase.PlacePhase => DecidePlacement(game, villainPlayerId),
             TurnPhase.MovePhase => DecideMovement(game, villainPlayerId),
+            TurnPhase.CoinSpawn => throw new DomainException(
+                $"Villain cannot act during phase '{game.CurrentPhase?.ToString() ?? "None"}'."),
+            null => throw new DomainException(
+                $"Villain cannot act during phase '{game.CurrentPhase?.ToString() ?? "None"}'."),
             _ => throw new DomainException(
                 $"Villain cannot act during phase '{game.CurrentPhase?.ToString() ?? "None"}'.")
         };
@@ -116,7 +120,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// that point (mirroring the domain's "stuck" allowance). Returns <c>null</c> when the piece
     /// cannot make any move at all (so the caller can skip movement instead).
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>>? BuildSegmentsToward(
+    private static List<IReadOnlyList<Position>>? BuildSegmentsToward(
         Board board, Piece piece, Position target)
     {
         var segments = new List<IReadOnlyList<Position>>();
@@ -132,7 +136,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             if (step is null)
             {
                 // No legal move from here for this segment type → leave it empty (allowed by domain).
-                segments.Add(Array.Empty<Position>());
+                segments.Add([]);
                 continue;
             }
 
@@ -210,7 +214,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// Builds a single legal step from <paramref name="from"/> toward <paramref name="target"/> for
     /// the given <paramref name="movementType"/>, or <c>null</c> when no legal move exists.
     /// </summary>
-    private static IReadOnlyList<Position>? BuildStep(
+    private static Position[]? BuildStep(
         Board board, Position from, MovementType movementType, int maxDistance, Position target) =>
         movementType switch
         {
@@ -222,7 +226,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
     /// <summary>
     /// One-tile step for Orthogonal/Diagonal/AnyDirection/Ethereal movement types.
     /// </summary>
-    private static IReadOnlyList<Position>? BuildSteppedStep(
+    private static Position[]? BuildSteppedStep(
         Board board, Position from, MovementType movementType, Position target)
     {
         var best = AdjacentDeltas(movementType)
@@ -235,27 +239,27 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             .ThenBy(to => to.Col)
             .FirstOrDefault();
 
-        return best is null ? null : new[] { best };
+        return best is null ? null : [best];
     }
 
     private static bool IsSteppedStepLegal(Board board, Position from, Position to, MovementType movementType)
     {
-        if (movementType == MovementType.Ethereal)
+        if (movementType != MovementType.Ethereal)
         {
-            // Ethereal ignores obstacles en route but must end on a free tile and respect fences.
-            if (board.IsFenceBlocked(from, to))
-                return false;
-            return !board.IsObstacleCovering(to) && board.GetTile(to).AsPiece is null;
+            return board.IsPassable(from, to) && board.GetTile(to).AsPiece is null;
         }
+        // Ethereal ignores obstacles en route but must end on a free tile and respect fences.
+        if (board.IsFenceBlocked(from, to))
+            return false;
+        return !board.IsObstacleCovering(to) && board.GetTile(to).AsPiece is null;
 
         // Passability covers rocks, lakes, and fences; the destination must also be unoccupied.
-        return board.IsPassable(from, to) && board.GetTile(to).AsPiece is null;
     }
 
     /// <summary>
-    /// Jump step: choose an unoccupied destination within range that minimises distance to the target.
+    /// Jump step: choose an unoccupied destination within range that minimizes distance to the target.
     /// </summary>
-    private static IReadOnlyList<Position>? BuildJumpStep(
+    private static Position[]? BuildJumpStep(
         Board board, Position from, int maxDistance, Position target)
     {
         if (maxDistance <= 0)
@@ -282,14 +286,14 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             best = to;
         }
 
-        return best is null ? null : new[] { best };
+        return best is null ? null : [best];
     }
 
     /// <summary>
     /// Charge step: choose an adjacent first-step direction (the piece then slides automatically)
     /// that reduces distance to the target. The segment is the single first-step position.
     /// </summary>
-    private static IReadOnlyList<Position>? BuildChargeStep(Board board, Position from, Position target)
+    private static Position[]? BuildChargeStep(Board board, Position from, Position target)
     {
         var best = AdjacentDeltas(MovementType.AnyDirection)
             .Select(d => (row: from.Row + d.dr, col: from.Col + d.dc))
@@ -301,7 +305,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             .ThenBy(to => to.Col)
             .FirstOrDefault();
 
-        return best is null ? null : new[] { best };
+        return best is null ? null : [best];
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────────
@@ -323,7 +327,7 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             .First();
     }
 
-    private static IReadOnlyList<(int dr, int dc)> AdjacentDeltas(MovementType movementType) =>
+    private static (int dr, int dc)[] AdjacentDeltas(MovementType movementType) =>
         movementType switch
         {
             MovementType.Orthogonal => new[] { (-1, 0), (1, 0), (0, -1), (0, 1) },

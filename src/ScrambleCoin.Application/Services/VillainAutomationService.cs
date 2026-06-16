@@ -66,7 +66,7 @@ public sealed class VillainAutomationService : IVillainAutomationService
         var strategy = _villainStrategyFactory.CreateStrategy(villainId);
         var villainPlayerId = game.PlayerTwo;
 
-        // Tracks whether the villain has already acted during the current PlacePhase, to guarantee
+        // Tracks whether the villain has already acted during the current PlacePhase to guarantee
         // exactly one placement/skip per PlacePhase (the domain throws on a double placement).
         var actedInCurrentPlacePhase = false;
 
@@ -112,8 +112,8 @@ public sealed class VillainAutomationService : IVillainAutomationService
                     "Villain action failed in game {GameId} (villain {VillainId}, turn {Turn}); skipping the villain's turn.",
                     gameId, villainId, game.CurrentTurnNumber);
 
-                var skipAction = phaseBeforeAction == TurnPhase.PlacePhase
-                    ? (VillainAction)new SkipPlacementAction()
+                VillainAction skipAction = phaseBeforeAction == TurnPhase.PlacePhase
+                    ? new SkipPlacementAction()
                     : new SkipMovementAction();
 
                 try
@@ -140,8 +140,7 @@ public sealed class VillainAutomationService : IVillainAutomationService
                 actedInCurrentPlacePhase = true;
         }
 
-        if (game.Status == GameStatus.InProgress &&
-            game.CurrentPhase == TurnPhase.MovePhase &&
+        if (game is { Status: GameStatus.InProgress, CurrentPhase: TurnPhase.MovePhase } &&
             game.MovePhaseActivePlayer == villainPlayerId)
         {
             _logger.LogWarning(
