@@ -231,7 +231,8 @@
                        PlayerOneId="_playerOneId"
                        GameEnded="_gameEnded"
                        WinnerId="_winnerId"
-                       IsDraw="_isDraw" />
+                       IsDraw="_isDraw"
+                       IsSoloMode="_boardState?.IsSoloMode ?? false" />
         </div>
 
         <!-- Legend -->
@@ -242,7 +243,14 @@
             <span class="legend-item"><span class="legend-swatch" style="background:#e65100;"></span> Gold Coin</span>
             <span class="legend-item"><span class="legend-swatch" style="background:#37474f;"></span> Silver Coin</span>
             <span class="legend-item"><span class="legend-swatch" style="background:#0d47a1; border-radius: 50%;"></span> P1 Piece</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:#b71c1c; border-radius: 50%;"></span> P2 Piece</span>
+            @if (_boardState?.IsSoloMode == true)
+            {
+                <span class="legend-item"><span class="legend-swatch" style="background:#4527a0; border-radius: 50%;"></span> Villain (CPU)</span>
+            }
+            else
+            {
+                <span class="legend-item"><span class="legend-swatch" style="background:#b71c1c; border-radius: 50%;"></span> P2 Piece</span>
+            }
             <span class="legend-item"><span class="legend-swatch" style="background: rgba(179,229,252,0.5);"></span> Ice Patch</span>
             <span class="legend-item"><span class="legend-swatch" style="background:#ff9800;"></span> Fence</span>
         </div>
