@@ -91,13 +91,14 @@ public class MovePieceCommandHandlerTests
     private static MovePieceCommandHandler BuildHandler(
         IGameRepository repo,
         IBotRegistrationRepository? botRepo = null,
-        IPublisher? publisher = null)
+        IPublisher? publisher = null,
+        IMoveMetrics? moveMetrics = null)
         => new(repo,
                botRepo ?? Substitute.For<IBotRegistrationRepository>(),
                publisher ?? Substitute.For<IPublisher>(),
                Substitute.For<IVillainAutomationService>(),
                Substitute.For<ILogger<MovePieceCommandHandler>>(),
-               Substitute.For<IMoveMetrics>());
+               moveMetrics ?? Substitute.For<IMoveMetrics>());
 
     // ── Test 1: Handler delegates to domain and saves ──────────────────────────
 
@@ -149,7 +150,85 @@ public class MovePieceCommandHandlerTests
         Assert.Null(ex);
     }
 
-    // ── Test 2: Handler propagates domain exceptions ───────────────────────────
+    // ── Move metrics: scramblecoin_moves_total (Issue #80) ─────────────────────
+
+    [Fact]
+    public async Task Handle_OnSuccessfulMove_RecordsMoveMetricWithGameAndPlayerId()
+    {
+        // Arrange
+        var (game, p1, _, p1Piece, _) = GameInMovePhaseWithPieces();
+        var token = Guid.NewGuid();
+
+        var repo = Substitute.For<IGameRepository>();
+        repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        var moveMetrics = Substitute.For<IMoveMetrics>();
+        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), moveMetrics: moveMetrics);
+
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new(0, 4) }.AsReadOnly()
+        }.AsReadOnly();
+
+        // Act
+        await handler.Handle(new MovePieceCommand(game.Id, token, p1Piece.Id, segments), CancellationToken.None);
+
+        // Assert: the move was recorded exactly once for the correct game + player.
+        moveMetrics.Received(1).RecordMove(game.Id, p1);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTokenUnauthorized_DoesNotRecordMoveMetric()
+    {
+        // Arrange: bot-registration repo returns null → UnauthorizedGameAccessException
+        // is thrown before any move is committed.
+        var (game, _, _, p1Piece, _) = GameInMovePhaseWithPieces();
+        var token = Guid.NewGuid();
+
+        var repo = Substitute.For<IGameRepository>();
+        repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        var botRepo = Substitute.For<IBotRegistrationRepository>();
+        botRepo.GetByTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns((DomainBotReg?)null);
+
+        var moveMetrics = Substitute.For<IMoveMetrics>();
+        var handler = BuildHandler(repo, botRepo, moveMetrics: moveMetrics);
+
+        IReadOnlyList<IReadOnlyList<Position>> segments = new List<IReadOnlyList<Position>>
+        {
+            new List<Position> { new(0, 4) }.AsReadOnly()
+        }.AsReadOnly();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<UnauthorizedGameAccessException>(() =>
+            handler.Handle(new MovePieceCommand(game.Id, token, p1Piece.Id, segments), CancellationToken.None));
+
+        moveMetrics.DidNotReceive().RecordMove(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenDomainThrows_DoesNotRecordMoveMetric()
+    {
+        // Arrange: a move attempted in CoinSpawn phase makes the domain throw
+        // before the metric is recorded.
+        var (game, p1) = GameInCoinSpawnPhase();
+        var token = Guid.NewGuid();
+
+        var repo = Substitute.For<IGameRepository>();
+        repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
+
+        var moveMetrics = Substitute.For<IMoveMetrics>();
+        var handler = BuildHandler(repo, BotRepo(token, p1, game.Id), moveMetrics: moveMetrics);
+
+        var command = new MovePieceCommand(game.Id, token, Guid.NewGuid(), new List<IReadOnlyList<Position>>());
+
+        // Act / Assert
+        await Assert.ThrowsAsync<DomainException>(() =>
+            handler.Handle(command, CancellationToken.None));
+
+        moveMetrics.DidNotReceive().RecordMove(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
 
     [Fact]
     public async Task Handle_WhenDomainThrows_ExceptionPropagates()

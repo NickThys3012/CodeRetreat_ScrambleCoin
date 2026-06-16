@@ -34,6 +34,20 @@ DATASOURCE = os.path.join(ROOT, "infra", "grafana", "provisioning", "datasources
 COMPOSE = os.path.join(ROOT, "docker-compose.yml")
 ENV_EXAMPLE = os.path.join(ROOT, ".env.example")
 
+# ---- Issue #80 (Prometheus API observability) artifacts ----------------------
+PROM_DATASOURCE = os.path.join(ROOT, "infra", "grafana", "provisioning", "datasources", "prometheus.yaml")
+API_DASHBOARD = os.path.join(ROOT, "infra", "grafana", "provisioning", "dashboards", "api-health.json")
+PROMETHEUS_CONFIG = os.path.join(ROOT, "infra", "prometheus.yml")
+
+PROM_DATASOURCE_UID = "scramblecoin-prometheus"
+API_DASHBOARD_UID = "scramblecoin-api-health"
+API_EXPECTED_PANEL_TITLES = [
+    "HTTP Requests",
+    "Latency",
+    "Error Rate",
+    "Moves per Second",
+]
+
 EXPECTED_PANEL_TITLES = [
     "Active Games",
     "Games by Status",
@@ -72,6 +86,141 @@ def datasource_uid_via_regex(path):
         text = fh.read()
     m = re.search(r"^\s*uid:\s*([A-Za-z0-9_\-]+)\s*$", text, re.MULTILINE)
     return m.group(1) if m else None
+
+
+def _all_datasource_uids(obj):
+    """Recursively yield every datasource uid found under panels/targets."""
+    uids = []
+
+    def _uid_of(ds):
+        if isinstance(ds, dict):
+            return ds.get("uid")
+        return ds
+
+    def walk(panels):
+        for p in panels or []:
+            ds = p.get("datasource")
+            if ds is not None:
+                uids.append(_uid_of(ds))
+            for t in (p.get("targets") or []):
+                tds = t.get("datasource")
+                if tds is not None:
+                    uids.append(_uid_of(tds))
+            # nested panels (rows)
+            if p.get("panels"):
+                walk(p.get("panels"))
+
+    walk(obj.get("panels", []))
+    return uids
+
+
+def validate_issue_80():
+    """Assert the Prometheus API-observability artifacts (issue #80)."""
+    print("\n== prometheus API observability validation (issue #80) ==")
+
+    # ---- Prometheus datasource ----------------------------------------------
+    print("\ndatasources/prometheus.yaml:")
+    prom_ds_uid = None
+    if check(os.path.isfile(PROM_DATASOURCE), "prometheus.yaml exists"):
+        ds_doc = load_yaml(PROM_DATASOURCE)
+        if ds_doc is not None:
+            check(isinstance(ds_doc, dict) and "datasources" in ds_doc,
+                  "prometheus.yaml parses as YAML with a 'datasources' list")
+            try:
+                ds0 = ds_doc["datasources"][0]
+                prom_ds_uid = ds0.get("uid")
+                check(ds0.get("type") == "prometheus",
+                      f"datasource type is 'prometheus' (got {ds0.get('type')!r})")
+            except (KeyError, IndexError, TypeError):
+                prom_ds_uid = None
+        else:
+            prom_ds_uid = datasource_uid_via_regex(PROM_DATASOURCE)
+            check(prom_ds_uid is not None, "prometheus.yaml uid readable (regex fallback)")
+    check(prom_ds_uid == PROM_DATASOURCE_UID,
+          f"datasource uid is {PROM_DATASOURCE_UID!r} (got {prom_ds_uid!r})")
+
+    # ---- api-health.json dashboard ------------------------------------------
+    print("\ndashboards/api-health.json:")
+    dash = None
+    if check(os.path.isfile(API_DASHBOARD), "api-health.json exists"):
+        try:
+            dash = json.load(open(API_DASHBOARD, "r", encoding="utf-8"))
+            check(True, "api-health.json is valid JSON")
+        except json.JSONDecodeError as exc:
+            check(False, f"api-health.json is valid JSON ({exc})")
+
+    if dash is not None:
+        check(dash.get("refresh") == "5s",
+              f"dashboard refresh is '5s' (got {dash.get('refresh')!r})")
+        check(dash.get("uid") == API_DASHBOARD_UID,
+              f"dashboard uid is {API_DASHBOARD_UID!r} (got {dash.get('uid')!r})")
+
+        panels = dash.get("panels", []) or []
+        titles = [p.get("title", "") for p in panels]
+        check(len(panels) == 4,
+              f"dashboard has exactly 4 panels (got {len(panels)}: {titles})")
+        for expected in API_EXPECTED_PANEL_TITLES:
+            check(any(expected.lower() in (t or "").lower() for t in titles),
+                  f"panel present with title containing {expected!r}")
+
+        # Every panel/target datasource uid must equal the prometheus datasource uid.
+        uids = _all_datasource_uids(dash)
+        check(len(uids) > 0, "api-health.json declares datasource references")
+        mismatches = [u for u in uids if u != PROM_DATASOURCE_UID]
+        check(not mismatches,
+              f"all datasource uids match {PROM_DATASOURCE_UID!r} "
+              f"({'OK' if not mismatches else 'mismatches: ' + repr(mismatches)})")
+
+    # ---- prometheus.yml scrape config ---------------------------------------
+    print("\ninfra/prometheus.yml:")
+    prom_doc = None
+    prom_text = ""
+    if check(os.path.isfile(PROMETHEUS_CONFIG), "prometheus.yml exists"):
+        prom_text = open(PROMETHEUS_CONFIG, "r", encoding="utf-8").read()
+        prom_doc = load_yaml(PROMETHEUS_CONFIG)
+    if prom_doc is not None:
+        scrape_interval = (prom_doc.get("global") or {}).get("scrape_interval")
+        check(scrape_interval == "5s",
+              f"global.scrape_interval is '5s' (got {scrape_interval!r})")
+        # Collect all target strings across scrape_configs.
+        all_targets = []
+        for sc in (prom_doc.get("scrape_configs") or []):
+            for static in (sc.get("static_configs") or []):
+                all_targets.extend(static.get("targets") or [])
+        check(any("scramblecoin-api:5001" in t for t in all_targets),
+              f"has a scrape target containing 'scramblecoin-api:5001' (got {all_targets})")
+        check(any("host.docker.internal:5001" in t for t in all_targets),
+              f"has a scrape target containing 'host.docker.internal:5001' (got {all_targets})")
+    else:
+        # PyYAML unavailable — fall back to textual checks.
+        check(re.search(r"scrape_interval:\s*5s", prom_text) is not None,
+              "global.scrape_interval is '5s' (text check)")
+        check("scramblecoin-api:5001" in prom_text,
+              "has a scrape target containing 'scramblecoin-api:5001' (text check)")
+        check("host.docker.internal:5001" in prom_text,
+              "has a scrape target containing 'host.docker.internal:5001' (text check)")
+
+    # ---- docker-compose.yml: prometheus + scramblecoin-api services ----------
+    print("\ndocker-compose.yml (issue #80 services):")
+    if os.path.isfile(COMPOSE):
+        compose_text = open(COMPOSE, "r", encoding="utf-8").read()
+        compose_doc = load_yaml(COMPOSE)
+    else:
+        compose_text, compose_doc = "", None
+    if compose_doc is not None:
+        services = (compose_doc.get("services") or {})
+        check("prometheus" in services, "declares a 'prometheus' service")
+        prom_svc = services.get("prometheus") or {}
+        check("prom/prometheus" in str(prom_svc.get("image", "")),
+              f"prometheus service uses 'prom/prometheus' image (got {prom_svc.get('image')!r})")
+        check("scramblecoin-api" in services, "declares a 'scramblecoin-api' service")
+    else:
+        check(re.search(r"^\s{2}prometheus:", compose_text, re.MULTILINE) is not None,
+              "declares a 'prometheus' service (text check)")
+        check("prom/prometheus" in compose_text,
+              "prometheus service uses 'prom/prometheus' image (text check)")
+        check(re.search(r"^\s{2}scramblecoin-api:", compose_text, re.MULTILINE) is not None,
+              "declares a 'scramblecoin-api' service (text check)")
 
 
 def main():
@@ -184,6 +333,9 @@ def main():
         check(not mismatches,
               f"all datasource uids match {ds_uid!r} "
               f"({'OK' if not mismatches else 'mismatches: ' + '; '.join(mismatches)})")
+
+    # ---- Issue #80: Prometheus API observability -----------------------------
+    validate_issue_80()
 
     # ---- Summary -------------------------------------------------------------
     print("\n" + "=" * 60)
