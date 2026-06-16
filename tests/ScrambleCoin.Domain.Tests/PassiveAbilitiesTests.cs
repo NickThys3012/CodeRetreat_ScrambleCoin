@@ -53,6 +53,14 @@ public class PassiveAbilitiesTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (testPiece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
+        }
+
         var actualP1Pos = p1Position ?? new Position(0, 3);
         var actualP2Pos = p2Position ?? new Position(7, 3);
 

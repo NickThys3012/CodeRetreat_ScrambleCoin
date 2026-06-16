@@ -6,7 +6,7 @@ namespace ScrambleCoin.Domain.Tests;
 
 /// <summary>
 /// Unit tests for the <see cref="Tournament"/> aggregate (Issue #52).
-/// Covers round-robin scheduling, standings computation, knockout bracket generation,
+/// Covers round-robin scheduling, standing computation, knockout bracket generation,
 /// bye propagation, result recording, and lifecycle transitions.
 /// </summary>
 public class TournamentTests
@@ -165,7 +165,7 @@ public class TournamentTests
         var t = NewTournament(2);
         t.Start();
 
-        Assert.Throws<TournamentInvalidStateException>(() => t.Start());
+        Assert.Throws<TournamentInvalidStateException>(t.Start);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class TournamentTests
         // Create a tournament with 0 participants (NewTournament with 0 bots)
         var t = NewTournament(0);
 
-        Assert.Throws<TournamentInvalidStateException>(() => t.Start());
+        Assert.Throws<TournamentInvalidStateException>(t.Start);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -306,7 +306,7 @@ public class TournamentTests
         t.Start();
         // Do not complete any group matches
 
-        Assert.Throws<TournamentInvalidStateException>(() => t.AdvanceToKnockout());
+        Assert.Throws<TournamentInvalidStateException>(t.AdvanceToKnockout);
     }
 
     [Fact]
@@ -454,7 +454,7 @@ public class TournamentTests
         t.RecordKnockoutResult(t.KnockoutMatches.Single().Id, null, isDraw: true);
         // t is now Completed
 
-        Assert.Throws<TournamentInvalidStateException>(() => t.Cancel());
+        Assert.Throws<TournamentInvalidStateException>(t.Cancel);
     }
 
     [Fact]
@@ -463,7 +463,7 @@ public class TournamentTests
         var t = NewTournament(2);
         t.Cancel();
 
-        Assert.Throws<TournamentInvalidStateException>(() => t.Cancel());
+        Assert.Throws<TournamentInvalidStateException>(t.Cancel);
     }
 
     // ══════════════════════════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 using MediatR;
+using ScrambleCoin.Api.RequestBodies;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Games.GetGameResult;
@@ -82,7 +83,7 @@ internal static class GameEndpoints
     /// <summary>Bot joins a game and submits a lineup of 5-piece names.</summary>
     private static async Task<IResult> JoinGame(
         Guid gameId,
-        JoinGameRequest body,
+        GameEndpointRequests.JoinGameRequest body,
         ISender sender,
         CancellationToken ct)
     {
@@ -109,7 +110,7 @@ internal static class GameEndpoints
 
     /// <summary>Bot joins the matchmaking queue with a lineup.</summary>
     private static async Task<IResult> QueueBot(
-        QueueRequest body,
+        GameEndpointRequests.QueueRequest body,
         HttpRequest httpRequest,
         IQueueService queueService,
         CancellationToken ct)
@@ -180,7 +181,7 @@ internal static class GameEndpoints
     /// <summary>Bot submits a placement decision (place, replace, or skip) during PlacePhase.</summary>
     private static async Task<IResult> PlacePiece(
         Guid gameId,
-        PlacementRequest body,
+        GameEndpointRequests.PlacementRequest body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)
@@ -285,36 +286,11 @@ internal static class GameEndpoints
             statusCode: StatusCodes.Status403Forbidden,
             title: "Forbidden");
 
-    // ── Request bodies ────────────────────────────────────────────────────────
-
-    private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
-
-    private sealed record QueueRequest(IReadOnlyList<string> Lineup);
-
-    /// <summary>
-    /// Request body for <c>POST /api/games/{gameId}/move</c>.
-    /// </summary>
-    /// <param name="PieceId">The piece to move.</param>
-    /// <param name="Segments">One segment per MovesPerTurn; each segment is an ordered list of positions.</param>
-    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>>? Segments);
-
-    /// <summary>
-    /// Request body for <c>POST /api/games/{gameId}/place</c>.
-    /// </summary>
-    /// <param name="Action">One of: "place", "replace", "skip".</param>
-    /// <param name="PieceId">The piece to place or use as a replacement (required for "place" and "replace").</param>
-    /// <param name="ReplacedPieceId">The on-board piece to remove (required for "replace" only).</param>
-    /// <param name="Position">Target board position (required for "place" and "replace").</param>
-    private sealed record PlacementRequest(
-        string? Action,
-        Guid? PieceId,
-        Guid? ReplacedPieceId,
-        PositionRequest? Position);
-
+  
     /// <summary>Bot submits a piece move during MovePhase.</summary>
     private static async Task<IResult> MovePiece(
         Guid gameId,
-        MoveRequest body,
+        GameEndpointRequests.MoveRequest body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)

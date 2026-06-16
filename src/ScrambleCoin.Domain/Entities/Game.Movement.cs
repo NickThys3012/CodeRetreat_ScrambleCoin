@@ -947,7 +947,6 @@ public partial class Game
 
     /// <summary>
     /// Calculates the jump distance from <paramref name="from"/> to <paramref name="to"/> based on the
-    /// <paramref name="movementType"/>. For Jump pieces, distance determines if the jump is valid
     /// within MaxDistance.
     /// 
     /// Distance is always Chebyshev distance (king move distance / max of |Δrow|, |Δcol|),
@@ -956,9 +955,6 @@ public partial class Game
     /// - Diagonal jump to (3,3) = 3 tiles
     /// - AnyDirection jump to (2,3) = 3 tiles (max of 2 and 3)
     /// </summary>
-    /// <exception cref="DomainException">
-    /// Thrown if <paramref name="movementType"/> is not a valid Jump-compatible type.
-    /// </exception>
     private static int CalculateJumpDistance(Position from, Position to)
     {
         // All Jump movement types use Chebyshev distance (max of |Δrow|, |Δcol|)

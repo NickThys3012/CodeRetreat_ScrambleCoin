@@ -67,6 +67,10 @@ public sealed record TileOccupantDto(
 /// <param name="MaxDistance">Maximum tiles per move action.</param>
 /// <param name="MovesPerTurn">Number of move actions the piece must perform each turn.</param>
 /// <param name="IsOnBoard">True when the piece has been placed on the board.</param>
+/// <param name="AvailableFromTurn">
+/// Earliest turn (1-based) at which this piece may be placed on the board.
+/// <c>null</c> means the piece is available from turn 1 (no restriction).
+/// </param>
 public sealed record PieceDto(
     Guid PieceId,
     string Name,
@@ -74,7 +78,8 @@ public sealed record PieceDto(
     string MovementType,
     int MaxDistance,
     int MovesPerTurn,
-    bool IsOnBoard);
+    bool IsOnBoard,
+    int? AvailableFromTurn);
 
 /// <summary>A coin currently available on the board.</summary>
 /// <param name="Position">The tile this coin occupies.</param>

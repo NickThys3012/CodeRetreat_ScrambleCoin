@@ -132,9 +132,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-
-namespace ScrambleCoin.Web
-{
-    internal partial class Program;
-}

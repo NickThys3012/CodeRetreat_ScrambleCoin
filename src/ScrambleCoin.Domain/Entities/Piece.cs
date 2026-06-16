@@ -69,6 +69,11 @@ public sealed class Piece
     /// <param name="movementType">Allowed movement directions.</param>
     /// <param name="maxDistance">Maximum tiles per move action; must be ≥ 1.</param>
     /// <param name="movesPerTurn">Move actions per turn; must be ≥ 1.</param>
+    /// <param name="availableFromTurn">
+    /// Earliest turn (1-based) at which this piece may be placed on the board.
+    /// <c>null</c> means the piece is available from turn 1 (no restriction).
+    /// When set, must be ≥ 1.
+    /// </param>
     public Piece(
         Guid id,
         string name,
@@ -76,7 +81,8 @@ public sealed class Piece
         EntryPointType entryPointType,
         MovementType movementType,
         int maxDistance,
-        int movesPerTurn)
+        int movesPerTurn,
+        int? availableFromTurn = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainException("Piece name must not be null or whitespace.");
@@ -87,6 +93,9 @@ public sealed class Piece
         if (movesPerTurn < 1)
             throw new DomainException($"MovesPerTurn must be at least 1, but was {movesPerTurn}.");
 
+        if (availableFromTurn is < 1)
+            throw new DomainException($"AvailableFromTurn must be at least 1, but was {availableFromTurn}.");
+
         Id = id;
         Name = name;
         PlayerId = playerId;
@@ -94,6 +103,7 @@ public sealed class Piece
         MovementType = movementType;
         MaxDistance = maxDistance;
         MovesPerTurn = movesPerTurn;
+        AvailableFromTurn = availableFromTurn;
     }
 
     /// <summary>
@@ -105,10 +115,18 @@ public sealed class Piece
         EntryPointType entryPointType,
         MovementType movementType,
         int maxDistance,
-        int movesPerTurn)
-        : this(Guid.NewGuid(), name, playerId, entryPointType, movementType, maxDistance, movesPerTurn)
+        int movesPerTurn,
+        int? availableFromTurn = null)
+        : this(Guid.NewGuid(), name, playerId, entryPointType, movementType, maxDistance, movesPerTurn, availableFromTurn)
     {
     }
+
+    /// <summary>
+    /// Earliest turn (1-based) at which this piece may be placed on the board.
+    /// <c>null</c> means there is no restriction (piece is placeable from turn 1).
+    /// Enforced in <see cref="Game.PlacePiece"/> and <see cref="Game.ReplacePiece"/>.
+    /// </summary>
+    public int? AvailableFromTurn { get; }
 
     /// <summary>Places this piece at the given board position.</summary>
     /// <exception cref="DomainException">Thrown when <paramref name="position"/> is null.</exception>

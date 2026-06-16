@@ -535,8 +535,8 @@
                                     for (var mi2 = 0; mi2 < matchesThisRound; mi2 += 2)
                                     {
                                         // Two matches in this round feed one match in the next
-                                        var topY = MatchCenterY(ri, mi2, firstCount);
-                                        var botY = MatchCenterY(ri, mi2 + 1 < matchesThisRound ? mi2 + 1 : mi2, firstCount);
+                                        var topY = MatchCenterY(ri, mi2);
+                                        var botY = MatchCenterY(ri, mi2 + 1 < matchesThisRound ? mi2 + 1 : mi2);
                                         var midY = (topY + botY) / 2;
                                         const int halfConn = (ConnW + RoundPad * 2) / 2;
                                         const int fullConn = ConnW + RoundPad * 2;
@@ -693,7 +693,7 @@
     }
 
     /// <summary>Vertical centre pixel for match [roundIndex, matchIndex].</summary>
-    private static int MatchCenterY(int roundIndex, int matchIndex, int firstCount)
+    private static int MatchCenterY(int roundIndex, int matchIndex)
     {
         var slotH = SlotH(roundIndex);
         return matchIndex * slotH + slotH / 2;

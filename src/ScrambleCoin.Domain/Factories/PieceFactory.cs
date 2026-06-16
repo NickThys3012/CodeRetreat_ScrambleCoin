@@ -23,14 +23,14 @@ public static class PieceFactory
             ["Donald"]    = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 3, MovesPerTurn: 1),
             ["Goofy"]     = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
             ["Scrooge"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
-            ["Elsa"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 4, MovesPerTurn: 1),
+            ["Elsa"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 4, MovesPerTurn: 1, AvailableFromTurn: 2),
             // Multistep movement pieces
             ["Cogsworth"] = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.Orthogonal], SegmentMaxDistances:
                 [1, 2]),
             ["Lumiere"]   = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.Diagonal], SegmentMaxDistances:
                 [1, 2]),
             ["Remy"]      = new(EntryPointType.Borders, MovementType.Diagonal, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: [MovementType.Diagonal, MovementType.Diagonal], SegmentMaxDistances: [2, 2
-            ]),
+            ], AvailableFromTurn: 2),
             ["Anna"]      = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 1, MovesPerTurn: 3, SegmentTypes: [MovementType.Orthogonal, MovementType.Orthogonal, MovementType.Orthogonal
             ], SegmentMaxDistances: [1, 1, 1]),
             ["Olaf"]      = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.AnyDirection], SegmentMaxDistances:
@@ -44,21 +44,21 @@ public static class PieceFactory
             ["WALL•E"]    = new(EntryPointType.Borders, MovementType.Charge, MaxDistance: 8, MovesPerTurn: 1),
             ["Sulley"]    = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
             ["Rafiki"]    = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1),
-            ["Scar"]      = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1),
-            ["Daisy"]     = new(EntryPointType.Anywhere, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1),
+            ["Scar"]      = new(EntryPointType.Corners, MovementType.Jump, MaxDistance: 4, MovesPerTurn: 1, AvailableFromTurn: 3),
+            ["Daisy"]     = new(EntryPointType.Anywhere, MovementType.Jump, MaxDistance: 3, MovesPerTurn: 1, AvailableFromTurn: 2),
             ["Stitch"]    = new(EntryPointType.Borders, MovementType.Orthogonal, MaxDistance: 3, MovesPerTurn: 1),
 
             // Passive & turn-based ability pieces (Issue #50)
             ["Flynn"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
             ["Moana"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
             ["Jafar"]           = new(EntryPointType.Borders, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1), // Jafar multistep movement (grows)
-            ["Merlin"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
-            ["Rapunzel"]        = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1),
+            ["Merlin"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1, AvailableFromTurn: 4),
+            ["Rapunzel"]        = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 1, MovesPerTurn: 1, AvailableFromTurn: 3),
             ["Cinderella"]      = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 2, SegmentTypes: [MovementType.AnyDirection, MovementType.AnyDirection], SegmentMaxDistances:
                 [2, 1]),
             ["Fairy Godmother"] = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
             ["Ursula"]          = new(EntryPointType.Anywhere, MovementType.Ethereal, MaxDistance: 2, MovesPerTurn: 1),
-            ["Mike Wazowski"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1),
+            ["Mike Wazowski"]   = new(EntryPointType.Corners, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1, AvailableFromTurn: 3),
             ["Forky"]           = new(EntryPointType.Anywhere, MovementType.AnyDirection, MaxDistance: 2, MovesPerTurn: 1)
         };
 
@@ -87,7 +87,8 @@ public static class PieceFactory
             template.EntryPointType,
             template.MovementType,
             template.MaxDistance,
-            template.MovesPerTurn);
+            template.MovesPerTurn,
+            template.AvailableFromTurn);
 
         // If the template specifies per-segment movement types, set them
         if (template.SegmentTypes is { Length: > 0 })
@@ -149,5 +150,6 @@ public static class PieceFactory
         int MaxDistance,
         int MovesPerTurn,
         MovementType[]? SegmentTypes = null,
-        int[]? SegmentMaxDistances = null);
+        int[]? SegmentMaxDistances = null,
+        int? AvailableFromTurn = null);
 }

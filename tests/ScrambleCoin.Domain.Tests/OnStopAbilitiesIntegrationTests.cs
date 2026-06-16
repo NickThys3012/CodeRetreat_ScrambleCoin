@@ -55,6 +55,14 @@ public class OnStopAbilitiesIntegrationTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (testPiece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
+        }
+
         // Place both pieces to auto-advance to MovePhase
         var actualP2Pos = p2Position ?? new Position(7, 3); // Valid Border entry point
         game.PlacePiece(p1, testPiece.Id, p1Position);

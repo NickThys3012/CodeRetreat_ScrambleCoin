@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Infrastructure.Persistence;
