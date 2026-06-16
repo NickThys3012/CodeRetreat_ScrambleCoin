@@ -90,13 +90,51 @@ public sealed class VillainAutomationService : IVillainAutomationService
                 break;
 
             var phaseBeforeAction = game.CurrentPhase;
-            var action = strategy.DecideAction(game, villainPlayerId);
 
-            _logger.LogDebug(
-                "Villain {VillainId} acting in game {GameId} (turn {Turn}, phase {Phase}): {Action}",
-                villainId, gameId, game.CurrentTurnNumber, game.CurrentPhase, action.GetType().Name);
+            try
+            {
+                var action = strategy.DecideAction(game, villainPlayerId);
 
-            await _villainActionDispatcher.ExecuteVillainActionAsync(action, gameId, villainPlayerId, cancellationToken);
+                _logger.LogDebug(
+                    "Villain {VillainId} acting in game {GameId} (turn {Turn}, phase {Phase}): {Action}",
+                    villainId, gameId, game.CurrentTurnNumber, game.CurrentPhase, action.GetType().Name);
+
+                await _villainActionDispatcher.ExecuteVillainActionAsync(action, gameId, villainPlayerId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // A villain decision/dispatch failure must never surface to the bot's request (the
+                // bot shares this same call path). Swallowing alone would deadlock the game because
+                // the villain may still be the active mover, so fall back to skipping the villain's
+                // turn to keep control moving.
+                _logger.LogError(
+                    ex,
+                    "Villain action failed in game {GameId} (villain {VillainId}, turn {Turn}); skipping the villain's turn.",
+                    gameId, villainId, game.CurrentTurnNumber);
+
+                var skipAction = phaseBeforeAction == TurnPhase.PlacePhase
+                    ? (VillainAction)new SkipPlacementAction()
+                    : new SkipMovementAction();
+
+                try
+                {
+                    // Dispatches VillainSkipPlacementCommand (PlacePhase) or VillainSkipMovementCommand
+                    // (MovePhase) so the villain advances past its turn instead of deadlocking.
+                    await _villainActionDispatcher.ExecuteVillainActionAsync(
+                        skipAction, gameId, villainPlayerId, cancellationToken);
+                }
+                catch (Exception skipEx)
+                {
+                    // Even the skip failed — stop driving the villain rather than rethrowing into
+                    // the bot's request. The action cap / turn guards prevent an infinite loop, but
+                    // breaking here avoids spinning on a permanently stuck villain.
+                    _logger.LogError(
+                        skipEx,
+                        "Villain skip fallback failed in game {GameId} (villain {VillainId}, turn {Turn}); abandoning villain automation for this invocation.",
+                        gameId, villainId, game.CurrentTurnNumber);
+                    break;
+                }
+            }
 
             if (phaseBeforeAction == TurnPhase.PlacePhase)
                 actedInCurrentPlacePhase = true;

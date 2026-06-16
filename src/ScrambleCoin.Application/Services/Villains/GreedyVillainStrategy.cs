@@ -137,11 +137,73 @@ public abstract class GreedyVillainStrategy : IVillainStrategy
             }
 
             segments.Add(step);
-            current = step[^1];
+            // Advance the cursor exactly as the domain does. For stepped movement
+            // (Orthogonal/Diagonal/AnyDirection/Ethereal) the domain slides a piece one extra
+            // tile whenever a step lands on an ice patch (see Game.ResolveIcePatchSlideDestination),
+            // and the NEXT segment's first step must be adjacent to that POST-slide position.
+            // Mirror that here so multi-segment moves stay legal when ice patches exist.
+            current = AdvanceCursorAfterStep(board, segType, current, step);
             producedAnyMove = true;
         }
 
         return producedAnyMove ? segments : null;
+    }
+
+    /// <summary>
+    /// Computes the post-step cursor position for the next segment, mirroring the domain's
+    /// movement resolution. For stepped movement types the domain applies an ice-patch slide after
+    /// each step (<c>Game.ResolveIcePatchSlideDestination</c>); Jump and Charge first-steps do not
+    /// slide here (Jump never slides; Charge pieces are single-segment in practice).
+    /// </summary>
+    private static Position AdvanceCursorAfterStep(
+        Board board, MovementType movementType, Position from, IReadOnlyList<Position> step)
+    {
+        if (movementType is not (MovementType.Orthogonal or MovementType.Diagonal
+            or MovementType.AnyDirection or MovementType.Ethereal))
+        {
+            // Jump destinations (and other non-stepped steps) are taken as-is.
+            return step[^1];
+        }
+
+        // Replay each step the way ValidateSteppedSegment does, applying the ice-patch slide so the
+        // cursor matches the domain's post-slide segment-end position.
+        var segFrom = from;
+        foreach (var stepTo in step)
+        {
+            var positionAfterStep = stepTo;
+            if (board.HasIcePatch(positionAfterStep))
+                positionAfterStep = ResolveIcePatchSlideDestination(board, positionAfterStep, segFrom);
+            segFrom = positionAfterStep;
+        }
+
+        return segFrom;
+    }
+
+    /// <summary>
+    /// Faithful replica of <c>Game.ResolveIcePatchSlideDestination</c> (with no Stitch fence
+    /// destruction, matching the <c>destroyedFencePositions == null</c> path): the piece slides one
+    /// extra tile in the same direction as the step. The slide is cancelled — leaving the piece on
+    /// the ice tile — when it would leave the board, hit an obstacle, be blocked by a fence, or land
+    /// on another piece.
+    /// </summary>
+    private static Position ResolveIcePatchSlideDestination(
+        Board board, Position currentPosition, Position previousPosition)
+    {
+        var rowDelta = Math.Sign(currentPosition.Row - previousPosition.Row);
+        var colDelta = Math.Sign(currentPosition.Col - previousPosition.Col);
+
+        var slideRow = currentPosition.Row + rowDelta;
+        var slideCol = currentPosition.Col + colDelta;
+        if (slideRow < 0 || slideRow >= Board.Size || slideCol < 0 || slideCol >= Board.Size)
+            return currentPosition;
+
+        var slideTarget = new Position(slideRow, slideCol);
+        if (board.IsObstacleCovering(slideTarget)
+            || board.IsFenceBlocked(currentPosition, slideTarget)
+            || board.GetTile(slideTarget).AsPiece is not null)
+            return currentPosition;
+
+        return slideTarget;
     }
 
     /// <summary>
