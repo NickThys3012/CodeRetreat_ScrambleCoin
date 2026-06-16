@@ -95,6 +95,21 @@ check to pass before starting.
 - It refreshes every **5 s** and shows: Active Games, Games by Status, the Bot
   Leaderboard, and Games Completed per Minute.
 
+### 4. Validate the provisioning (optional)
+
+The Grafana provisioning artifacts (datasource, dashboard provider and the
+`tournament.json` dashboard) are checked in CI by
+[`.github/workflows/infra-validate.yml`](.github/workflows/infra-validate.yml).
+You can run the same structural validation locally:
+
+```bash
+python3 infra/grafana/validate_provisioning.py
+```
+
+It asserts the dashboard's `uid`/`refresh`, the 4 expected panels, that every
+panel's datasource `uid` matches the provisioned datasource, and that
+`docker-compose.yml` / `.env.example` keep the SA password out of source control.
+
 ---
 
 ## 🚀 Getting Started
