@@ -252,7 +252,8 @@ public class IcePatchMovementIntegrationTests
             botRepo,
             Substitute.For<IPublisher>(),
             Substitute.For<Services.IVillainAutomationService>(),
-            Substitute.For<ILogger<MovePieceCommandHandler>>());
+            Substitute.For<ILogger<MovePieceCommandHandler>>(),
+            Substitute.For<Abstractions.IMoveMetrics>());
 
     /// <summary>
     /// Builds a segment list for orthogonal movement (one step).

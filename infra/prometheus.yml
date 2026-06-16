@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: scramblecoin-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['scramblecoin-api:5001']
+        labels: { source: 'container' }
+      - targets: ['host.docker.internal:5001']
+        labels: { source: 'host' }

@@ -8,6 +8,7 @@ on:
       - docker-compose.yml
       - .env.example
       - infra/grafana/**
+      - infra/prometheus.yml
       - .github/workflows/infra-validate.yml
 
 jobs:

@@ -112,6 +112,46 @@ panel's datasource `uid` matches the provisioned datasource, and that
 
 ---
 
+## 📈 Prometheus Metrics / API Observability
+
+The `ScrambleCoin.Api` exposes a Prometheus `/metrics` endpoint
+([`prometheus-net.AspNetCore`](https://github.com/prometheus-net/prometheus-net))
+with default HTTP metrics (`http_requests_received_total`,
+`http_request_duration_seconds`) plus a custom `scramblecoin_moves_total`
+counter (labelled by `game_id` / `player_id`) that increments on every committed
+move. A `prometheus` container scrapes the API every **5 s** and Grafana renders
+an **"API Health"** dashboard.
+
+### Bring up the stack
+
+```bash
+docker compose up -d
+```
+
+In addition to SQL Server and Grafana, this now also starts:
+
+- **`scramblecoin-api`** — the API, containerized and listening on
+  <http://localhost:5001> (env `Docker`, a non-Production value, so `/metrics`
+  stays exposed).
+- **`prometheus`** — Prometheus, UI at <http://localhost:9090>.
+
+### Endpoints
+
+- **Metrics**: <http://localhost:5001/metrics> (Prometheus exposition format).
+  It is **disabled in Production** (guarded by `!IsProduction()`).
+- **Prometheus targets**: <http://localhost:9090/targets>. Two scrape targets are
+  configured in [`infra/prometheus.yml`](infra/prometheus.yml):
+  `scramblecoin-api:5001` (the container, `source=container`) and
+  `host.docker.internal:5001` (a host fallback for `dotnet run`,
+  `source=host`). Whichever API instance is running shows **UP**; the other shows
+  **DOWN** — that is expected.
+- **Grafana**: the **"API Health"** dashboard appears automatically under
+  **Dashboards** alongside the Tournament dashboard. Panels: HTTP requests/sec by
+  endpoint, move-submission latency (p50/p95/p99), error rate (4xx+5xx), and moves
+  per second.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Restore & Build

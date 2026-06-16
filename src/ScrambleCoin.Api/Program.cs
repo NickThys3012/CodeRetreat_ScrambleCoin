@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
 using ScrambleCoin.Application.BotRegistration;
@@ -69,6 +70,11 @@ builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoin
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));
 builder.Services.AddSingleton<IQueueService, QueueService>();
 
+// ── Prometheus metrics ────────────────────────────────────────────────────────
+// Singleton: the underlying scramblecoin_moves_total counter is static/process-wide.
+builder.Services.AddSingleton<ScrambleCoin.Application.Abstractions.IMoveMetrics,
+    ScrambleCoin.Api.Observability.PrometheusMoveMetrics>();
+
 // ── EF Core (SQL Server) ──────────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=(localdb)\\mssqllocaldb;Database=ScrambleCoin;Trusted_Connection=True;";
@@ -131,6 +137,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+// Collect default HTTP metrics (http_requests_received_total, http_request_duration_seconds).
+app.UseHttpMetrics();
+
 app.UseSerilogRequestLogging();
 
 // ── Swagger UI (all environments for the event) ───────────────────────────────
@@ -165,6 +175,12 @@ app.MapGameEndpoints();
 app.MapSoloModeEndpoints();
 app.MapTournamentEndpoints();
 app.MapHub<ScrambleCoin.Api.Hubs.GameHub>("/hubs/game");
+
+// Prometheus scrape endpoint (GET /metrics) — exposed in all non-Production environments.
+if (!app.Environment.IsProduction())
+{
+    app.MapMetrics();
+}
 
 app.Run();
 
