@@ -22,7 +22,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>Creates a started game (CoinSpawn phase) with both lineups set.</summary>
-    private static (Game game, Guid p1, Guid p2) NewStartedGame()
+    private static Game NewStartedGame()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -39,7 +39,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
         game.SetLineup(p2, new Lineup(pieces2));
         game.Start(); // → TurnNumber = 1, Phase = CoinSpawn
 
-        return (game, p1, p2);
+        return game;
     }
 
     private static GetSpectatorBoardStateQueryHandler BuildHandler(IGameRepository gameRepo)
@@ -51,7 +51,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
     public async Task Handle_SoloGame_SetsIsSoloModeTrue()
     {
         // Arrange
-        var (game, _, _) = NewStartedGame();
+        var game = NewStartedGame();
         game.GameMode = GameMode.Solo;
         game.VillainId = "elsa";
 
@@ -71,7 +71,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
     public async Task Handle_SoloGame_MapsVillainId()
     {
         // Arrange
-        var (game, _, _) = NewStartedGame();
+        var game = NewStartedGame();
         game.GameMode = GameMode.Solo;
         game.VillainId = "elsa";
 
@@ -93,7 +93,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
     public async Task Handle_StandardGame_SetsIsSoloModeFalse()
     {
         // Arrange — default GameMode is Standard (bot vs bot)
-        var (game, _, _) = NewStartedGame();
+        var game = NewStartedGame();
 
         var gameRepo = Substitute.For<IGameRepository>();
         gameRepo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
@@ -111,7 +111,7 @@ public class GetSpectatorBoardStateQueryHandlerTests
     public async Task Handle_StandardGame_LeavesVillainIdNull()
     {
         // Arrange — a stray VillainId must NOT leak through when the game is not solo
-        var (game, _, _) = NewStartedGame();
+        var game = NewStartedGame();
         game.GameMode = GameMode.Standard;
         game.VillainId = "elsa";
 

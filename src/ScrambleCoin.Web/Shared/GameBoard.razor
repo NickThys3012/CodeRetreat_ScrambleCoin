@@ -333,7 +333,7 @@
                 @foreach (var piece in AllPlacedPieces())
                 {
                     var isP1 = IsPlayerOnePiece(piece);
-                    var pieceClass = isP1 ? "piece-p1" : (IsSoloMode ? "piece-villain" : "piece-p2");
+                    var pieceClass = isP1 ? "piece-p1" : IsSoloMode ? "piece-villain" : "piece-p2";
                     var top  = piece.Position!.Row * 68;
                     var left = piece.Position!.Col * 68;
                     <div class="piece-token"
