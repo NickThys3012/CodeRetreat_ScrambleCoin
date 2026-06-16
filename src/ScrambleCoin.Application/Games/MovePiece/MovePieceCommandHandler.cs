@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
@@ -25,17 +26,20 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IPublisher _publisher;
+    private readonly IVillainAutomationService _villainAutomationService;
     private readonly ILogger<MovePieceCommandHandler> _logger;
 
     public MovePieceCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IPublisher publisher,
+        IVillainAutomationService villainAutomationService,
         ILogger<MovePieceCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _publisher = publisher;
+        _villainAutomationService = villainAutomationService;
         _logger = logger;
     }
 
@@ -91,9 +95,13 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
                 new GameFinished(game.Id, gameEndedEvent.WinnerId, gameEndedEvent.IsDraw),
                 cancellationToken);
 
-        var yourScore = game.Scores.TryGetValue(playerId, out var s) ? s : 0;
+        // In solo games, let the CPU villain take its move turn once the bot has finished moving.
+        // No-op for non-solo games (the service early-returns when VillainId is null).
+        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
+
+        var yourScore = game.Scores.GetValueOrDefault(playerId, 0);
         var opponentId = game.PlayerOne == playerId ? game.PlayerTwo : game.PlayerOne;
-        var opponentScore = game.Scores.TryGetValue(opponentId, out var os) ? os : 0;
+        var opponentScore = game.Scores.GetValueOrDefault(opponentId, 0);
 
         return new MoveResult(
             game.CurrentPhase?.ToString(),

@@ -94,6 +94,7 @@ public class MovePieceCommandHandlerTests
         => new(repo,
                botRepo ?? Substitute.For<IBotRegistrationRepository>(),
                publisher ?? Substitute.For<IPublisher>(),
+               Substitute.For<IVillainAutomationService>(),
                Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     // ── Test 1: Handler delegates to domain and saves ──────────────────────────

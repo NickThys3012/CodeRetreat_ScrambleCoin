@@ -332,7 +332,7 @@ public class PieceTests
         var piece = PieceFactory.Any();
 
         // should be a no-op without throwing
-        var ex = Record.Exception(() => piece.RemoveFromBoard());
+        var ex = Record.Exception(piece.RemoveFromBoard);
         Assert.Null(ex);
     }
 }

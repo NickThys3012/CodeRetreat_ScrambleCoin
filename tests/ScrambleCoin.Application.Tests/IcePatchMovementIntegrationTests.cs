@@ -251,6 +251,7 @@ public class IcePatchMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             Substitute.For<IPublisher>(),
+            Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>

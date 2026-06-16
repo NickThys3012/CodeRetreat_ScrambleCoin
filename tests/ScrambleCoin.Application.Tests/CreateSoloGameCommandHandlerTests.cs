@@ -348,6 +348,103 @@ public class CreateSoloGameCommandHandlerTests
         Assert.Equal("stitch", result.VillainId);
     }
 
+    private static readonly string[] expected = ["Mickey", "Donald", "WALL•E", "Merlin", "Scrooge"];
+
+    [Fact]
+    public async Task Handle_RegistersVillainLineupForPlayerTwo()
+    {
+        // Arrange: Elsa is a registry villain with a bespoke lineup; unlock her via a defeated parent.
+        var botId = Guid.NewGuid();
+        Game? capturedGame = null;
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        await gameRepo.SaveAsync(Arg.Do<Game>(g => capturedGame = g), Arg.Any<CancellationToken>());
+
+        var villainRepo = Substitute.For<IVillainTreeRepository>();
+        var unlocksRepo = Substitute.For<IBotUnlocksRepository>();
+
+        var elsaNode = new VillainTreeNode
+        {
+            Id = Guid.NewGuid(),
+            VillainId = "elsa",
+            VillainName = "Elsa",
+            ParentLinks = [new VillainNodeParent { ChildVillainId = "elsa", ParentVillainId = "stitch" }],
+            UnlockedPieceId = "Merlin",
+            DisplayOrder = 3,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        villainRepo.GetNodeByVillainIdAsync("elsa", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<VillainTreeNode?>(elsaNode));
+        unlocksRepo.GetDefeatedVillainsAsync(botId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new[]
+            {
+                new BotUnlock
+                {
+                    Id = Guid.NewGuid(),
+                    BotId = botId,
+                    VillainId = "stitch",
+                    UnlockedPieceId = null,
+                    DefeatedAtUtc = DateTime.UtcNow
+                }
+            }.AsEnumerable()));
+
+        var handler = BuildHandler(gameRepo, villainRepo, unlocksRepo);
+        var command = new CreateSoloGameCommand(botId, "elsa");
+
+        // Act
+        await handler.Handle(command, CancellationToken.None);
+
+        // Assert: PlayerTwo's lineup is registered with Elsa's confirmed pieces, owned by the villain.
+        Assert.NotNull(capturedGame);
+        Assert.NotNull(capturedGame.LineupPlayerTwo);
+        Assert.Equal(
+            expected,
+            capturedGame.LineupPlayerTwo!.Pieces.Select(p => p.Name).ToList());
+        Assert.All(capturedGame.LineupPlayerTwo.Pieces,
+            p => Assert.Equal(capturedGame.PlayerTwo, p.PlayerId));
+    }
+
+    [Fact]
+    public async Task Handle_UnknownRegistryVillain_RegistersDefaultLineup()
+    {
+        // Arrange: "stitch" exists in the tree but has no bespoke registry lineup → default lineup.
+        var botId = Guid.NewGuid();
+        Game? capturedGame = null;
+
+        var gameRepo = Substitute.For<IGameRepository>();
+        await gameRepo.SaveAsync(Arg.Do<Game>(g => capturedGame = g), Arg.Any<CancellationToken>());
+
+        var villainRepo = Substitute.For<IVillainTreeRepository>();
+        var unlocksRepo = Substitute.For<IBotUnlocksRepository>();
+
+        var stitchNode = new VillainTreeNode
+        {
+            Id = Guid.NewGuid(),
+            VillainId = "stitch",
+            VillainName = "Stitch",
+            UnlockedPieceId = null,
+            DisplayOrder = 1,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        villainRepo.GetNodeByVillainIdAsync("stitch", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<VillainTreeNode?>(stitchNode));
+        unlocksRepo.GetDefeatedVillainsAsync(botId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Enumerable.Empty<BotUnlock>()));
+
+        var handler = BuildHandler(gameRepo, villainRepo, unlocksRepo);
+        var command = new CreateSoloGameCommand(botId, "stitch");
+
+        // Act
+        await handler.Handle(command, CancellationToken.None);
+
+        // Assert: a full 5-piece lineup is still registered so the game can start.
+        Assert.NotNull(capturedGame);
+        Assert.NotNull(capturedGame.LineupPlayerTwo);
+        Assert.Equal(5, capturedGame.LineupPlayerTwo!.Pieces.Count);
+    }
+
     [Fact]
     public async Task Handle_SavesGameToRepository()
     {

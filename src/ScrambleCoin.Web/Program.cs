@@ -85,6 +85,10 @@ try
     // ── Application Services ───────────────────────────────────────────────────
     builder.Services.AddScoped<ICoinSpawnService,
         CoinSpawnService>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
+        ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
+    builder.Services.AddScoped<IVillainActionDispatcher, VillainActionDispatcher>();
+    builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>();
     builder.Services.AddSingleton<Random>();
     
     // ── SignalR Broadcaster ───────────────────────────────────────────────────

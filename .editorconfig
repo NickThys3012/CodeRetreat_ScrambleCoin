@@ -511,27 +511,15 @@ dotnet_diagnostic.CA1515.severity = none
 # ─────────────────────────────────────────────────────────────────────────────
 # Path-based overrides
 # ─────────────────────────────────────────────────────────────────────────────
+# Migrations: class names and file names follow the FluentMigrator timestamp
+# convention and may contain underscores (e.g. M20240101_AddRegistrationTable).
 
-[tests/**/*.cs]
+[{tests/**/*.cs,src/ScrambleCoin.Infrastructure/Migrations/*.cs}]
 dotnet_diagnostic.IDE1006.severity = none
 dotnet_diagnostic.CA1707.severity = none
 resharper_inconsistent_naming_highlighting = none
 
-# Migrations: class names and file names follow the FluentMigrator timestamp
-# convention and may contain underscores (e.g. M20240101_AddRegistrationTable).
-[src/ScrambleCoin.Infrastructure/Migrations/*.cs]
-dotnet_diagnostic.IDE1006.severity = none
-resharper_inconsistent_naming_highlighting = none
-
-
-[src/ScrambleCoin.Domain/Events/*.cs]
-dotnet_diagnostic.CS8907.severity = none
-resharper_not_accessed_positional_property_global_highlighting = none
-dotnet_diagnostic.IDE0051.severity = none
-csharp_style_unused_value_assignment_preference = discard_variable:none
-
-
-[{src/ScrambleCoin.Application/**/*Dto.cs,src/ScrambleCoin.Infrastructure/Persistence/Records/*Dtos.cs}]
+[{src/ScrambleCoin.Application/**/*Dto.cs,src/ScrambleCoin.Infrastructure/Persistence/Records/*Dtos.cs,src/ScrambleCoin.Domain/Events/*.cs}]
 dotnet_diagnostic.CS8907.severity = none
 resharper_not_accessed_positional_property_global_highlighting = none
 dotnet_diagnostic.IDE0051.severity = none
@@ -554,3 +542,6 @@ resharper_class_never_instantiated_global_highlighting = none
 
 [src/ScrambleCoin.Infrastructure/Persistence/Records/*.cs]
 resharper_entity_framework_model_validation_unlimited_string_length_highlighting = none
+
+[tests/ScrambleCoin.Web.Tests/*Tests.cs]
+resharper_class_never_instantiated_global_highlighting = none

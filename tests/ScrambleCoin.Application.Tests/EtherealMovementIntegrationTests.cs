@@ -94,6 +94,7 @@ public class EtherealMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             publisher ?? Substitute.For<IPublisher>(),
+            Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
