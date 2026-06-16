@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
@@ -95,7 +96,8 @@ public class MovePieceCommandHandlerTests
                botRepo ?? Substitute.For<IBotRegistrationRepository>(),
                publisher ?? Substitute.For<IPublisher>(),
                Substitute.For<IVillainAutomationService>(),
-               Substitute.For<ILogger<MovePieceCommandHandler>>());
+               Substitute.For<ILogger<MovePieceCommandHandler>>(),
+               Substitute.For<IMoveMetrics>());
 
     // ── Test 1: Handler delegates to domain and saves ──────────────────────────
 

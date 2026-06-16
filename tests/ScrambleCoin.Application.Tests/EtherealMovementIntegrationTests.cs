@@ -95,7 +95,8 @@ public class EtherealMovementIntegrationTests
             botRepo,
             publisher ?? Substitute.For<IPublisher>(),
             Substitute.For<Services.IVillainAutomationService>(),
-            Substitute.For<ILogger<MovePieceCommandHandler>>());
+            Substitute.For<ILogger<MovePieceCommandHandler>>(),
+            Substitute.For<ScrambleCoin.Application.Abstractions.IMoveMetrics>());
 
     /// <summary>
     /// Builds a multi-step segment for Ethereal movement.

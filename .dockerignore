@@ -1,0 +1,18 @@
+# Build context is the repo root; keep the image small and the context clean.
+**/bin/
+**/obj/
+.git/
+.gitignore
+.github/
+.vs/
+.vscode/
+.idea/
+**/appsettings.Development.json
+**/*.user
+node_modules/
+**/logs/
+*.md
+.env
+.env.*
+!.env.example
+docker-compose.yml

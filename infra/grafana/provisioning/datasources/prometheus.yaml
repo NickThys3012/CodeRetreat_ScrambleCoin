@@ -1,0 +1,9 @@
+apiVersion: 1
+datasources:
+  - name: ScrambleCoin Prometheus
+    type: prometheus
+    access: proxy
+    uid: scramblecoin-prometheus
+    url: http://prometheus:9090
+    isDefault: false
+    editable: false
