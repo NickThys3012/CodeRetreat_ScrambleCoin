@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
+using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
@@ -18,17 +19,20 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
     private readonly IPublisher _publisher;
+    private readonly IVillainAutomationService _villainAutomationService;
     private readonly ILogger<SubmitPlacementCommandHandler> _logger;
 
     public SubmitPlacementCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IPublisher publisher,
+        IVillainAutomationService villainAutomationService,
         ILogger<SubmitPlacementCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _publisher = publisher;
+        _villainAutomationService = villainAutomationService;
         _logger = logger;
     }
 
@@ -88,6 +92,10 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
                     phaseEvent.PreviousPhase.ToString(),
                     phaseEvent.NewPhase?.ToString()),
                 cancellationToken);
+
+        // In solo games, let the CPU villain react after the bot's placement.
+        // No-op for non-solo games (the service early-returns when VillainId is null).
+        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
         return new PlacementResult(game.CurrentPhase?.ToString(), game.MovePhaseActivePlayer?.ToString());
     }

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services.Villains;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
@@ -62,6 +63,11 @@ public sealed class CreateSoloGameCommandHandler : IRequestHandler<CreateSoloGam
             GameMode = GameMode.Solo,
             VillainId = request.VillainId
         };
+
+        // Register the villain's hardcoded lineup (PlayerTwo) before saving, so that when the bot
+        // joins as PlayerOne the game can start. Falls back to a generic lineup for villains that do
+        // not yet have a bespoke one defined, so solo-game creation never fails.
+        game.SetLineup(villainPlayerId, VillainRegistry.GetLineupForVillainOrDefault(request.VillainId, villainPlayerId));
 
         await _gameRepository.SaveAsync(game, cancellationToken);
 

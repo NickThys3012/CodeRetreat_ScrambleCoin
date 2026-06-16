@@ -12,6 +12,13 @@ namespace ScrambleCoin.Domain.Entities;
 public partial class Game
 {
     /// <summary>
+    /// Returns <c>true</c> when <paramref name="pieceId"/> has already been moved (or skipped)
+    /// during the current MovePhase. Read-only query used by CPU/automation callers to decide
+    /// which on-board piece to move next without attempting a disallowed second move.
+    /// </summary>
+    public bool HasPieceMovedThisTurn(Guid pieceId) => _movedPieceIds.Contains(pieceId);
+
+    /// <summary>
     /// Moves a single on-board piece during MovePhase, applying direction validation,
     /// obstacle/fence blocking, and coin collection along the path.
     /// Auto-advances to the next turn (or ends the game) once all on-board pieces

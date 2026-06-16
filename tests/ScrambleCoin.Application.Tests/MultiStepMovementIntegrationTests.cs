@@ -109,6 +109,7 @@ public class MultiStepMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             Substitute.For<IPublisher>(),
+            Substitute.For<ScrambleCoin.Application.Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
