@@ -1,0 +1,17 @@
+apiVersion: 1
+datasources:
+  - name: ScrambleCoin SQL Server
+    uid: scramblecoin-mssql
+    type: mssql
+    access: proxy
+    url: scramblecoin-sqlserver:1433
+    user: sa
+    jsonData:
+      database: ScrambleCoin
+      encrypt: 'false'
+      maxOpenConns: 5
+      maxIdleConns: 2
+    secureJsonData:
+      password: ${MSSQL_SA_PASSWORD}
+    isDefault: true
+    editable: false

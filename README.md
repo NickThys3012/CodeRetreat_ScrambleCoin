@@ -60,6 +60,43 @@ dotnet ef database update \
 
 ---
 
+## 📊 Live Tournament Dashboard (Grafana)
+
+A pre-provisioned [Grafana](https://grafana.com/) dashboard reads live tournament
+stats directly from the SQL Server container. No manual import or configuration is
+required — the datasource and dashboard are provisioned from `infra/grafana/`.
+
+### 1. Create your local `.env`
+
+Docker Compose auto-loads a `.env` file from the project root for the SQL Server
+and Grafana passwords. Copy the committed example and optionally edit the passwords:
+
+```bash
+cp .env.example .env
+```
+
+> `.env` is gitignored — it stays on your machine only. The defaults keep the
+> existing dev setup working (`MSSQL_SA_PASSWORD=ScrambleCoin_Dev!2024`).
+
+### 2. Start the stack
+
+```bash
+docker compose up -d
+```
+
+This starts SQL Server **and** Grafana. Grafana waits for the SQL Server health
+check to pass before starting.
+
+### 3. Open the dashboard
+
+- Browse to <http://localhost:3000>
+- Log in as `admin` / value of `GRAFANA_ADMIN_PASSWORD` (default `admin`)
+- The dashboard appears automatically under **Dashboards → "Tournament Dashboard"**
+- It refreshes every **5 s** and shows: Active Games, Games by Status, the Bot
+  Leaderboard, and Games Completed per Minute.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Restore & Build
