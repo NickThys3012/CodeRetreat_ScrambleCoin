@@ -41,6 +41,8 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+      loki:
+        condition: service_started
 
   scramblecoin-api:
     build:
@@ -54,9 +56,29 @@ services:
       ASPNETCORE_ENVIRONMENT: "Docker"
       ASPNETCORE_URLS: "http://+:5001"
       ConnectionStrings__DefaultConnection: "Server=scramblecoin-sqlserver,1433;Database=ScrambleCoin;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+    volumes:
+      - api-logs:/app/logs
     depends_on:
       sqlserver:
         condition: service_healthy
+
+  loki:
+    image: grafana/loki:latest
+    container_name: scramblecoin-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: scramblecoin-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./infra/promtail/config.yml:/etc/promtail/config.yml:ro
+      - api-logs:/var/log/scramblecoin/api:ro
+      - ./src/ScrambleCoin.Web/logs:/var/log/scramblecoin/web:ro
+    depends_on:
+      - loki
 
   prometheus:
     image: prom/prometheus:latest
@@ -74,3 +96,4 @@ services:
 volumes:
   grafana-data:
   prometheus-data:
+  api-logs:

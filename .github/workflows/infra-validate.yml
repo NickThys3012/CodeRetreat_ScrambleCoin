@@ -9,6 +9,7 @@ on:
       - .env.example
       - infra/grafana/**
       - infra/prometheus.yml
+      - infra/promtail/**
       - .github/workflows/infra-validate.yml
 
 jobs:

@@ -436,6 +436,10 @@ FodyWeavers.xsd
 # Logs
 logs/
 
+# Keep the Web logs dir placeholder so the Promtail bind-mount source exists
+!src/ScrambleCoin.Web/logs/
+!src/ScrambleCoin.Web/logs/.gitkeep
+
 .idea/.idea.ScrambleCoin/.idea/
 
 # Local development secrets — never commit
