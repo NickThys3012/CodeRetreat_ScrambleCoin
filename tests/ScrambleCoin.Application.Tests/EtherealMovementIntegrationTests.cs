@@ -5,7 +5,6 @@ using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Interfaces;
-using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -94,12 +93,11 @@ public class EtherealMovementIntegrationTests
         IPublisher? publisher = null)
         => new(gameRepo,
             botRepo,
-            Substitute.For<IVillainAutomationService>(),
             publisher ?? Substitute.For<IPublisher>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
-    /// Builds a multistep segment for Ethereal movement.
+    /// Builds a multi-step segment for Ethereal movement.
     /// </summary>
     private static ReadOnlyCollection<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
     {
@@ -132,7 +130,7 @@ public class EtherealMovementIntegrationTests
             new MovePieceCommand(game.Id, token, etherealPiece.Id, BuildEtherealSegment(rockPos, coinPos)),
             CancellationToken.None);
 
-        // Assert: the piece moved through rock to coin position
+        // Assert: piece moved through rock to coin position
         Assert.Equal(coinPos, etherealPiece.Position);
 
         // Assert: coin was collected
@@ -141,11 +139,11 @@ public class EtherealMovementIntegrationTests
         // Assert: coin removed from board
         Assert.Null(game.Board.GetTile(coinPos).AsCoin);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
-    // ── Integration Test 2: Ethereal passes through an opponent piece ──────────────────
+    // ── Integration Test 2: Ethereal passes through opponent piece ──────────────────
 
     [Fact]
     public async Task EtherealMovement_PassThroughOpponentPiece_ReachesDestinationAndSaves()
@@ -170,10 +168,10 @@ public class EtherealMovementIntegrationTests
         // Assert: ethereal reached destination
         Assert.Equal(new Position(0, 2), etherealPiece.Position);
 
-        // Assert: an opponent piece still in place (not captured)
+        // Assert: opponent piece still in place (not captured)
         Assert.Equal(new Position(0, 1), p2Piece.Position);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -204,7 +202,7 @@ public class EtherealMovementIntegrationTests
         await gameRepo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
 
-    // ── Integration Test 4: Ethereal collects all coins in a path ────────────────────
+    // ── Integration Test 4: Ethereal collects all coins in path ────────────────────
 
     [Fact]
     public async Task EtherealMovement_CollectsAllCoinsInPath_UpdatesScore()
@@ -237,7 +235,7 @@ public class EtherealMovementIntegrationTests
         Assert.Null(game.Board.GetTile(new Position(0, 2)).AsCoin);
         Assert.Null(game.Board.GetTile(new Position(0, 3)).AsCoin);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -266,7 +264,7 @@ public class EtherealMovementIntegrationTests
 
         Assert.Contains("fence", ex.Message);
 
-        // Assert: the game was NOT saved
+        // Assert: game was NOT saved
         await gameRepo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
 
@@ -310,7 +308,7 @@ public class EtherealMovementIntegrationTests
         // Assert: opponent still in place
         Assert.Equal(new Position(0, 2), p2Piece.Position);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -344,7 +342,7 @@ public class EtherealMovementIntegrationTests
         // Assert: coin collected
         Assert.Equal(1, game.Scores[p1]);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -372,7 +370,7 @@ public class EtherealMovementIntegrationTests
 
         Assert.Contains("obstacle", ex.Message);
 
-        // Assert: the game was NOT saved
+        // Assert: game was NOT saved
         await gameRepo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
 
@@ -400,7 +398,7 @@ public class EtherealMovementIntegrationTests
 
         Assert.Contains("obstacle", ex.Message);
 
-        // Assert: the game was NOT saved
+        // Assert: game was NOT saved
         await gameRepo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
 
@@ -431,7 +429,7 @@ public class EtherealMovementIntegrationTests
 
         Assert.Contains("MaxDistance", ex.Message);
 
-        // Assert: the game was NOT saved
+        // Assert: game was NOT saved
         await gameRepo.DidNotReceive().SaveAsync(Arg.Any<Game>(), Arg.Any<CancellationToken>());
     }
 
@@ -468,7 +466,7 @@ public class EtherealMovementIntegrationTests
         Assert.Equal(new Position(0, 0), moveEvent.From);
         Assert.Equal(new Position(0, 2), moveEvent.To);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 
@@ -486,18 +484,18 @@ public class EtherealMovementIntegrationTests
         var botRepo = MockBotRepository(token, p1, game.Id);
         var handler = BuildHandler(gameRepo, botRepo);
 
-        // Act: Move to an empty tile
+        // Act: Move to empty tile
         await handler.Handle(
             new MovePieceCommand(game.Id, token, etherealPiece.Id, BuildEtherealSegment(new Position(0, 1))),
             CancellationToken.None);
 
-        // Assert: a piece moved
+        // Assert: piece moved
         Assert.Equal(new Position(0, 1), etherealPiece.Position);
 
         // Assert: score unchanged (no coins collected)
         Assert.Equal(0, game.Scores[p1]);
 
-        // Assert: the game was saved
+        // Assert: game was saved
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
     }
 }

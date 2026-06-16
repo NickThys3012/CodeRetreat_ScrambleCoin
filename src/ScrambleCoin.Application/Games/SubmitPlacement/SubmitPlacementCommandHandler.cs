@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
-using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Events;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.ValueObjects;
@@ -13,26 +12,22 @@ namespace ScrambleCoin.Application.Games.SubmitPlacement;
 /// <summary>
 /// Handles <see cref="SubmitPlacementCommand"/>: resolves the bot token to a player,
 /// validates the action, delegates to the domain, persists the game, and returns the resulting phase state.
-/// After execution, triggers villain automation if needed.
 /// </summary>
 public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacementCommand, PlacementResult>
 {
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
-    private readonly IVillainAutomationService _villainAutomationService;
     private readonly IPublisher _publisher;
     private readonly ILogger<SubmitPlacementCommandHandler> _logger;
 
     public SubmitPlacementCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
-        IVillainAutomationService villainAutomationService,
         IPublisher publisher,
         ILogger<SubmitPlacementCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
-        _villainAutomationService = villainAutomationService;
         _publisher = publisher;
         _logger = logger;
     }
@@ -93,9 +88,6 @@ public sealed class SubmitPlacementCommandHandler : IRequestHandler<SubmitPlacem
                     phaseEvent.PreviousPhase.ToString(),
                     phaseEvent.NewPhase?.ToString()),
                 cancellationToken);
-
-        // Trigger villain automation if it's now the villain's turn
-        await _villainAutomationService.EnsureVillainActsIfNeededAsync(request.GameId, cancellationToken);
 
         return new PlacementResult(game.CurrentPhase?.ToString(), game.MovePhaseActivePlayer?.ToString());
     }
