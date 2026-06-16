@@ -153,40 +153,33 @@ public sealed class GameLoop
                     lastPhase = state.Phase ?? "";
                 }
 
-                // ── Game isn't started yet ───────────────────────────────────────
-                if (state.Phase is null && state.Turn == 0)
+                switch (state.Phase)
                 {
-                    Console.WriteLine($"[{_botName}]  Waiting for game to start…");
-                    continue; // wait for the next SignalR event
-                }
+                    // ── Game isn't started yet ───────────────────────────────────────
+                    case null when state.Turn == 0:
+                        Console.WriteLine($"[{_botName}]  Waiting for game to start…");
+                        continue; // wait for the next SignalR event
+                    // ── Game ended ────────────────────────────────────────────────
+                    case null when state.Turn > 0:
+                        await PrintFinalResultAsync(gameId, playerId, state, ct);
+                        return;
+                    // ── CoinSpawn ─────────────────────────────────────────────────
+                    case "CoinSpawn":
+                        // Server handles this; the next SignalR event will show PlacePhase.
+                        continue;
+                    // ── PlacePhase ────────────────────────────────────────────────
+                    case "PlacePhase":
+                        {
+                            if (placedThisTurn.Count == 0)
+                                await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
+                            // If already placed, just wait for the next event (opponent placing).
+                            continue;
+                        }
 
-                // ── Game ended ────────────────────────────────────────────────
-                if (state.Phase is null && state.Turn > 0)
-                {
-                    await PrintFinalResultAsync(gameId, playerId, state, ct);
-                    return;
-                }
-
-                // ── CoinSpawn ─────────────────────────────────────────────────
-                if (state.Phase == "CoinSpawn")
-                {
-                    // Server handles this; the next SignalR event will show PlacePhase.
-                    continue;
-                }
-
-                // ── PlacePhase ────────────────────────────────────────────────
-                if (state.Phase == "PlacePhase")
-                {
-                    if (placedThisTurn.Count == 0)
-                        await HandlePlacePhaseAsync(gameId, state, placedThisTurn, ct);
-                    // If already placed, just wait for the next event (opponent placing).
-                    continue;
-                }
-
-                // ── MovePhase ─────────────────────────────────────────────────
-                if (state.Phase == "MovePhase")
-                {
-                    await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
+                    // ── MovePhase ─────────────────────────────────────────────────
+                    case "MovePhase":
+                        await HandleMovePhaseAsync(gameId, playerId, state, movedThisTurn, ct);
+                        break;
                 }
             }
         }

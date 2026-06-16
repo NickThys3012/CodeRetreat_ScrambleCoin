@@ -296,7 +296,6 @@ dotnet_diagnostic.CA1511.severity = error
 dotnet_diagnostic.CA1512.severity = error
 dotnet_diagnostic.CA1513.severity = error
 dotnet_diagnostic.CA1514.severity = error
-dotnet_diagnostic.CA1515.severity = warning     # review roel 20250114
 
 # IL Trimming Rules
 dotnet_diagnostic.IL3000.severity = error
@@ -502,6 +501,13 @@ dotnet_naming_rule.test_members_should_allow_underscores.symbols = test_members
 dotnet_naming_rule.test_members_should_allow_underscores.style = test_method_with_underscores
 dotnet_naming_rule.test_members_should_allow_underscores.severity = suggestion
 
+resharper_loop_can_be_converted_to_query_highlighting = none
+
+# CA1515 is a Roslyn SDK analyzer (not a ReSharper inspection), so only the
+# dotnet_diagnostic severity controls it — there is no resharper_*_highlighting alias.
+# Public types here are intentionally public (API / Domain surface).
+dotnet_diagnostic.CA1515.severity = none
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Path-based overrides
 # ─────────────────────────────────────────────────────────────────────────────
@@ -536,6 +542,15 @@ csharp_style_unused_value_assignment_preference = discard_variable:none
 resharper_unused_auto_property_accessor_global_highlighting  = none
 resharper_unused_auto_property_accessor_local_highlighting = none
 
+[samples/ScrambleCoin.StarterBot/Models/**/*.cs]
+resharper_unused_auto_property_accessor_global_highlighting  = none
+resharper_unused_auto_property_accessor_local_highlighting = none
+resharper_unused_member_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+
+[src/ScrambleCoin.Api/RequestBodies/**/*.cs]
+resharper_class_never_instantiated_global_highlighting = none
 
 [src/ScrambleCoin.Infrastructure/Persistence/Records/*.cs]
 resharper_entity_framework_model_validation_unlimited_string_length_highlighting = none

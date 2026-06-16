@@ -22,7 +22,7 @@ public sealed class PieceTurnAvailabilityPersistenceTests
     /// Builds a started game where player one's lineup contains a mix of restricted
     /// (Elsa: turn 2, Merlin: turn 4) and unrestricted (Mickey, Goofy, Scrooge) pieces.
     /// </summary>
-    private static (Game game, Guid p1, Guid p2) BuildStartedGameWithRestrictedLineup()
+    private static Game BuildStartedGameWithRestrictedLineup()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -36,14 +36,14 @@ public sealed class PieceTurnAvailabilityPersistenceTests
         game.SetLineup(p1, new Lineup(pieces1));
         game.SetLineup(p2, new Lineup(pieces2));
         game.Start();
-        return (game, p1, p2);
+        return game;
     }
 
     [Fact]
     public async Task SaveThenLoad_RestrictedPiece_PreservesAvailableFromTurn()
     {
         var options = BuildOptions(nameof(SaveThenLoad_RestrictedPiece_PreservesAvailableFromTurn));
-        var (game, _, _) = BuildStartedGameWithRestrictedLineup();
+        var game = BuildStartedGameWithRestrictedLineup();
 
         await using (var writeCtx = new ScrambleCoinDbContext(options))
             await new GameRepository(writeCtx).SaveAsync(game);
@@ -59,7 +59,7 @@ public sealed class PieceTurnAvailabilityPersistenceTests
     public async Task SaveThenLoad_HighRestrictionPiece_PreservesAvailableFromTurn()
     {
         var options = BuildOptions(nameof(SaveThenLoad_HighRestrictionPiece_PreservesAvailableFromTurn));
-        var (game, _, _) = BuildStartedGameWithRestrictedLineup();
+        var game = BuildStartedGameWithRestrictedLineup();
 
         await using (var writeCtx = new ScrambleCoinDbContext(options))
             await new GameRepository(writeCtx).SaveAsync(game);
@@ -75,7 +75,7 @@ public sealed class PieceTurnAvailabilityPersistenceTests
     public async Task SaveThenLoad_UnrestrictedPiece_PreservesNullAvailableFromTurn()
     {
         var options = BuildOptions(nameof(SaveThenLoad_UnrestrictedPiece_PreservesNullAvailableFromTurn));
-        var (game, _, _) = BuildStartedGameWithRestrictedLineup();
+        var game = BuildStartedGameWithRestrictedLineup();
 
         await using (var writeCtx = new ScrambleCoinDbContext(options))
             await new GameRepository(writeCtx).SaveAsync(game);
@@ -96,7 +96,7 @@ public sealed class PieceTurnAvailabilityPersistenceTests
     public async Task Load_LegacyLineupJsonWithoutAvailableFromTurn_DeserialisesAsNull()
     {
         var options = BuildOptions(nameof(Load_LegacyLineupJsonWithoutAvailableFromTurn_DeserialisesAsNull));
-        var (game, _, _) = BuildStartedGameWithRestrictedLineup();
+        var game = BuildStartedGameWithRestrictedLineup();
 
         // Save normally, then strip the AvailableFromTurn property from the stored JSON
         // to simulate a row that was written before the field existed.
@@ -135,8 +135,8 @@ public sealed class PieceTurnAvailabilityPersistenceTests
     private static string StripAvailableFromTurn(string json)
     {
         // Matches: ,"AvailableFromTurn":<number-or-null>   OR   "AvailableFromTurn":<value>,
-        var pattern = "(,\\s*\"AvailableFromTurn\"\\s*:\\s*(?:null|-?\\d+))" +
-                      "|(\"AvailableFromTurn\"\\s*:\\s*(?:null|-?\\d+)\\s*,)";
+        const string pattern = "(,\\s*\"AvailableFromTurn\"\\s*:\\s*(?:null|-?\\d+))" +
+            "|(\"AvailableFromTurn\"\\s*:\\s*(?:null|-?\\d+)\\s*,)";
         return System.Text.RegularExpressions.Regex.Replace(json, pattern, string.Empty);
     }
 }

@@ -1,4 +1,5 @@
 using MediatR;
+using ScrambleCoin.Api.RequestBodies;
 using ScrambleCoin.Application.Games.SoloMode.CreateSoloGame;
 using ScrambleCoin.Application.Games.SoloMode.GetStarterPieces;
 using ScrambleCoin.Application.Games.SoloMode.GetUnlockedPieces;
@@ -98,7 +99,7 @@ internal static class SoloModeEndpoints
     }
 
     private static async Task<IResult> CreateSoloGame(
-        CreateSoloGameRequest body,
+        SoloModeEndpointRequests.CreateSoloGameRequest body,
         ISender sender,
         CancellationToken ct)
     {
@@ -132,10 +133,4 @@ internal static class SoloModeEndpoints
                 title: "Internal Server Error");
         }
     }
-
-    // ── Request bodies ────────────────────────────────────────────────────────
-
-    private sealed record CreateSoloGameRequest(
-        Guid BotId,
-        string VillainId);
 }

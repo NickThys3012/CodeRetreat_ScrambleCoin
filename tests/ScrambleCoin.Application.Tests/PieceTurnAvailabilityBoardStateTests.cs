@@ -4,7 +4,6 @@ using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Games.GetBoardState;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
-using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.ValueObjects;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;

@@ -40,7 +40,7 @@ public class QueueServiceTests
         var sender = Substitute.For<ISender>();
         sender
             .Send(Arg.Any<StartMatchCommand>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo => new StartMatchResult(
+            .Returns(_ => new StartMatchResult(
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),

@@ -1,4 +1,5 @@
 using MediatR;
+using ScrambleCoin.Api.RequestBodies;
 using ScrambleCoin.Application.Tournament.AddParticipant;
 using ScrambleCoin.Application.Tournament.CancelTournament;
 using ScrambleCoin.Application.Tournament.CreateTournament;
@@ -104,7 +105,7 @@ internal static class TournamentEndpoints
 
     /// <summary>Admin creates a tournament. Requires <c>X-Admin-Key: scramblecoin-admin</c>.</summary>
     private static async Task<IResult> CreateTournament(
-        CreateTournamentRequest body,
+        TournamentEndpointRequests.CreateTournamentRequest body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)
@@ -135,7 +136,7 @@ internal static class TournamentEndpoints
     /// <summary>Bot self-registers for the tournament. No admin key is required.</summary>
     private static async Task<IResult> JoinTournament(
         Guid id,
-        AddParticipantRequest body,
+        TournamentEndpointRequests.AddParticipantRequest body,
         ISender sender,
         CancellationToken ct)
     {
@@ -173,7 +174,7 @@ internal static class TournamentEndpoints
     /// <summary>Admin registers a bot for the tournament.</summary>
     private static async Task<IResult> AddParticipant(
         Guid id,
-        AddParticipantRequest body,
+        TournamentEndpointRequests.AddParticipantRequest? body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)
@@ -355,21 +356,4 @@ internal static class TournamentEndpoints
         var result = await sender.Send(new GetLeaderboardQuery(), ct);
         return Results.Ok(result);
     }
-
-    // ── Request bodies ────────────────────────────────────────────────────────
-
-    /// <summary>Request body for <c>POST /api/tournament</c>.</summary>
-    /// <param name="Name">Tournament display name.</param>
-    /// <param name="MaxParticipants">Maximum number of bots (minimum 2).</param>
-    /// <param name="TopN">Number of group-stage qualifiers for the knockout stage (default: 4).</param>
-    private sealed record CreateTournamentRequest(string Name, int MaxParticipants, int? TopN);
-
-    /// <summary>Request body for <c>POST /api/tournament/{id}/participants</c>.</summary>
-    /// <param name="BotId">Stable identifier for the bot (used as their game token throughout the tournament).</param>
-    /// <param name="BotName">Human-readable display name for this bot.</param>
-    /// <param name="Lineup">Ordered list of piece names the bot will use in all their tournament games.</param>
-    private sealed record AddParticipantRequest(
-        Guid BotId,
-        string BotName,
-        IReadOnlyList<string> Lineup);
 }
