@@ -7,7 +7,7 @@ namespace ScrambleCoin.Domain.Tests;
 
 public class TileTests
 {
-    private static Tile MakeTile() => new Tile(new Position(0, 0));
+    private static Tile MakeTile() => new(new Position(0, 0));
 
     [Fact]
     public void NewTile_ShouldBeEmpty()

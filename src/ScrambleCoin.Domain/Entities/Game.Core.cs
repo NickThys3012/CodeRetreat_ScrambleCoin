@@ -38,6 +38,12 @@ public partial class Game
     /// <summary>Identifier of player two.</summary>
     public Guid PlayerTwo { get; }
 
+    /// <summary>
+    /// Optional villain ID for solo mode games. When set, PlayerTwo is controlled by the CPU villain AI.
+    /// <c>null</c> for multiplayer/PvP games.
+    /// </summary>
+    public string? VillainId { get; set; }
+
     // ── Board ─────────────────────────────────────────────────────────────────
 
     /// <summary>The game board.</summary>
@@ -71,6 +77,11 @@ public partial class Game
 
     /// <summary>Current lifecycle status of the game.</summary>
     public GameStatus Status { get; private set; }
+
+    /// <summary>
+    /// The game mode: Standard (1v1) or Solo (vs villain).
+    /// </summary>
+    public GameMode GameMode { get; set; } = GameMode.Standard;
 
     /// <summary>
     /// The active phase within the current turn (<see cref="TurnPhase.CoinSpawn"/>,
@@ -302,6 +313,25 @@ public partial class Game
                 $"Player {playerId} has no pieces on the board to remove.");
 
         _piecesOnBoard[playerId]--;
+    }
+
+    // ── Force cancel ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Force-cancels the game, transitioning to <see cref="GameStatus.Cancelled"/>.
+    /// Allowed from <see cref="GameStatus.WaitingForBots"/> or <see cref="GameStatus.InProgress"/>.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the game is already <see cref="GameStatus.Finished"/> or <see cref="GameStatus.Cancelled"/>.
+    /// </exception>
+    public void ForceCancel()
+    {
+        if (Status is not (GameStatus.WaitingForBots or GameStatus.InProgress))
+            throw new DomainException(
+                $"Game can only be cancelled from {GameStatus.WaitingForBots} or {GameStatus.InProgress} state. Current status: {Status}.");
+
+        Status = GameStatus.Cancelled;
+        CurrentPhase = null;
     }
 
     // ── Turn advancement ──────────────────────────────────────────────────────

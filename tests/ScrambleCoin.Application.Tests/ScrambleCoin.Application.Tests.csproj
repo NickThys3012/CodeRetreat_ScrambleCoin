@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ScrambleCoin.Application\ScrambleCoin.Application.csproj" />
+    <ProjectReference Include="..\ScrambleCoin.Domain.Tests\ScrambleCoin.Domain.Tests.csproj" />
   </ItemGroup>
 
 </Project>

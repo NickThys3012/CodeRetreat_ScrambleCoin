@@ -298,9 +298,11 @@ public class MudBlazorIntegrationTests
 
     // ═══════════════════════════════════════════════════════════════════════
     // AC6 — MudBlazor-styled landing page in Index.razor
+    // The lobby was redesigned for issue #60 (spectator UI) with a custom dark
+    // theme; it now uses MudGrid/MudItem/MudAlert instead of MudContainer/MudText/MudPaper.
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Index.razor uses MudContainer as its top-level layout component.</summary>
+    /// <summary>Index.razor uses MudGrid to lay out the live-games cards.</summary>
     [Fact]
     public void IndexRazor_ContainsMudContainer()
     {
@@ -308,12 +310,12 @@ public class MudBlazorIntegrationTests
         var content = File.ReadAllText(indexPath);
 
         Assert.Contains(
-            "<MudContainer",
+            "<MudGrid",
             content,
             StringComparison.Ordinal);
     }
 
-    /// <summary>Index.razor uses MudText for typography.</summary>
+    /// <summary>Index.razor uses MudItem to wrap each game card in the grid.</summary>
     [Fact]
     public void IndexRazor_ContainsMudText()
     {
@@ -321,12 +323,12 @@ public class MudBlazorIntegrationTests
         var content = File.ReadAllText(indexPath);
 
         Assert.Contains(
-            "<MudText",
+            "<MudItem",
             content,
             StringComparison.Ordinal);
     }
 
-    /// <summary>Index.razor uses MudPaper for a card-style content panel.</summary>
+    /// <summary>Index.razor uses MudAlert for the tournament banner.</summary>
     [Fact]
     public void IndexRazor_ContainsMudPaper()
     {
@@ -334,7 +336,7 @@ public class MudBlazorIntegrationTests
         var content = File.ReadAllText(indexPath);
 
         Assert.Contains(
-            "<MudPaper",
+            "<MudAlert",
             content,
             StringComparison.Ordinal);
     }

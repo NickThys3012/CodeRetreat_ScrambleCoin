@@ -21,7 +21,7 @@ public class CoinSpawnServiceTests
     /// For turn 1: just calls Start(). For turns 2–5: advances through
     /// (targetTurn - 1) complete turns without placing any pieces.
     /// </summary>
-    private static (Game game, Guid p1, Guid p2) GameAtTurnCoinSpawnPhase(int targetTurn)
+    private static Game GameAtTurnCoinSpawnPhase(int targetTurn)
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -40,20 +40,30 @@ public class CoinSpawnServiceTests
         game.SetLineup(p2, new Lineup(p2Pieces));
         game.Start(); // → CoinSpawn, turn 1
 
-        // Advance through (targetTurn - 1) full turns without pieces on the board.
+        // Advance through (targetTurn - 1) full turns with one piece per player on the board
+        // so MovePhase is not immediately auto-skipped (0-piece auto-skip behaviour).
+        // Place pieces on turn 1; skip placement on subsequent turns (pieces stay on board).
         for (var t = 1; t < targetTurn; t++)
         {
-            game.AdvancePhase();     // CoinSpawn → PlacePhase
-            game.SkipPlacement(p1); // P1 skips
-            game.SkipPlacement(p2); // P2 skips → auto-advances to MovePhase
-            game.AdvanceTurn();     // MovePhase → CoinSpawn (next turn)
+            game.AdvancePhase(); // CoinSpawn → PlacePhase
+            if (t == 1)
+            {
+                game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0)); // places + marks p1 done
+                game.PlacePiece(p2, p2Pieces[0].Id, new Position(7, 7)); // marks p2 done → auto-advances to MovePhase
+            }
+            else
+            {
+                game.SkipPlacement(p1);
+                game.SkipPlacement(p2); // auto-advances to MovePhase (pieces already on board)
+            }
+            game.AdvanceTurn(); // MovePhase → CoinSpawn (next turn)
         }
 
-        return (game, p1, p2);
+        return game;
     }
 
     private static CoinSpawnService BuildService(IGameRepository repo, Random? random = null) =>
-        new CoinSpawnService(
+        new(
             repo,
             random ?? new Random(42),
             Substitute.For<ILogger<CoinSpawnService>>());
@@ -64,7 +74,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_Turn1_SpawnsSilverCoins()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(1);
+        var game = GameAtTurnCoinSpawnPhase(1);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo, new Random(0));
@@ -82,7 +92,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_Turn2_SpawnsSilverCoins()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(2);
+        var game = GameAtTurnCoinSpawnPhase(2);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo, new Random(0));
@@ -100,7 +110,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_Turn3_SpawnsSilverCoins()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(3);
+        var game = GameAtTurnCoinSpawnPhase(3);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo, new Random(0));
@@ -120,7 +130,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_Turn4_SpawnsGoldCoins()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(4);
+        var game = GameAtTurnCoinSpawnPhase(4);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo, new Random(0));
@@ -138,7 +148,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_Turn5_SpawnsGoldCoins()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(5);
+        var game = GameAtTurnCoinSpawnPhase(5);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo, new Random(0));
@@ -157,9 +167,9 @@ public class CoinSpawnServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenFewerFreeTilesThanScheduled_SpawnsOnlyAsManyAsFit()
     {
-        // Arrange: start at turn 1 CoinSpawn, then manually fill the board leaving only 2 free tiles.
+        // Arrange: start at turn 1 CoinSpawn, then manually fill the board, leaving only 2 free tiles.
         // Turn 1 schedule spawns 7–9 coins, but only 2 tiles are free — no exception should be thrown.
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(1);
+        var game = GameAtTurnCoinSpawnPhase(1);
 
         // Occupy all tiles except (7,6) and (7,7)
         for (var row = 0; row < 8; row++)
@@ -190,7 +200,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_AdvancesPhaseFromCoinSpawnToPlacePhase()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(1);
+        var game = GameAtTurnCoinSpawnPhase(1);
         Assert.Equal(TurnPhase.CoinSpawn, game.CurrentPhase); // precondition
 
         var repo = Substitute.For<IGameRepository>();
@@ -210,7 +220,7 @@ public class CoinSpawnServiceTests
     public async Task ExecuteAsync_SavesGame()
     {
         // Arrange
-        var (game, _, _) = GameAtTurnCoinSpawnPhase(1);
+        var game = GameAtTurnCoinSpawnPhase(1);
         var repo = Substitute.For<IGameRepository>();
         repo.GetByIdAsync(game.Id, Arg.Any<CancellationToken>()).Returns(game);
         var service = BuildService(repo);

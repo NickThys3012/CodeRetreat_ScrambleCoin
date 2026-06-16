@@ -1,17 +1,327 @@
 @page "/"
+@using ScrambleCoin.Application.Games.Admin
+@using ScrambleCoin.Application.Tournament.GetAllTournaments
+@using MediatR
+@inject IMediator Mediator
+@inject NavigationManager NavManager
+@implements IDisposable
 
-<PageTitle>ScrambleCoin</PageTitle>
+<style>
+    .lobby-page {
+        min-height: 100vh;
+        background: #0d0d1a;
+        padding: 2rem 1.5rem;
+    }
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-16">
-    <MudText Typo="Typo.h2" Align="Align.Center" GutterBottom="true">🪙 ScrambleCoin</MudText>
-    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">
-        A fast-paced bot-battle coin-collecting game
-    </MudText>
-    <MudPaper Elevation="4" Class="pa-8 mt-8">
-        <MudText Typo="Typo.h5" GutterBottom="true">Welcome to the arena</MudText>
-        <MudText>
-            Connect your bot, collect coins, and outsmart your opponent on the 8×8 board.
-            The tournament begins soon — get your bot ready!
-        </MudText>
-    </MudPaper>
-</MudContainer>
+    .lobby-title {
+        font-size: 2.4rem;
+        font-weight: 900;
+        color: #7c4dff;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+        text-align: center;
+    }
+
+    .lobby-subtitle {
+        font-size: 0.95rem;
+        color: #555;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .section-heading {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .game-card {
+        background: #13132a;
+        border: 1px solid #2a2a50;
+        border-radius: 14px;
+        padding: 1.2rem;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .game-card:hover {
+        border-color: #7c4dff;
+        box-shadow: 0 0 20px rgba(124, 77, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .card-status-live {
+        background: #1b5e20;
+        color: #a5d6a7;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .card-status-waiting {
+        background: #212121;
+        color: #757575;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .card-status-done {
+        background: #1a237e;
+        color: #90caf9;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .card-game-id {
+        font-size: 0.62rem;
+        color: #444;
+        font-family: monospace;
+    }
+
+    .card-score {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        font-size: 1.8rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .card-score-p1 { color: #1e88e5; }
+    .card-score-p2 { color: #e53935; }
+    .card-score-vs { font-size: 0.85rem; color: #333; }
+
+    .card-meta {
+        font-size: 0.7rem;
+        color: #666;
+        text-align: center;
+    }
+
+    .card-watch-btn {
+        margin-top: auto;
+        text-align: center;
+        font-size: 0.78rem;
+        color: #7c4dff;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+
+    .replay-card-btn {
+        color: #2563eb;
+    }
+
+    .no-games {
+        text-align: center;
+        color: #444;
+        padding: 3rem;
+        font-size: 1.1rem;
+    }
+
+    .refresh-note {
+        text-align: center;
+        font-size: 0.65rem;
+        color: #333;
+        margin-top: 1rem;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.4; }
+    }
+
+    .live-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #4caf50;
+        margin-right: 5px;
+        animation: pulse 1.5s infinite;
+    }
+</style>
+
+<PageTitle>ScrambleCoin Arena</PageTitle>
+
+<div class="lobby-page">
+
+    <div class="lobby-title">🪙 ScrambleCoin Arena</div>
+    <div class="lobby-subtitle">Live bot-battle matches — click a game to spectate</div>
+
+    <!-- Tournament banner -->
+    @if (_activeTournaments.Count > 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4" Style="border-radius: 10px; background: #1a1035; border: 1px solid #7c4dff;">
+            🏆 <strong>Tournament Running:</strong> @_activeTournaments[0].Name
+            &nbsp;
+            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                       OnClick="@(() => NavManager.NavigateTo("/tournament"))">
+                View Bracket →
+            </MudButton>
+        </MudAlert>
+    }
+
+    <!-- Active games section -->
+    <div class="section-heading">
+        <span class="live-dot"></span>
+        Live Games
+        <span style="font-size: 0.7rem; color: #444; font-weight: 400; margin-left: auto;">
+            Auto-refreshes every 5s
+        </span>
+    </div>
+
+    @if (_activeGames.Count == 0)
+    {
+        <div class="no-games">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏟️</div>
+            <div>No games running right now.</div>
+            <div style="font-size: 0.8rem; color: #333; margin-top: 0.5rem;">
+                Start the tournament to begin!
+            </div>
+        </div>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var game in _activeGames)
+            {
+                var g = game; // capture for lambda
+                var dest = g.Status == "Finished" ? $"/replay/{g.GameId}" : $"/spectate/{g.GameId}";
+                <MudItem xs="12" sm="6" md="4">
+                    <div class="game-card" @onclick="@(() => NavManager.NavigateTo(dest))">
+
+                        <div class="card-header">
+                            <span class="@(g.Status switch
+                                         {
+                                             "InProgress" => "card-status-live",
+                                             "Finished" => "card-status-done",
+                                             _ => "card-status-waiting"
+                                         })">
+                                @(g.Status switch
+                                {
+                                    "InProgress" => "● Live",
+                                    "Finished" => "✓ Done",
+                                    _ => "⏳ Waiting"
+                                })
+                            </span>
+                            <span class="card-game-id">@g.GameId.ToString()[..8]…</span>
+                        </div>
+
+                        <div class="card-score">
+                            <span class="card-score-p1">@g.ScorePlayerOne</span>
+                            <span class="card-score-vs">—</span>
+                            <span class="card-score-p2">@g.ScorePlayerTwo</span>
+                        </div>
+
+                        <div class="card-meta">
+                            Turn @g.TurnNumber / 5
+                            @if (g.Phase is not null)
+                            {
+                                <span> · @g.Phase</span>
+                            }
+                        </div>
+
+                        <div class="card-meta" style="color: #444;">
+                            P1: @g.PlayerOne.ToString()[..8]…
+                            &nbsp;vs&nbsp;
+                            P2: @g.PlayerTwo.ToString()[..8]…
+                        </div>
+
+                        @if (g.Status == "Finished")
+                        {
+                            <div class="card-watch-btn replay-card-btn">📼 Replay</div>
+                        }
+                        else
+                        {
+                            <div class="card-watch-btn">▶ Watch Live</div>
+                        }
+
+                    </div>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <div class="refresh-note">
+        Last refreshed: @_lastRefresh.ToString("HH:mm:ss")
+    </div>
+
+</div>
+
+@code {
+    private List<ActiveGameSummaryDto> _activeGames = [];
+    private List<TournamentSummaryDto> _activeTournaments = [];
+    private Timer? _refreshTimer;
+    private DateTime _lastRefresh = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+
+        _refreshTimer = new Timer(async void (_) =>
+        {
+            await RefreshAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var games = await Mediator.Send(new GetAllActiveGamesQuery());
+            _activeGames = games.ToList();
+        }
+        catch
+        {
+            // Keep stale data on error
+        }
+
+        try
+        {
+            var tournaments = await Mediator.Send(new GetAllTournamentsQuery());
+            _activeTournaments = tournaments
+                .Where(t => t.Status is not "Completed" and not "Cancelled")
+                .ToList();
+        }
+        catch
+        {
+            // Keep stale data on error
+        }
+
+        _lastRefresh = DateTime.Now;
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}
+

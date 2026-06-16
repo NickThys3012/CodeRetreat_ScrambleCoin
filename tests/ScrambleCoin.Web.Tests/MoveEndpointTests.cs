@@ -22,11 +22,6 @@ namespace ScrambleCoin.Web.Tests;
 /// </summary>
 public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicationFactory>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TestWebApplicationFactory _factory;
 
     public MoveEndpointTests(TestWebApplicationFactory factory)
@@ -36,9 +31,9 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
 
     // ── Test factory ──────────────────────────────────────────────────────────
 
-    public sealed class TestWebApplicationFactory : WebApplicationFactory<ScrambleCoin.Api.ApiMarker>
+    public sealed class TestWebApplicationFactory : WebApplicationFactory<Api.ApiMarker>
     {
-        // Unique DB name per factory instance so test classes don't share state.
+        // Unique DB name per factory instance, so test classes don't share a state.
         private readonly string _dbName = $"MoveTestDb_{Guid.NewGuid()}";
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -105,7 +100,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         game.Start();            // → CoinSpawn Turn 1
         game.AdvancePhase();     // → PlacePhase Turn 1
 
-        // P1 places piece at corner (0, 0); P2 skips → auto-advances to MovePhase
+        // P1 places a piece in a corner (0, 0); P2 skips → auto-advances to MovePhase
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
         game.SkipPlacement(p2); // → MovePhase
 
@@ -189,11 +184,11 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         game.Start(); // → CoinSpawn Turn 1
 
         // Spawn a silver coin at (0,1) — right next to where P1's piece will be placed.
-        game.SpawnCoins(new[] { (new Position(0, 1), CoinType.Silver) });
+        game.SpawnCoins([(new Position(0, 1), CoinType.Silver)]);
 
         game.AdvancePhase();     // → PlacePhase Turn 1
 
-        // P1 places piece at (0,0); P2 skips → auto-advances to MovePhase
+        // P1 places a piece at (0,0); P2 skips → auto-advances to MovePhase
         game.PlacePiece(p1, p1Pieces[0].Id, new Position(0, 0));
         game.SkipPlacement(p2); // → MovePhase
 
@@ -404,7 +399,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ── AC 4 : valid token but for a different game → 403 ────────────────────
+    // ── AC 4: valid token but for a different game → 403 ────────────────────
 
     [Fact]
     public async Task Move_WithTokenFromDifferentGame_Returns403()
@@ -429,12 +424,12 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    // ── AC 5 : move during PlacePhase (wrong phase) → 400 ────────────────────
+    // ── AC 5: move during PlacePhase (wrong phase) → 400 ────────────────────
 
     [Fact]
     public async Task Move_DuringPlacePhase_Returns400()
     {
-        // Arrange: game has NOT yet advanced to MovePhase
+        // Arrange: the game has NOT yet advanced to MovePhase
         var (game, tokenP1, _) = await SeedGameInPlacePhaseAsync();
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
@@ -452,7 +447,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    // ── AC 6 : move when it's not your turn → 400 ────────────────────────────
+    // ── AC 6: move when it's not your turn → 400 ────────────────────────────
 
     [Fact]
     public async Task Move_WhenNotYourTurn_Returns400()
@@ -497,7 +492,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    // ── AC 8 : move through a coin tile → yourScore incremented ──────────────
+    // ── AC 8: move through a coin tile → yourScore incremented ──────────────
 
     [Fact]
     public async Task Move_ThroughCoinTile_ReturnsIncrementedYourScore()
@@ -566,13 +561,13 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         var response = await client.PostAsJsonAsync($"/api/games/{game.Id}/move", body);
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        // Assert: no coin collected, score stays 0
+        // Assert: no coin collected, the score stays 0
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(json.RootElement.TryGetProperty("yourScore", out var yourScore));
         Assert.Equal(0, yourScore.GetInt32());
     }
 
-    // ── AC 9 : both players complete all moves → phase advances to CoinSpawn ──
+    // ── AC 9: both players complete all moves → phase advances to CoinSpawn ──
 
     [Fact]
     public async Task Move_BothPlayersCompleteAllMoves_PhaseAdvancesToCoinSpawn()
@@ -602,7 +597,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
         });
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        // Assert: turn rolled over → phase is now CoinSpawn (new turn)
+        // Assert: turn-rolled over → phase is now CoinSpawn (new turn)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(json.RootElement.TryGetProperty("phase", out var phaseElement));
         Assert.Equal("CoinSpawn", phaseElement.GetString());
@@ -635,7 +630,7 @@ public class MoveEndpointTests : IClassFixture<MoveEndpointTests.TestWebApplicat
     public async Task Move_AfterP1Moves_ActivePlayerSwitchesToP2()
     {
         // Arrange: both players have one piece on board
-        var (game, tokenP1, tokenP2, p1PieceId, _) = await SeedGameInMovePhaseWithBothPiecesAsync();
+        var (game, tokenP1, _, p1PieceId, _) = await SeedGameInMovePhaseWithBothPiecesAsync();
 
         var clientP1 = _factory.CreateClient();
         clientP1.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());

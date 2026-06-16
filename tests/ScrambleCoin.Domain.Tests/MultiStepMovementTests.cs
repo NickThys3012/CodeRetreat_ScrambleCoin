@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Exceptions;
@@ -7,7 +8,7 @@ using ScrambleCoin.Domain.ValueObjects;
 namespace ScrambleCoin.Domain.Tests;
 
 /// <summary>
-/// Unit tests for multi-step movement sequences (Issue #48).
+/// Unit tests for multistep movement sequences (Issue #48).
 /// Tests per-segment movement type validation for pieces like Cogsworth, Lumiere, Remy, Anna, Olaf, Kristoff.
 /// </summary>
 public class MultiStepMovementTests
@@ -15,7 +16,7 @@ public class MultiStepMovementTests
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Creates a game in MovePhase with exactly one multi-step piece for player 1.
+    /// Creates a game in MovePhase with exactly one multistep piece for player 1.
     /// </summary>
     private static (Game game, Guid p1, Guid p2, Piece piece, Position startPos) GameInMovePhaseWithMultiStepPiece(string pieceName)
     {
@@ -40,9 +41,17 @@ public class MultiStepMovementTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
-        // Choose appropriate starting position based on entry point type
-        Position p1StartPos = p1Piece.EntryPointType == EntryPointType.Corners ? new Position(0, 0) : new Position(0, 3);
-        Position p2StartPos = new Position(7, 3);
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (p1Piece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
+        }
+
+        // Choose the appropriate starting position based on an entry point type
+        var p1StartPos = p1Piece.EntryPointType == EntryPointType.Corners ? new Position(0, 0) : new Position(0, 3);
+        var p2StartPos = new Position(7, 3);
 
         // Place both pieces to auto-advance to MovePhase
         game.PlacePiece(p1, p1Piece.Id, p1StartPos);
@@ -54,9 +63,9 @@ public class MultiStepMovementTests
     /// <summary>
     /// Builds a multi-segment move list.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[][] segments)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[][] segments)
     {
-        return segments.Select(s => (IReadOnlyList<Position>)s.ToList().AsReadOnly()).ToList().AsReadOnly();
+        return segments.Select(IReadOnlyList<Position> (s) => s.ToList().AsReadOnly()).ToList().AsReadOnly();
     }
 
     // ── Test 1: Cogsworth valid sequence (Any → Orthogonal) ──────────────────
@@ -65,13 +74,13 @@ public class MultiStepMovementTests
     public void CogsworthValidSequence_Any1ThenOrthogonal2_Succeeds()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1 (Any direction): 1 tile right → (0, 4)
         //      Segment 2 (Orthogonal): 2 tiles down → (2, 4)
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4), new Position(2, 4) }
+            [new Position(0, 4)],
+            [new Position(1, 4), new Position(2, 4)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -84,13 +93,13 @@ public class MultiStepMovementTests
     public void CogsworthWrongTypeSegment2_Diagonal2InsteadOfOrthogonal_Throws()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (should be Orthogonal, but we try Diagonal)
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 5) }  // Diagonal (wrong - should be Orthogonal)
+            [new Position(0, 4)],
+            [new Position(1, 5)] // Diagonal (wrong - should be Orthogonal)
         );
 
         // Act & Assert: Should throw
@@ -104,13 +113,13 @@ public class MultiStepMovementTests
     public void CogsworthExceedsMaxDistanceSegment2_Orthogonal3InsteadOf2_Throws()
     {
         // Arrange: Cogsworth at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Cogsworth");
 
         // Act: Segment 1: 1 tile right → (0, 4)
         //      Segment 2: Attempt 3 orthogonal tiles down (max is 2)
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4), new Position(2, 4), new Position(3, 4) }
+            [new Position(0, 4)],
+            [new Position(1, 4), new Position(2, 4), new Position(3, 4)]
         );
 
         // Act & Assert: Should throw
@@ -124,13 +133,13 @@ public class MultiStepMovementTests
     public void LumiereValidSequence_Any1ThenDiagonal2_Succeeds()
     {
         // Arrange: Lumiere at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Lumiere");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Lumiere");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (Diagonal): 2 diagonal → (2, 6)
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 5), new Position(2, 6) }
+            [new Position(0, 4)],
+            [new Position(1, 5), new Position(2, 6)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -143,13 +152,13 @@ public class MultiStepMovementTests
     public void LumiereWrongTypeSegment2_Orthogonal2InsteadOfDiagonal_Throws()
     {
         // Arrange: Lumiere at (0, 3) [Borders entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Lumiere");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Lumiere");
 
         // Act: Segment 1 (Any): 1 tile right → (0, 4)
         //      Segment 2 (should be Diagonal, but we try Orthogonal)
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4), new Position(2, 4) }  // Orthogonal (wrong)
+            [new Position(0, 4)],
+            [new Position(1, 4), new Position(2, 4)] // Orthogonal (wrong)
         );
 
         // Act & Assert: Should throw
@@ -163,13 +172,13 @@ public class MultiStepMovementTests
     public void RemyValidSequence_Diagonal2ThenDiagonal2_Succeeds()
     {
         // Arrange: Remy at (0, 3) [Borders]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Remy");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Remy");
 
         // Act: Segment 1 (Diagonal): 2 tiles diagonal → (2, 5)
         //      Segment 2 (Diagonal): 2 tiles diagonal → (4, 7)
         var segments = BuildSegments(
-            new[] { new Position(1, 4), new Position(2, 5) },
-            new[] { new Position(3, 6), new Position(4, 7) }
+            [new Position(1, 4), new Position(2, 5)],
+            [new Position(3, 6), new Position(4, 7)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -182,13 +191,13 @@ public class MultiStepMovementTests
     public void AnnaValidSequence_Orthogonal1x3_Succeeds()
     {
         // Arrange: Anna at (0, 3) [Borders]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Anna");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Anna");
 
         // Act: All 3 segments of 1 orthogonal tile each
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4) },
-            new[] { new Position(1, 5) }
+            [new Position(0, 4)],
+            [new Position(1, 4)],
+            [new Position(1, 5)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -201,12 +210,12 @@ public class MultiStepMovementTests
     public void AnnaIncompleteSequence_Only2Of3Segments_Throws()
     {
         // Arrange: Anna at (0, 3) — requires all 3 moves
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Anna");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Anna");
 
         // Act: Try to submit only 2 of 3 required segments
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4) }
+            [new Position(0, 4)],
+            [new Position(1, 4)]
             // Missing segment 3
         );
 
@@ -222,12 +231,12 @@ public class MultiStepMovementTests
     public void OlafValidSequence_Any1x2_Succeeds()
     {
         // Arrange: Olaf at (0, 3) [Anywhere entry]
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Olaf");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Olaf");
 
         // Act: 2 segments of 1 any-direction tile each
         var segments = BuildSegments(
-            new[] { new Position(0, 4) },
-            new[] { new Position(1, 4) }
+            [new Position(0, 4)],
+            [new Position(1, 4)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -252,9 +261,9 @@ public class MultiStepMovementTests
 
         // Act: 3 diagonal moves of 1 tile each
         var segments = BuildSegments(
-            new[] { new Position(2, 2) },
-            new[] { new Position(3, 3) },
-            new[] { new Position(4, 4) }
+            [new Position(2, 2)],
+            [new Position(3, 3)],
+            [new Position(4, 4)]
         );
 
         game.MovePiece(p1, piece.Id, segments);
@@ -277,8 +286,8 @@ public class MultiStepMovementTests
 
         // Act: Try 2 of 3 segments
         var segments = BuildSegments(
-            new[] { new Position(2, 2) },
-            new[] { new Position(3, 3) }
+            [new Position(2, 2)],
+            [new Position(3, 3)]
             // Missing segment 3
         );
 
@@ -287,7 +296,7 @@ public class MultiStepMovementTests
         Assert.Contains("requires exactly", ex.Message);
     }
 
-    // ── Test 12: Piece factory creates pieces with correct segment metadata ───
+    // ── Test 12: Piece factory creates pieces with the correct segment metadata ───
 
     [Fact]
     public void PieceFactoryCogsworth_HasCorrectSegmentMovementTypes()
@@ -362,18 +371,18 @@ public class MultiStepMovementTests
         Assert.Equal(3, maxDist);
     }
 
-    // ── Test 14: Remy wrong type in first segment ────────────────────────────
+    // ── Test 14: Remy wrong type in the first segment ────────────────────────────
 
     [Fact]
     public void RemyWrongTypeSegment1_Orthogonal2InsteadOfDiagonal_Throws()
     {
         // Arrange: Remy at (0, 3)
-        var (game, p1, _, piece, startPos) = GameInMovePhaseWithMultiStepPiece("Remy");
+        var (game, p1, _, piece, _) = GameInMovePhaseWithMultiStepPiece("Remy");
 
         // Act: Segment 1 should be diagonal, but we try orthogonal
         var segments = BuildSegments(
-            new[] { new Position(0, 4), new Position(0, 5) },  // Orthogonal (wrong)
-            new[] { new Position(1, 6), new Position(2, 7) }
+            [new Position(0, 4), new Position(0, 5)],  // Orthogonal (wrong)
+            [new Position(1, 6), new Position(2, 7)]
         );
 
         // Act & Assert: Should throw
@@ -381,7 +390,7 @@ public class MultiStepMovementTests
         Assert.Contains("not diagonal", ex.Message);
     }
 
-    // ── Test 15: All 6 multi-step pieces can be created ──────────────────────
+    // ── Test 15: All 6 multistep pieces can be created ──────────────────────
 
     [Theory]
     [InlineData("Cogsworth")]

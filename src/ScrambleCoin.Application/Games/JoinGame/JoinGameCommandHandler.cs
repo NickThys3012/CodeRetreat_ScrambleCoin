@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Notifications;
 using DomainBotReg = ScrambleCoin.Domain.BotRegistrations.BotRegistration;
 using ScrambleCoin.Domain.Exceptions;
 using ScrambleCoin.Domain.Factories;
@@ -17,22 +18,25 @@ namespace ScrambleCoin.Application.Games.JoinGame;
 ///   <item>Builds the bot's lineup from piece names using <see cref="PieceFactory"/>.</item>
 ///   <item>Sets the lineup on the game via <c>game.SetLineup</c>.</item>
 ///   <item>Creates and persists a <see cref="BotRegistration"/> containing the bearer token.</item>
-///   <item>If both slots are now filled, calls <c>game.Start()</c>.</item>
+///   <item>If both slots are now filled, calls <c>game.Start()</c> and publishes <see cref="TurnRolledOver"/> to trigger coin spawning.</item>
 /// </list>
 /// </summary>
 public sealed class JoinGameCommandHandler : IRequestHandler<JoinGameCommand, JoinGameResult>
 {
     private readonly IGameRepository _gameRepository;
     private readonly IBotRegistrationRepository _botRegistrationRepository;
+    private readonly IPublisher _publisher;
     private readonly ILogger<JoinGameCommandHandler> _logger;
 
     public JoinGameCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
+        IPublisher publisher,
         ILogger<JoinGameCommandHandler> logger)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
+        _publisher = publisher;
         _logger = logger;
     }
 
@@ -57,10 +61,11 @@ public sealed class JoinGameCommandHandler : IRequestHandler<JoinGameCommand, Jo
         var lineup = new Lineup(pieces);
         game.SetLineup(assignedPlayerId, lineup);
 
-        // If both lineups are now set, start the game.
+        var gameJustStarted = false;
         if (game.LineupPlayerOne is not null && game.LineupPlayerTwo is not null)
         {
             game.Start();
+            gameJustStarted = true;
             _logger.LogInformation("Game {GameId} started — both players joined. BotId={BotId} Turn={Turn}", game.Id, assignedPlayerId, game.TurnNumber);
         }
 
@@ -76,6 +81,10 @@ public sealed class JoinGameCommandHandler : IRequestHandler<JoinGameCommand, Jo
             game.Id, assignedPlayerId,
             assignedPlayerId == game.PlayerOne ? "PlayerOne" : "PlayerTwo",
             game.TurnNumber);
+
+        // Trigger coin spawn for turn 1 AFTER saving so the handler has a consistent DB state.
+        if (gameJustStarted)
+            await _publisher.Publish(new TurnRolledOver(game.Id), cancellationToken);
 
         return new JoinGameResult(assignedPlayerId, token);
     }

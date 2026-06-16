@@ -1,0 +1,732 @@
+@page "/tournament"
+@using MediatR
+@using ScrambleCoin.Application.Tournament.GetAllTournaments
+@using ScrambleCoin.Application.Tournament.GetBracket
+@using ScrambleCoin.Application.Tournament.GetStandings
+@inject IMediator Mediator
+@implements IDisposable
+
+<PageTitle>Tournament — ScrambleCoin</PageTitle>
+
+<style>
+    /* ── Bracket layout ────────────────────────────────────────────────────── */
+    .bracket-scroll {
+        overflow-x: auto;
+        padding: 32px 16px 40px 16px;
+    }
+
+    .bracket-canvas {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        position: relative;
+        user-select: none;
+    }
+
+    /* ── Match card ────────────────────────────────────────────────────────── */
+    .bm {
+        width: 190px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1.5px solid #333;
+        background: #1c1c2e;
+        box-shadow: 0 2px 8px rgba(0,0,0,.4);
+        position: absolute;
+        transition: box-shadow .2s;
+    }
+    .bm.completed { border-color: #2a4a2a; }
+    .bm.final-match { border-color: #b8860b; box-shadow: 0 0 14px rgba(255,215,0,.25); }
+
+    .bp {
+        display: flex;
+        align-items: center;
+        padding: 7px 10px;
+        font-size: .85rem;
+        border-bottom: 1px solid #282840;
+        min-height: 34px;
+        gap: 6px;
+    }
+    .bp:last-child { border-bottom: none; }
+    .bp.winner { color: #66bb6a; font-weight: 700; background: rgba(102,187,106,.08); }
+    .bp.tbd { color: #555; font-style: italic; }
+    .bp.active { color: #e0e0e0; }
+    .bp .score { margin-left: auto; font-size: .8rem; color: #aaa; }
+    .bp.winner .score { color: #66bb6a; }
+    .bp .trophy { font-size: .9rem; }
+
+    .bm-label {
+        font-size: .65rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #555;
+        text-align: center;
+        padding: 2px 0;
+        background: #16162a;
+        border-bottom: 1px solid #222;
+    }
+
+    /* ── Group match cards ─────────────────────────────────────────────────── */
+    .gm-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 12px;
+    }
+
+    .gm-card {
+        border-radius: 10px;
+        border: 1.5px solid #2a2a3e;
+        background: #1c1c2e;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,.3);
+    }
+    .gm-card.completed { border-color: #2a4a2a; }
+    .gm-card.draw { border-color: #5a4a1a; }
+
+    .gm-row {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        gap: 8px;
+        border-bottom: 1px solid #242438;
+    }
+    .gm-row:last-child { border-bottom: none; }
+    .gm-row.winner { background: rgba(102,187,106,.08); color: #66bb6a; font-weight: 700; }
+    .gm-row.draw { color: #ffb74d; }
+    .gm-row.pending { color: #666; }
+
+    .gm-score {
+        margin-left: auto;
+        font-size: .85rem;
+        font-weight: 700;
+        min-width: 24px;
+        text-align: right;
+    }
+
+    .gm-header {
+        font-size: .65rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #555;
+        padding: 4px 12px 2px;
+        background: #16162a;
+    }
+
+    /* ── Standings table ───────────────────────────────────────────────────── */
+    .standings-table { width: 100%; border-collapse: collapse; }
+    .standings-table th {
+        text-align: left; font-size: .75rem; text-transform: uppercase;
+        letter-spacing: .06em; color: #666; padding: 6px 10px;
+        border-bottom: 1px solid #2a2a3e;
+    }
+    .standings-table td { padding: 7px 10px; font-size: .88rem; border-bottom: 1px solid #1f1f30; }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table tr.top { background: rgba(102,187,106,.05); }
+
+    /* ── Participant pill ──────────────────────────────────────────────────── */
+    .bot-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #1c1c2e; border: 1.5px solid #2a2a4e;
+        border-radius: 20px; padding: 6px 14px;
+        font-size: .88rem;
+    }
+
+    /* ── Join box ──────────────────────────────────────────────────────────── */
+    .join-box {
+        background: #12122a;
+        border: 1.5px dashed #333;
+        border-radius: 10px;
+        padding: 20px 24px;
+        font-family: monospace;
+        font-size: .82rem;
+        color: #aaa;
+        line-height: 1.7;
+    }
+
+    /* ── Live pulse animation ──────────────────────────────────────────────── */
+    @@keyframes pulse-live {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: .35; }
+    }
+    .live-dot {
+        display: inline-block;
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: #ef5350;
+        animation: pulse-live 1.2s ease-in-out infinite;
+        margin-right: 4px;
+        vertical-align: middle;
+    }
+
+    /* ── Live game header accent ───────────────────────────────────────────── */
+    .gm-card.live     { border-color: #4a2a2a; }
+    .gm-header.live   { color: #ef9a9a; }
+    .bm.live          { border-color: #4a2a2a; }
+
+    /* ── Progress bar ──────────────────────────────────────────────────────── */
+    .progress-bar-track {
+        height: 3px;
+        background: #1a1a2e;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #42a5f5, #66bb6a);
+        border-radius: 2px;
+        transition: width .6s ease;
+    }
+
+
+    .winner-banner {
+        background: linear-gradient(135deg, #2a2a1a 0%, #1a1a0a 100%);
+        border: 2px solid #b8860b;
+        border-radius: 14px;
+        padding: 20px 32px;
+        text-align: center;
+        box-shadow: 0 0 30px rgba(255,215,0,.15);
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+
+    <div class="d-flex align-center mb-3" style="gap:12px;">
+        <div style="font-size: 2rem; font-weight: bold;">🏆 Tournament</div>
+        @if (_isLoading)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+        }
+        @if (_liveGameCount > 0)
+        {
+            <div style="display:flex; align-items:center; gap:5px; background:#2a1a1a; border:1px solid #4a2a2a; border-radius:20px; padding:3px 10px; font-size:.8rem;">
+                <span class="live-dot"></span>
+                <span style="color:#ef9a9a;">@_liveGameCount game@(_liveGameCount == 1 ? "" : "s") live</span>
+            </div>
+        }
+        <MudText Typo="Typo.caption" Style="color:#555; margin-left:auto;">
+            Auto-refresh · @_lastRefreshed.ToString("HH:mm:ss")
+        </MudText>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+    }
+
+    @if (_tournaments.Count == 0 && !_isLoading)
+    {
+        <MudAlert Severity="Severity.Info">
+            No tournaments yet. Ask the organiser to create one via the Admin panel.
+        </MudAlert>
+    }
+    else
+    {
+        <!-- ── Tournament picker ─────────────────────────────────────────── -->
+        @if (_tournaments.Count > 1)
+        {
+            <div class="d-flex flex-wrap mb-4" style="gap:8px;">
+                @foreach (var t in _tournaments)
+                {
+                    <MudButton Variant="@(_selectedId == t.TournamentId ? Variant.Filled : Variant.Outlined)"
+                               Color="@StatusColour(t.Status)"
+                               Size="Size.Small"
+                               OnClick="@(() => SelectAsync(t.TournamentId))">
+                        @t.Name &nbsp;
+                        <small style="opacity:.7;">@t.Status · @t.ParticipantCount/@t.MaxParticipants</small>
+                    </MudButton>
+                }
+            </div>
+        }
+
+        @if (_bracket is not null)
+        {
+            var names = _bracket.Participants.ToDictionary(p => p.BotId, p => p.BotName);
+
+            <!-- ── Status chip + winner banner ──────────────────────────── -->
+            <div class="d-flex align-center mb-4" style="gap:10px; flex-wrap:wrap;">
+                <MudText Typo="Typo.h6">@_bracket.TournamentName</MudText>
+                <MudChip T="string" Color="@StatusColour(_bracket.Status)" Size="Size.Small">@_bracket.Status</MudChip>
+            </div>
+
+            @if (_bracket.Status == "Completed" && _bracket.WinnerId.HasValue)
+            {
+                var wName = names.GetValueOrDefault(_bracket.WinnerId.Value, "Unknown");
+                <div class="winner-banner mb-5">
+                    <div style="font-size:2.5rem;">🏆</div>
+                    <div style="font-size:1.5rem; font-weight:700; color:#ffd700; margin:.4rem 0;">@wName</div>
+                    <div style="color:#aaa; font-size:.9rem;">Tournament Champion</div>
+                </div>
+            }
+
+            <!-- ── Pending: waiting room ─────────────────────────────────── -->
+            @if (_bracket.Status == "Pending")
+            {
+                <MudGrid Spacing="4">
+                    <MudItem xs="12" md="5">
+                        <MudCard Elevation="3">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.subtitle1">
+                                        👾 Registered Bots — @_bracket.Participants.Count / @(_tournaments.FirstOrDefault(t => t.TournamentId == _selectedId)?.MaxParticipants ?? 0)
+                                    </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                @if (_bracket.Participants.Count == 0)
+                                {
+                                    <MudText Style="color:#666;" Typo="Typo.body2">
+                                        No bots yet — register below!
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-wrap" style="gap:8px;">
+                                        @foreach (var p in _bracket.Participants)
+                                        {
+                                            <div class="bot-pill">
+                                                <span>🤖</span>
+                                                <span>@p.BotName</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <MudItem xs="12" md="7">
+                        <MudCard Elevation="3">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.subtitle1">🔌 How to Join</MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <div class="join-box">
+                                    POST @GetBaseUrl()/api/tournament/@_bracket.TournamentId/join<br/>
+                                    <br/>
+                                    @("{") <br/>
+                                    &nbsp;&nbsp;"botId":   "&lt;your-stable-guid&gt;",<br/>
+                                    &nbsp;&nbsp;"botName": "&lt;YourTeamName&gt;",<br/>
+                                    &nbsp;&nbsp;"lineup":  ["Mickey","Donald","Scrooge","Minnie","Goofy"]<br/>
+                                    @("}")
+                                </div>
+                                <MudText Typo="Typo.caption" Style="color:#555;" Class="mt-2 d-block">
+                                    No authentication required. Call this once while the tournament is Pending.
+                                    The organiser will start it once all bots have registered.
+                                </MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <!-- ── Standings (group + knockout stages) ───────────────────── -->
+            @if (_standings is not null && _standings.Standings.Count > 0)
+            {
+                <div style="margin-top:2rem; margin-bottom:.5rem; font-size:1.1rem; font-weight:600;">
+                    📊 Group Stage Standings
+                </div>
+                <MudCard Elevation="2" Class="mb-4">
+                    <MudCardContent Class="pa-0">
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Bot</th>
+                                    <th>P</th>
+                                    <th>W</th>
+                                    <th>D</th>
+                                    <th>L</th>
+                                    <th>Pts</th>
+                                    <th>Coins</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in _standings.Standings)
+                                {
+                                    <tr class="@(s.Rank <= (_bracket.KnockoutRounds.Count > 0 || _bracket.Status == "KnockoutStage" || _bracket.Status == "Completed" ? 99 : 4) ? "top" : "")">
+                                        <td>
+                                            @switch (s.Rank)
+                                            {
+                                                case 1: <span>🥇</span> break;
+                                                case 2: <span>🥈</span> break;
+                                                case 3: <span>🥉</span> break;
+                                                default: <span style="color:#555;">@s.Rank</span> break;
+                                            }
+                                        </td>
+                                        <td><strong>@s.BotName</strong></td>
+                                        <td>@s.Played</td>
+                                        <td style="color:#66bb6a;">@s.Wins</td>
+                                        <td style="color:#ffb74d;">@s.Draws</td>
+                                        <td style="color:#ef5350;">@s.Losses</td>
+                                        <td><MudChip T="string" Size="Size.Small" Color="Color.Primary">@s.Points</MudChip></td>
+                                        <td style="color:#aaa;">@s.TotalCoins</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- ── Group matches grid ────────────────────────────────────── -->
+            @if (_bracket.GroupMatches.Count > 0)
+            {
+                var totalMatches = _bracket.GroupMatches.Count;
+                var doneMatches  = _bracket.GroupMatches.Count(m => m.IsCompleted);
+                var liveMatches  = _bracket.GroupMatches.Count(m => m is { GameId: not null, IsCompleted: false });
+                var pct = totalMatches > 0 ? (double)doneMatches / totalMatches * 100 : 0;
+
+                <div style="margin-top:2rem; margin-bottom:.5rem; display:flex; align-items:baseline; gap:10px;">
+                    <span style="font-size:1.1rem; font-weight:600;">🎮 Group Matches</span>
+                    <span style="font-size:.8rem; color:#666;">@doneMatches / @totalMatches done</span>
+                    @if (liveMatches > 0)
+                    {
+                        <span style="font-size:.78rem; display:flex; align-items:center; gap:4px; color:#ef9a9a;">
+                            <span class="live-dot"></span>@liveMatches in progress
+                        </span>
+                    }
+                </div>
+                <div class="progress-bar-track mb-1">
+                    <div class="progress-bar-fill" style="width:@(pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+                </div>
+                <div class="gm-grid mb-5">
+                    @foreach (var m in _bracket.GroupMatches)
+                    {
+                        var b1 = names.GetValueOrDefault(m.BotOne, ShortId(m.BotOne));
+                        var b2 = names.GetValueOrDefault(m.BotTwo, ShortId(m.BotTwo));
+                        var w1 = m.WinnerId == m.BotOne;
+                        var w2 = m.WinnerId == m.BotTwo;
+                        var isLive = m is { GameId: not null, IsCompleted: false };
+                        var cssCard = m.IsCompleted ? m.IsDraw ? "gm-card draw" : "gm-card completed"
+                                    : isLive        ? "gm-card live"
+                                    :                 "gm-card";
+                        var headerCss  = isLive ? "gm-header live" : "gm-header";
+                        var headerText = m.IsCompleted ? m.IsDraw ? "🤝 Draw" : "✅ Done"
+                                       : isLive        ? "🔴 Live"
+                                       :                 "⏳ Pending";
+                        <div class="@cssCard">
+                            <div class="@headerCss" style="display:flex; align-items:center; gap:4px;">
+                                @if (isLive) { <span class="live-dot"></span> }
+                                <span>@headerText</span>
+                            </div>
+                            <div class="gm-row @(w1 ? "winner" : m.IsCompleted && !w1 ? "pending" : "")">
+                                @if (w1) { <span>🏆</span> }
+                                <span>@b1</span>
+                                @if (m.IsCompleted)
+                                {
+                                    <span class="gm-score">@m.BotOneScore</span>
+                                }
+                            </div>
+                            <div class="gm-row @(w2 ? "winner" : m.IsCompleted && !w2 ? "pending" : "")">
+                                @if (w2) { <span>🏆</span> }
+                                <span>@b2</span>
+                                @if (m.IsCompleted)
+                                {
+                                    <span class="gm-score">@m.BotTwoScore</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- ── Knockout visual bracket ───────────────────────────────── -->
+            @if (_bracket.KnockoutRounds.Count > 0)
+            {
+                var rounds = _bracket.KnockoutRounds.OrderBy(r => r.Round).ToList();
+                var totalRounds = rounds.Count;
+                // The first round has the most matches (a power of 2)
+                var firstCount = rounds[0].Matches.Count;
+                // Compute total canvas height
+                var totalH = firstCount * (CardH + CardGap) - CardGap;
+                // Total canvas width
+                var totalW = totalRounds * CardW + (totalRounds - 1) * ConnW + totalRounds * RoundPad * 2;
+
+                <div style="margin-top:2rem; margin-bottom:.75rem; display:flex; align-items:baseline; gap:10px;">
+                    <span style="font-size:1.1rem; font-weight:600;">⚡ Knockout Bracket</span>
+                    @{
+                        var allKo = rounds.SelectMany(r => r.Matches).ToList();
+                        var liveKo = allKo.Count(m => m is { GameId: not null, IsCompleted: false, IsBye: false });
+                        if (liveKo > 0)
+                        {
+                            <span style="font-size:.78rem; display:flex; align-items:center; gap:4px; color:#ef9a9a;">
+                                <span class="live-dot"></span>@liveKo in progress
+                            </span>
+                        }
+                    }
+                </div>
+
+                <div class="bracket-scroll">
+                    <div class="bracket-canvas" style="width:@(totalW)px; height:@(totalH)px; position:relative;">
+
+                        @for (var ri = 0; ri < rounds.Count; ri++)
+                        {
+                            var round = rounds[ri];
+                            var roundLeft = ri * (CardW + ConnW + RoundPad * 2) + RoundPad;
+                            SlotH(ri);
+                            var isFinal = ri == rounds.Count - 1;
+
+                            <!-- Round column label -->
+                            <div style="position:absolute; left:@(roundLeft)px; top:-26px; width:@(CardW)px;
+                                        text-align:center; font-size:.7rem; text-transform:uppercase;
+                                        letter-spacing:.08em; color:#555;">
+                                @RoundLabel(round.Round, totalRounds)
+                            </div>
+
+                            @foreach (var (match, mi) in round.Matches.Select((m, i) => (m, i)))
+                            {
+                                var cardTop = MatchTop(ri, mi);
+                                var b1 = match.BotOne.HasValue ? names.GetValueOrDefault(match.BotOne.Value, ShortId(match.BotOne.Value)) : null;
+                                var b2 = match.BotTwo.HasValue ? names.GetValueOrDefault(match.BotTwo.Value, ShortId(match.BotTwo.Value)) : null;
+                                var w1 = match.WinnerId.HasValue && match.WinnerId == match.BotOne;
+                                var w2 = match.WinnerId.HasValue && match.WinnerId == match.BotTwo;
+                                var cardClass = "bm" + (match.IsCompleted ? " completed" : "") + (isFinal ? " final-match" : "") + (match is { IsCompleted: false, GameId: not null, IsBye: false } ? " live" : "");
+
+                                <div class="@cardClass"
+                                     style="left:@(roundLeft)px; top:@(cardTop)px; height:@(CardH)px;">
+
+                                    @if (isFinal)
+                                    {
+                                        <div class="bm-label" style="color:#b8860b;">⭐ Final</div>
+                                    }
+                                    else if (match is { IsCompleted: false, GameId: not null, IsBye: false })
+                                    {
+                                        <div class="bm-label" style="display:flex; align-items:center; justify-content:center; gap:3px; color:#ef9a9a;">
+                                            <span class="live-dot"></span><span>Live</span>
+                                        </div>
+                                    }
+
+                                    @if (match.IsBye)
+                                    {
+                                        <div class="bp @(b1 != null ? "active" : "tbd")">
+                                            @if (b1 != null) { <span>🤖</span> <span>@b1</span> }
+                                            else { <span>TBD</span> }
+                                        </div>
+                                        <div class="bp tbd"><span>Bye ✓</span></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="bp @(w1 ? "winner" : b1 != null ? "active" : "tbd")">
+                                            @if (w1) { <span class="trophy">🏆</span> }
+                                            <span>@(b1 ?? "TBD")</span>
+                                        </div>
+                                        <div class="bp @(w2 ? "winner" : b2 != null ? "active" : "tbd")">
+                                            @if (w2) { <span class="trophy">🏆</span> }
+                                            <span>@(b2 ?? "TBD")</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <!-- SVG connectors from this round to the next -->
+                            @if (ri >= rounds.Count - 1)
+                                continue;
+                            
+                            var svgLeft = roundLeft + CardW;
+                            SlotH(ri + 1);
+
+                            <svg style="position:absolute; left:@(svgLeft)px; top:0; overflow:visible;"
+                                 width="@(ConnW + RoundPad * 2)" height="@totalH"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                @{
+                                    var matchesThisRound = rounds[ri].Matches.Count;
+                                    for (var mi2 = 0; mi2 < matchesThisRound; mi2 += 2)
+                                    {
+                                        // Two matches in this round feed one match in the next
+                                        var topY = MatchCenterY(ri, mi2);
+                                        var botY = MatchCenterY(ri, mi2 + 1 < matchesThisRound ? mi2 + 1 : mi2);
+                                        var midY = (topY + botY) / 2;
+                                        const int halfConn = (ConnW + RoundPad * 2) / 2;
+                                        const int fullConn = ConnW + RoundPad * 2;
+
+                                        // Path: horizontal arm from top match → join point → horizontal arm to next round
+                                        //       plus horizontal arm from bottom match → join point
+                                        <path d="M 0 @topY H @halfConn V @botY H 0"
+                                              fill="none" stroke="#3a3a5a" stroke-width="1.5"
+                                              stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M @halfConn @midY H @fullConn"
+                                              fill="none" stroke="#3a3a5a" stroke-width="1.5"
+                                              stroke-linecap="round"/>
+                                    }
+                                } 
+                            </svg>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    }
+
+</MudContainer>
+
+@code {
+    // ── Layout constants ──────────────────────────────────────────────────────
+    private const int CardH    = 72;   // match card height (px)
+    private const int CardGap  = 28;   // vertical gap between cards in round 1
+    private const int CardW    = 190;  // match card width (px)
+    private const int ConnW    = 32;   // SVG connector width between rounds
+    private const int RoundPad = 10;   // extra padding either side of a round column
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    private List<TournamentSummaryDto> _tournaments = [];
+    private Guid? _selectedId;
+    private TournamentBracketDto? _bracket;
+    private TournamentStandingsDto? _standings;
+    private bool _isLoading = true;
+    private string? _error;
+    private DateTime _lastRefreshed = DateTime.Now;
+    private int _liveGameCount;
+    private CancellationTokenSource? _cts;
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        await LoadAllAsync();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                // Refresh faster when games are actively running
+                var delay = _liveGameCount > 0 ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(10);
+                await Task.Delay(delay, ct);
+                await LoadAllAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _error = null;
+
+            var all = await Mediator.Send(new GetAllTournamentsQuery());
+
+            // Sort: active first, then by most recent
+            _tournaments = all
+                .OrderBy(t => t.Status switch
+                {
+                    "GroupStage"    => 0,
+                    "KnockoutStage" => 1,
+                    "Pending"       => 2,
+                    "Completed"     => 3,
+                    _               => 4
+                })
+                .ThenByDescending(t => t.CreatedAtUtc)
+                .ToList();
+
+            // Auto-select the best tournament
+            if (_selectedId is null || _tournaments.All(t => t.TournamentId != _selectedId))
+                _selectedId = _tournaments.FirstOrDefault()?.TournamentId;
+
+            if (_selectedId.HasValue)
+                await LoadBracketAsync(_selectedId.Value);
+
+            _lastRefreshed = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadBracketAsync(Guid id)
+    {
+        try
+        {
+            _bracket = await Mediator.Send(new GetTournamentBracketQuery(id));
+
+            _standings = _bracket.Status is "GroupStage" or "KnockoutStage" or "Completed"
+                ? await Mediator.Send(new GetTournamentStandingsQuery(id))
+                : null;
+
+            // Count in-progress games across all stages
+            var groupLive    = _bracket.GroupMatches.Count(m => m is { GameId: not null, IsCompleted: false });
+            var knockoutLive = _bracket.KnockoutRounds.SelectMany(r => r.Matches)
+                                       .Count(m => m is { GameId: not null, IsCompleted: false, IsBye: false });
+            _liveGameCount = groupLive + knockoutLive;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load bracket: {ex.Message}";
+            _bracket = null;
+            _standings = null;
+            _liveGameCount = 0;
+        }
+    }
+
+    private async Task SelectAsync(Guid id)
+    {
+        _selectedId = id;
+        _bracket = null;
+        _standings = null;
+        await LoadBracketAsync(id);
+        StateHasChanged();
+    }
+
+    // ── Bracket layout helpers ────────────────────────────────────────────────
+
+    /// <summary>Slot height for a given round index (doubles each round).</summary>
+    private static int SlotH(int roundIndex) =>
+        (CardH + CardGap) * (1 << roundIndex);
+
+    /// <summary>Top pixel offset for match [roundIndex, matchIndex].</summary>
+    private static int MatchTop(int roundIndex, int matchIndex)
+    {
+        var slotH = SlotH(roundIndex);
+        return matchIndex * slotH + (slotH - CardH) / 2;
+    }
+
+    /// <summary>Vertical centre pixel for match [roundIndex, matchIndex].</summary>
+    private static int MatchCenterY(int roundIndex, int matchIndex)
+    {
+        var slotH = SlotH(roundIndex);
+        return matchIndex * slotH + slotH / 2;
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+
+    private static string RoundLabel(int round, int totalRounds) =>
+        (totalRounds - round) switch
+        {
+            0 => "Final",
+            1 => "Semi-Finals",
+            2 => "Quarter-Finals",
+            _ => $"Round {round}"
+        };
+
+    private static Color StatusColour(string status) => status switch
+    {
+        "Pending"       => Color.Default,
+        "GroupStage"    => Color.Primary,
+        "KnockoutStage" => Color.Warning,
+        "Completed"     => Color.Success,
+        "Cancelled"     => Color.Error,
+        _               => Color.Default
+    };
+
+    private static string ShortId(Guid id) => id.ToString()[..8] + "…";
+
+    private static string GetBaseUrl() => "http://localhost:7102";
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

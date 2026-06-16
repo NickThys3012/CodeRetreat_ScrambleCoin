@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ScrambleCoin.Application.BotRegistration;
@@ -28,7 +29,8 @@ public class JoinGameCommandHandlerTests
     {
         var logger = Substitute.For<ILogger<JoinGameCommandHandler>>();
         botRegRepo ??= Substitute.For<IBotRegistrationRepository>();
-        return new JoinGameCommandHandler(gameRepo, botRegRepo, logger);
+        var publisher = Substitute.For<IPublisher>();
+        return new JoinGameCommandHandler(gameRepo, botRegRepo, publisher, logger);
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -83,7 +85,7 @@ public class JoinGameCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: LineupPlayerOne is now set; game is still WaitingForBots (only 1 joined).
+        // Assert: LineupPlayerOne is now set; the game is still WaitingForBots (only 1 joined).
         Assert.NotNull(game.LineupPlayerOne);
         Assert.Equal(GameStatus.WaitingForBots, game.Status);
     }
@@ -94,7 +96,7 @@ public class JoinGameCommandHandlerTests
         // Arrange
         var game = NewShell();
 
-        // First bot joins.
+        // The first bot joins.
         game.SetLineup(game.PlayerOne,
             new Domain.ValueObjects.Lineup(
                 DefaultLineup.Select(n => Domain.Factories.PieceFactory.Create(n, game.PlayerOne)).ToList()));
@@ -132,7 +134,7 @@ public class JoinGameCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: game transitioned to InProgress once both bots joined.
+        // Assert: the game transitioned to InProgress once both bots joined.
         Assert.Equal(GameStatus.InProgress, game.Status);
     }
 
@@ -176,7 +178,7 @@ public class JoinGameCommandHandlerTests
         // Act
         await handler.Handle(command, CancellationToken.None);
 
-        // Assert: both game and bot-registration were persisted for first player.
+        // Assert: both game and bot-registration were persisted for the first player.
         await gameRepo.Received(1).SaveAsync(game, Arg.Any<CancellationToken>());
         await botRegRepo.Received(1).SaveAsync(Arg.Any<Domain.BotRegistrations.BotRegistration>(), Arg.Any<CancellationToken>());
     }

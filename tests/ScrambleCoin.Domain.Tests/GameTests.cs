@@ -11,10 +11,9 @@ public class GameTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Board NewBoard() => new Board();
+    private static Board NewBoard() => new();
 
-    private static Lineup NewLineup() =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
+    private static Lineup NewLineup() => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
 
     /// <summary>
     /// Creates a Game in WaitingForBots state with two distinct, random player IDs.
@@ -39,13 +38,25 @@ public class GameTests
     }
 
     /// <summary>
-    /// Advances the game through CoinSpawn and PlacePhase, so it is in MovePhase,
-    /// ready for a call to <see cref="Game.AdvanceTurn"/>.
+    /// Advances the game through CoinSpawn and PlacePhase (placing a piece per player
+    /// on the first visit so MovePhase is not immediately auto-skipped), ending in MovePhase.
     /// </summary>
     private static void AdvanceToMovePhase(Game game)
     {
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase
+        var p1 = game.PlayerOne;
+        var p2 = game.PlayerTwo;
+        // On the first turn each player has no pieces on board; place one so MovePhase sticks.
+        // On later turns the pieces are already on board; skip placement instead.
+        if (game.PiecesOnBoard[p1] == 0)
+            game.PlacePiece(p1, game.LineupPlayerOne!.Pieces.First(p => !p.IsOnBoard).Id, new Position(0, 0));
+        else
+            game.SkipPlacement(p1);
+        // Second player acting triggers MarkPlacePhaseActed → auto-advances to MovePhase.
+        if (game.PiecesOnBoard[p2] == 0)
+            game.PlacePiece(p2, game.LineupPlayerTwo!.Pieces.First(p => !p.IsOnBoard).Id, new Position(7, 7));
+        else
+            game.SkipPlacement(p2);
     }
 
 
@@ -275,14 +286,14 @@ public class GameTests
     [Fact]
     public void Start_WhenAlreadyInProgress_ThrowsDomainException()
     {
-        var (game, p1, p2) = StartedGame();
+        var (game, _, _) = StartedGame();
         Assert.Throws<DomainException>(() => game.Start());
     }
 
     [Fact]
     public void Start_WhenFinished_ThrowsDomainException()
     {
-        var (game, p1, p2) = StartedGame();
+        var (game, _, _) = StartedGame();
         game.End();
         Assert.Throws<DomainException>(() => game.Start());
     }
@@ -795,8 +806,10 @@ public class GameTests
     [Fact]
     public void AdvancePhase_FromPlacePhase_SetsCurrentPhaseToMovePhase()
     {
-        var (game, _, _) = StartedGame();
+        var (game, p1, _) = StartedGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
+        // Place one piece for P1 so MovePhase is not immediately auto-skipped.
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
         game.AdvancePhase(); // PlacePhase → MovePhase
         Assert.Equal(TurnPhase.MovePhase, game.CurrentPhase);
     }
@@ -855,11 +868,12 @@ public class GameTests
     public void AdvancePhase_FullFiveTurnCycle_AllFifteenTransitions_EndsGameAsFinished()
     {
         var (game, _, _) = StartedGame();
-        // 5 turns × 3 phases each = 15 calls to AdvancePhase
+        // 5 turns × 3 phases (CoinSpawn→Place, Place→Move, Move→CoinSpawn/End).
+        // AdvanceToMovePhase handles CoinSpawn→Place + placement that auto-advances to Move.
+        // The final AdvancePhase() triggers Move→CoinSpawn (or End on turn 5).
         for (var turn = 0; turn < Game.TotalTurns; turn++)
         {
-            game.AdvancePhase(); // CoinSpawn → PlacePhase
-            game.AdvancePhase(); // PlacePhase → MovePhase
+            AdvanceToMovePhase(game);
             game.AdvancePhase(); // MovePhase → CoinSpawn (or End on turn 5)
         }
         Assert.Equal(GameStatus.Finished, game.Status);
@@ -1014,8 +1028,9 @@ public class GameTests
     [Fact]
     public void AdvancePhase_PlacePhaseToMovePhase_RaisesTurnPhaseAdvancedEvent()
     {
-        var (game, _, _) = StartedGame();
+        var (game, p1, _) = StartedGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
         game.ClearDomainEvents();
         game.AdvancePhase(); // PlacePhase → MovePhase
         Assert.Single(game.DomainEvents.OfType<TurnPhaseAdvanced>());
@@ -1024,10 +1039,11 @@ public class GameTests
     [Fact]
     public void AdvancePhase_PlacePhaseToMovePhase_Event_HasCorrectPreviousPhase()
     {
-        var (game, _, _) = StartedGame();
-        game.AdvancePhase();
+        var (game, p1, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
         game.ClearDomainEvents();
-        game.AdvancePhase();
+        game.AdvancePhase(); // PlacePhase → MovePhase
         var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
         Assert.Equal(TurnPhase.PlacePhase, evt.PreviousPhase);
     }
@@ -1035,10 +1051,11 @@ public class GameTests
     [Fact]
     public void AdvancePhase_PlacePhaseToMovePhase_Event_HasCorrectNewPhase()
     {
-        var (game, _, _) = StartedGame();
-        game.AdvancePhase();
+        var (game, p1, _) = StartedGame();
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
         game.ClearDomainEvents();
-        game.AdvancePhase();
+        game.AdvancePhase(); // PlacePhase → MovePhase
         var evt = game.DomainEvents.OfType<TurnPhaseAdvanced>().Single();
         Assert.Equal(TurnPhase.MovePhase, evt.NewPhase);
     }

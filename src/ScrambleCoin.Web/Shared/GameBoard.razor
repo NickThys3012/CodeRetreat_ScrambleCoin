@@ -1,0 +1,390 @@
+@using ScrambleCoin.Application.Games.GetBoardState
+@implements IDisposable
+
+<style>
+    .board-wrapper {
+        position: relative;
+        display: inline-block;
+        overflow-x: auto;
+    }
+
+    .board-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 68px);
+        grid-template-rows: repeat(8, 68px);
+        position: relative;
+        border: 2px solid #333;
+        box-shadow: 0 0 24px rgba(124, 77, 255, 0.25);
+    }
+
+    .board-cell {
+        width: 68px;
+        height: 68px;
+        position: relative;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        border: 1px solid rgba(255,255,255,0.07);
+        overflow: hidden;
+        transition: background-color 0.2s ease;
+    }
+
+    .board-cell.tile-empty       { background: #1a1a2e; }
+    .board-cell.tile-rock        { background: #455a64; }
+    .board-cell.tile-lake        { background: #1565c0; }
+    .board-cell.tile-coin-silver { background: #37474f; }
+    .board-cell.tile-coin-gold   { background: #e65100; }
+
+    .ice-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(179, 229, 252, 0.35);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .cell-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        color: #fff;
+        text-align: center;
+        line-height: 1.1;
+    }
+
+    .cell-emoji { font-size: 1.15rem; }
+    .cell-label { font-size: 0.58rem; color: #ccc; }
+
+    /* Fence borders — override per edge */
+    .fence-north { border-top: 3px solid #ff9800 !important; }
+    .fence-south { border-bottom: 3px solid #ff9800 !important; }
+    .fence-east  { border-right: 3px solid #ff9800 !important; }
+    .fence-west  { border-left: 3px solid #ff9800 !important; }
+
+    /* Coin flash animation */
+    @@keyframes coinFlash {
+        0%   { opacity: 1; transform: scale(1); }
+        50%  { opacity: 0.3; transform: scale(1.4); }
+        100% { opacity: 0; transform: scale(0); }
+    }
+    .coin-collected {
+        animation: coinFlash 0.35s ease-out forwards;
+    }
+
+    /* Piece layers — absolutely positioned over the grid */
+    .pieces-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    .piece-token {
+        position: absolute;
+        width: 68px;
+        height: 68px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: top 300ms ease, left 300ms ease;
+        pointer-events: none;
+    }
+
+    .piece-bubble {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        border: 2px solid rgba(255,255,255,0.25);
+        font-size: 1.3rem;
+        line-height: 1;
+    }
+
+    .piece-p1 { background: radial-gradient(circle at 35% 35%, #1e88e5, #0d47a1); }
+    .piece-p2 { background: radial-gradient(circle at 35% 35%, #e53935, #b71c1c); }
+
+    .piece-name {
+        font-size: 0.48rem;
+        color: #fff;
+        margin-top: 1px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    /* Phase banner */
+    .phase-banner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        background: rgba(124, 77, 255, 0.92);
+        color: #fff;
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-align: center;
+        padding: 10px 0;
+        border-radius: 4px 4px 0 0;
+        letter-spacing: 0.05em;
+        animation: bannerSlide 0.3s ease-out;
+    }
+
+    @@keyframes bannerSlide {
+        from { transform: translateY(-100%); opacity: 0; }
+        to   { transform: translateY(0);     opacity: 1; }
+    }
+
+    /* Winner overlay */
+    .winner-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        background: rgba(0, 0, 0, 0.82);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        animation: overlayFade 0.5s ease-out;
+    }
+
+    @@keyframes overlayFade {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    .winner-text {
+        font-size: 2rem;
+        font-weight: 900;
+        color: #ffd700;
+        text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        text-align: center;
+        padding: 0 1rem;
+    }
+
+    .winner-sub {
+        font-size: 1rem;
+        color: #ccc;
+        margin-top: 0.5rem;
+    }
+</style>
+
+@code {
+    [Parameter] public BoardStateDto? BoardState { get; set; }
+    [Parameter] public Guid PlayerOneId { get; set; }
+    [Parameter] public bool GameEnded { get; set; }
+    [Parameter] public Guid? WinnerId { get; set; }
+    [Parameter] public bool IsDraw { get; set; }
+
+    private string? _previousPhase;
+    private bool _showBanner;
+    private string _bannerText = string.Empty;
+    private Timer? _bannerTimer;
+
+    protected override void OnParametersSet()
+    {
+        if (BoardState is null) return;
+
+        var currentPhase = BoardState.Phase;
+        if (currentPhase != _previousPhase && _previousPhase is not null)
+        {
+            _bannerText = PhaseBannerText(currentPhase);
+            _showBanner = true;
+            _bannerTimer?.Dispose();
+            _bannerTimer = new Timer(_ =>
+            {
+                _showBanner = false;
+                InvokeAsync(StateHasChanged);
+            }, null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);
+        }
+        _previousPhase = currentPhase;
+    }
+
+    private static string PhaseBannerText(string? phase) => phase switch
+    {
+        "PlacePhase" => "📍 Place Phase!",
+        "MovePhase"  => "⚔️ Move Phase!",
+        "CoinSpawn"  => "🪙 Coins Spawning…",
+        _ => $"🔄 {phase}"
+    };
+
+    private static string PieceEmoji(string? name) => name switch
+    {
+        "Mickey"     => "🐭",
+        "Minnie"     => "🎀",
+        "Donald"     => "🦆",
+        "Scrooge"    => "🎩",
+        "Goofy"      => "🐶",
+        "Elsa"       => "❄️",
+        "Maleficent" => "🧙",
+        "Cruella"    => "🐾",
+        _            => "♟"
+    };
+
+    private TileDto? GetTile(int row, int col) =>
+        BoardState?.Board.Tiles.FirstOrDefault(t => t.Position.Row == row && t.Position.Col == col);
+
+    private static string TileCssClass(TileDto? tile)
+    {
+        if (tile is null) return "board-cell tile-empty";
+
+        var classes = "board-cell";
+
+        classes += tile.ObstacleType switch
+        {
+            "Lake" => " tile-lake",
+            "Rock" => " tile-rock",
+            _ => tile.Occupant?.Type switch
+            {
+                "coin" => tile.Occupant.CoinType == "Gold" ? " tile-coin-gold" : " tile-coin-silver",
+                _ => " tile-empty"
+            }
+        };
+
+        if (tile.FencedEdges.Contains("North")) classes += " fence-north";
+        if (tile.FencedEdges.Contains("South")) classes += " fence-south";
+        if (tile.FencedEdges.Contains("East"))  classes += " fence-east";
+        if (tile.FencedEdges.Contains("West"))  classes += " fence-west";
+
+        return classes;
+    }
+
+    // Collect all placed pieces from both lineups for the overlay layer
+    private IEnumerable<PieceDto> AllPlacedPieces()
+    {
+        if (BoardState is null) yield break;
+        foreach (var p in BoardState.YourPieces.Where(p => p is { IsOnBoard: true, Position: not null }))
+            yield return p;
+        foreach (var p in BoardState.OpponentPieces.Where(p => p is { IsOnBoard: true, Position: not null }))
+            yield return p;
+    }
+
+    private bool IsPlayerOnePiece(PieceDto piece)
+    {
+        // YourPieces in spectator view = PlayerOne; OpponentPieces = PlayerTwo
+        return BoardState?.YourPieces.Any(p => p.PieceId == piece.PieceId) ?? false;
+    }
+
+    public void Dispose()
+    {
+        _bannerTimer?.Dispose();
+    }
+}
+
+@if (BoardState is not null)
+{
+    <div class="board-wrapper">
+        <div class="board-grid">
+            @for (var row = 0; row < 8; row++)
+            {
+                for (var col = 0; col < 8; col++)
+                {
+                    var tile = GetTile(row, col);
+                    <div class="@TileCssClass(tile)"
+                         style="grid-row: @(row + 1); grid-column: @(col + 1);"
+                         title="@TileTooltip(tile)">
+
+                        @if (tile?.HasIcePatch == true)
+                        {
+                            <div class="ice-overlay"></div>
+                        }
+
+                        <div class="cell-content">
+                            @switch (tile?.ObstacleType)
+                            {
+                                case "Rock":
+                                    <span class="cell-emoji">🪨</span>
+                                    break;
+                                case "Lake":
+                                    <span class="cell-emoji">🌊</span>
+                                    break;
+                                default:
+                                {
+                                    if (tile?.Occupant?.Type == "coin")
+                                    {
+                                        <span class="cell-emoji">@(tile.Occupant.CoinType == "Gold" ? "🪙" : "🥈")</span>
+                                        <span class="cell-label">@tile.Occupant.Value pts</span>
+                                    }
+                                    break;
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            <!-- Piece tokens — absolutely positioned for CSS transition animation -->
+            <div class="pieces-layer">
+                @foreach (var piece in AllPlacedPieces())
+                {
+                    var isP1 = IsPlayerOnePiece(piece);
+                    var top  = piece.Position!.Row * 68;
+                    var left = piece.Position!.Col * 68;
+                    <div class="piece-token"
+                         @key="piece.PieceId"
+                         style="top: @(top)px; left: @(left)px;">
+                        <div class="piece-bubble @(isP1 ? "piece-p1" : "piece-p2")">
+                            @PieceEmoji(piece.Name)
+                        </div>
+                        <div class="piece-name">@piece.Name</div>
+                    </div>
+                }
+            </div>
+
+            @if (_showBanner)
+            {
+                <div class="phase-banner">@_bannerText</div>
+            }
+
+            @if (GameEnded)
+            {
+                <div class="winner-overlay">
+                    @if (IsDraw)
+                    {
+                        <div class="winner-text">🤝 It's a Draw!</div>
+                        <div class="winner-sub">Both players scored equally</div>
+                    }
+                    else
+                    {
+                        <div class="winner-text">🏆 Winner!</div>
+                        <div class="winner-sub">@WinnerId?.ToString()[..8]…</div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private static string TileTooltip(TileDto? tile)
+    {
+        if (tile is null) return "";
+        switch (tile.ObstacleType)
+        {
+            case "Rock":
+                return "Rock obstacle";
+            case "Lake":
+                return "Lake (impassable)";
+        }
+        if (tile.Occupant is null) return tile.HasIcePatch ? "Ice patch" : "Empty";
+        return tile.Occupant.Type switch
+        {
+            "coin"  => $"{tile.Occupant.CoinType} coin ({tile.Occupant.Value} pts){(tile.HasIcePatch ? " + Ice" : "")}",
+            "piece" => $"{tile.Occupant.Name} (owner: {tile.Occupant.PlayerId?.ToString()[..8]}…){(tile.HasIcePatch ? " + Ice" : "")}",
+            _ => ""
+        };
+    }
+}

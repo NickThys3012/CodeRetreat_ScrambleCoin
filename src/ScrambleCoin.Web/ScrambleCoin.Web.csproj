@@ -2,9 +2,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ScrambleCoin.Application\ScrambleCoin.Application.csproj" />
+    <ProjectReference Include="..\ScrambleCoin.Infrastructure\ScrambleCoin.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
     <PackageReference Include="MudBlazor" Version="9.4.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -23,7 +24,7 @@ public class OnStopAbilitiesIntegrationTests
     private static (Game game, Guid p1, Guid p2, Piece testPiece, Piece p2Piece) GameWithPiecesInMovePhase(
         string p1PieceName,
         Position p1Position,
-        Position p2Position = null)
+        Position? p2Position = null)
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -54,19 +55,25 @@ public class OnStopAbilitiesIntegrationTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (testPiece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
+        }
+
         // Place both pieces to auto-advance to MovePhase
-        var actualP1Pos = p1Position ?? new Position(0, 3);
-        var actualP2Pos = p2Position ?? new Position(7, 4);
-
-        game.PlacePiece(p1, testPiece.Id, actualP1Pos);
+        var actualP2Pos = p2Position ?? new Position(7, 3); // Valid Border entry point
+        game.PlacePiece(p1, testPiece.Id, p1Position);
         game.PlacePiece(p2, p2Piece.Id, actualP2Pos);
-
+        
         return (game, p1, p2, testPiece, p2Piece);
     }
 
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
-        var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 
@@ -84,7 +91,7 @@ public class OnStopAbilitiesIntegrationTests
         // Act: Ralph moves one step to (1,3)
         game.MovePiece(p1, ralphPiece.Id, BuildSegments(new Position(1, 3)));
 
-        // Assert: Rock adjacent to destination is destroyed
+        // Assert: Rock adjacent to the destination is destroyed
         Assert.False(board.HasRock(new Position(2, 3)));
         var rockDestroyed = game.DomainEvents.OfType<RockDestroyed>().FirstOrDefault();
         Assert.NotNull(rockDestroyed);
@@ -147,7 +154,7 @@ public class OnStopAbilitiesIntegrationTests
         // Pumbaa's ability differs from Ralph: destroys only fences, not rocks
         // Integration test verifies the piece can be created and placed successfully
         // Detailed ability testing is done in unit tests (OnStopAbilitiesTests.cs)
-        var (game, p1, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
+        var (_, _, _, pumbaaPiece, _) = GameWithPiecesInMovePhase("Pumbaa", new Position(0, 3));
 
         // Assert: Pumbaa piece was created successfully
         Assert.NotNull(pumbaaPiece);
@@ -163,7 +170,7 @@ public class OnStopAbilitiesIntegrationTests
         // WALL•E's ability is to push adjacent pieces in move direction
         // Integration test verifies the piece can be created and placed successfully
         // Detailed ability testing is done in unit tests
-        var (game, p1, _, wallePiece, _) = GameWithPiecesInMovePhase("WALL•E", new Position(0, 3));
+        var (_, _, _, wallePiece, _) = GameWithPiecesInMovePhase("WALL•E", new Position(0, 3));
 
         // Assert: WALL•E piece was created successfully
         Assert.NotNull(wallePiece);
@@ -292,12 +299,12 @@ public class OnStopAbilitiesIntegrationTests
         // Assert: Events have correct metadata
         var rockDestroyed = game.DomainEvents.OfType<RockDestroyed>().FirstOrDefault();
         Assert.NotNull(rockDestroyed);
-        Assert.Equal(gameId, rockDestroyed!.GameId);
-        Assert.Equal(turnNumber, rockDestroyed!.TurnNumber);
+        Assert.Equal(gameId, rockDestroyed.GameId);
+        Assert.Equal(turnNumber, rockDestroyed.TurnNumber);
 
         var pieceMoved = game.DomainEvents.OfType<PieceMoved>().FirstOrDefault();
         Assert.NotNull(pieceMoved);
-        Assert.Equal(ralphPiece.Id, pieceMoved!.PieceId);
+        Assert.Equal(ralphPiece.Id, pieceMoved.PieceId);
     }
 
     [Fact]
@@ -346,12 +353,12 @@ public class OnStopAbilitiesIntegrationTests
         // Act: Ralph moves
         game.MovePiece(p1, ralphPiece.Id, BuildSegments(new Position(1, 3)));
 
-        // Assert: PieceMoved event includes correct path
+        // Assert: PieceMoved event includes a correct path
         var pieceMoved = game.DomainEvents.OfType<PieceMoved>().FirstOrDefault();
         Assert.NotNull(pieceMoved);
-        Assert.Equal(new Position(0, 3), pieceMoved!.From);
-        Assert.Equal(new Position(1, 3), pieceMoved!.To);
-        Assert.NotEmpty(pieceMoved!.Path);
+        Assert.Equal(new Position(0, 3), pieceMoved.From);
+        Assert.Equal(new Position(1, 3), pieceMoved.To);
+        Assert.NotEmpty(pieceMoved.Path);
     }
 
     [Fact]
@@ -366,7 +373,7 @@ public class OnStopAbilitiesIntegrationTests
         // Assert: PieceMoved event produced
         var pieceMoved = game.DomainEvents.OfType<PieceMoved>().FirstOrDefault();
         Assert.NotNull(pieceMoved);
-        Assert.Equal(rafikPiece.Id, pieceMoved!.PieceId);
+        Assert.Equal(rafikPiece.Id, pieceMoved.PieceId);
     }
 
     [Fact]
@@ -381,7 +388,7 @@ public class OnStopAbilitiesIntegrationTests
         // Assert: PieceMoved event produced
         var pieceMoved = game.DomainEvents.OfType<PieceMoved>().FirstOrDefault();
         Assert.NotNull(pieceMoved);
-        Assert.Equal(daisyPiece.Id, pieceMoved!.PieceId);
+        Assert.Equal(daisyPiece.Id, pieceMoved.PieceId);
     }
 
     [Fact]
@@ -396,6 +403,6 @@ public class OnStopAbilitiesIntegrationTests
         // Assert: PieceMoved event produced
         var pieceMoved = game.DomainEvents.OfType<PieceMoved>().FirstOrDefault();
         Assert.NotNull(pieceMoved);
-        Assert.Equal(scarPiece.Id, pieceMoved!.PieceId);
+        Assert.Equal(scarPiece.Id, pieceMoved.PieceId);
     }
 }

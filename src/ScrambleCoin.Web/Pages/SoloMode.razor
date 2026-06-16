@@ -1,0 +1,123 @@
+@page "/solo-mode"
+@using MediatR
+@using ScrambleCoin.Application.Games.SoloMode.CreateSoloGame
+@using ScrambleCoin.Application.VillainTree.GetVillainTree
+@using VillainNodeDto = ScrambleCoin.Application.VillainTree.GetVillainTree.VillainNodeDto
+@inject IMediator Mediator
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
+        🎮 Solo Mode — Challenge the Villains
+    </div>
+
+    @if (_isLoadingTree)
+    {
+        <MudProgressCircular Indeterminate="true" Class="my-4" />
+    }
+    else
+    {
+        <MudText Typo="Typo.body1" Class="mb-3" Style="color:#aaa;">
+            Choose your opponent by clicking a villain on the path below.
+            At every fork you can go left or right — pick your challenge!
+        </MudText>
+
+        <VillainPathView AllNodes="_allNodes"
+                         @bind-SelectedVillainId="_selectedVillainId"
+                         Interactive="true" />
+
+        <div style="margin-top: 1.5rem;">
+            @if (!string.IsNullOrEmpty(_selectedVillainId))
+            {
+                var selected = _allNodes.FirstOrDefault(n => n.VillainId == _selectedVillainId);
+                <MudAlert Severity="Severity.Info" Class="mb-3">
+                    You chose: <strong>@(selected?.VillainName ?? _selectedVillainId)</strong>
+                    @if (!string.IsNullOrEmpty(selected?.UnlockedPieceId))
+                    {
+                        <span> — defeat them to unlock <strong>@selected.UnlockedPieceId</strong>!</span>
+                    }
+                </MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                       OnClick="CreateGame"
+                       Disabled="string.IsNullOrEmpty(_selectedVillainId) || _isCreatingGame"
+                       FullWidth="true">
+                @if (_isCreatingGame)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Creating Game…</span>
+                }
+                else if (string.IsNullOrEmpty(_selectedVillainId))
+                {
+                    <span>Select a Villain to Begin</span>
+                }
+                else
+                {
+                    var name = _allNodes.FirstOrDefault(n => n.VillainId == _selectedVillainId)?.VillainName ?? _selectedVillainId;
+                    <span>⚔️ Challenge @name</span>
+                }
+            </MudButton>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_message))
+    {
+        <MudAlert Severity="@_messageSeverity" Class="my-4">@_message</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<VillainNodeDto> _allNodes = [];
+    private bool _isLoadingTree = true;
+
+    private string? _selectedVillainId;
+    private bool _isCreatingGame;
+    private string? _message;
+    private Severity _messageSeverity = Severity.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Mediator.Send(new GetVillainTreeQuery());
+            _allNodes  = result.AllNodes.ToList();
+        }
+        catch (Exception ex)
+        {
+            _message = $"Failed to load villain tree: {ex.Message}";
+            _messageSeverity = Severity.Error;
+        }
+        finally
+        {
+            _isLoadingTree = false;
+        }
+    }
+
+    private async Task CreateGame()
+    {
+        if (string.IsNullOrEmpty(_selectedVillainId)) return;
+
+        try
+        {
+            _isCreatingGame = true;
+            _message = null;
+
+            var command = new CreateSoloGameCommand(BotId: Guid.Empty, VillainId: _selectedVillainId);
+            await Mediator.Send(command);
+
+            var name = _allNodes.FirstOrDefault(n => n.VillainId == _selectedVillainId)?.VillainName ?? _selectedVillainId;
+            _message = $"✅ Game created! You're now facing {name}!";
+            _messageSeverity = Severity.Success;
+            _selectedVillainId = null;
+        }
+        catch (Exception ex)
+        {
+            _message = $"❌ Error creating game: {ex.Message}";
+            _messageSeverity = Severity.Error;
+        }
+        finally
+        {
+            _isCreatingGame = false;
+        }
+    }
+}

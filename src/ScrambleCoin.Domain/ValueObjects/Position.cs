@@ -7,7 +7,7 @@ namespace ScrambleCoin.Domain.ValueObjects;
 /// </summary>
 public sealed class Position : IEquatable<Position>
 {
-    public const int MinValue = 0;
+    private const int MinValue = 0;
     public const int MaxValue = 7;
 
     public int Row { get; }

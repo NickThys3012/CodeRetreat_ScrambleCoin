@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -64,7 +65,7 @@ public class IcePatchMovementIntegrationTests
     /// Creates a game in MovePhase with a regular piece on a valid border tile for sliding tests.
     /// Returns (game, p1, p2, regularPiece).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2, Piece regularPiece)
+    private static (Game game, Guid p1, Piece regularPiece)
         GameInMovePhaseWithRegularPiece(
             Position? regularStartPos = null,
             Position? p2StartPos = null)
@@ -97,14 +98,14 @@ public class IcePatchMovementIntegrationTests
         game.PlacePiece(p1, regularPiece.Id, actualRegularStartPos);
         game.PlacePiece(p2, p2Piece.Id, actualP2StartPos);
 
-        return (game, p1, p2, regularPiece);
+        return (game, p1, regularPiece);
     }
 
     /// <summary>
     /// Creates a game in MovePhase with a Jump piece on a valid border tile.
     /// Returns (game, p1, p2, jumpPiece).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2, Piece jumpPiece)
+    private static (Game game, Guid p1, Piece jumpPiece)
         GameInMovePhaseWithJumpPiece(
             Position? jumpStartPos = null,
             Position? p2StartPos = null)
@@ -137,14 +138,14 @@ public class IcePatchMovementIntegrationTests
         game.PlacePiece(p1, jumpPiece.Id, actualJumpStartPos);
         game.PlacePiece(p2, p2Piece.Id, actualP2StartPos);
 
-        return (game, p1, p2, jumpPiece);
+        return (game, p1, jumpPiece);
     }
 
     /// <summary>
     /// Creates a game in MovePhase with a Charge piece on a valid border tile.
     /// Returns (game, p1, p2, chargePiece).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2, Piece chargePiece)
+    private static (Game game, Guid p1,  Piece chargePiece)
         GameInMovePhaseWithChargePiece(
             Position? chargeStartPos = null,
             Position? p2StartPos = null)
@@ -177,14 +178,14 @@ public class IcePatchMovementIntegrationTests
         game.PlacePiece(p1, chargePiece.Id, actualChargeStartPos);
         game.PlacePiece(p2, p2Piece.Id, actualP2StartPos);
 
-        return (game, p1, p2, chargePiece);
+        return (game, p1, chargePiece);
     }
 
     /// <summary>
     /// Creates a game in MovePhase with an Ethereal piece on a valid border tile.
     /// Returns (game, p1, p2, etherealPiece).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2, Piece etherealPiece)
+    private static (Game game, Guid p1, Piece etherealPiece)
         GameInMovePhaseWithEtherealPiece(
             Position? etherealStartPos = null,
             Position? p2StartPos = null)
@@ -217,7 +218,7 @@ public class IcePatchMovementIntegrationTests
         game.PlacePiece(p1, etherealPiece.Id, actualEtherealStartPos);
         game.PlacePiece(p2, p2Piece.Id, actualP2StartPos);
 
-        return (game, p1, p2, etherealPiece);
+        return (game, p1, etherealPiece);
     }
 
     /// <summary>
@@ -250,12 +251,13 @@ public class IcePatchMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             Substitute.For<IPublisher>(),
+            Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
     /// Builds a segment list for orthogonal movement (one step).
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegment(Position step)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegment(Position step)
         => new List<IReadOnlyList<Position>>
         {
             new List<Position> { step }.AsReadOnly()
@@ -264,7 +266,7 @@ public class IcePatchMovementIntegrationTests
     /// <summary>
     /// Builds a multi-step segment for orthogonal movement.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildMultiSegment(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildMultiSegment(params Position[] steps)
         => new List<IReadOnlyList<Position>>
         {
             steps.ToList().AsReadOnly()
@@ -305,7 +307,7 @@ public class IcePatchMovementIntegrationTests
     public async Task RegularPiece_SlidesOnIcePatch_ToAdjacentTile()
     {
         // Arrange: the regular piece starts at (0,1), lands on ice at (0,2), then slides to (0,3).
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece();
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece();
         game.Board.PlaceIcePatch(new Position(0, 2));
 
         var token = Guid.NewGuid();
@@ -326,7 +328,7 @@ public class IcePatchMovementIntegrationTests
     public async Task RegularPiece_BlockedFromSliding_AtBoardEdge()
     {
         // Arrange: start next to the corner so the slide would leave the board.
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece(
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece(
             regularStartPos: new Position(0, 6));
         game.Board.PlaceIcePatch(new Position(0, 7));
 
@@ -347,7 +349,7 @@ public class IcePatchMovementIntegrationTests
     public async Task RegularPiece_BlockedFromSliding_ByOpponentPiece()
     {
         // Arrange: the opponent already occupies the slide destination.
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece(
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece(
             p2StartPos: new Position(0, 3));
         game.Board.PlaceIcePatch(new Position(0, 2));
 
@@ -368,7 +370,7 @@ public class IcePatchMovementIntegrationTests
     public async Task RegularPiece_CollectsCoin_DuringSlideOnIcePatch()
     {
         // Arrange: the coin sits on the slide destination.
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece();
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece();
         game.Board.PlaceIcePatch(new Position(0, 2));
 
         var coinPos = new Position(0, 3);
@@ -394,7 +396,7 @@ public class IcePatchMovementIntegrationTests
     public async Task JumpPiece_IgnoresIcePatches_NoSlideOccurs()
     {
         // Arrange: Jump lands on an ice patch on the top edge.
-        var (game, p1, _, jumpPiece) = GameInMovePhaseWithJumpPiece();
+        var (game, p1, jumpPiece) = GameInMovePhaseWithJumpPiece();
         game.Board.PlaceIcePatch(new Position(0, 1));
 
         var token = Guid.NewGuid();
@@ -414,7 +416,7 @@ public class IcePatchMovementIntegrationTests
     public async Task ChargePiece_SlidesOnIcePatch_AfterChargeMovement()
     {
         // Arrange: the charge ends on an iced board-edge tile.
-        var (game, p1, _, chargePiece) = GameInMovePhaseWithChargePiece();
+        var (game, p1, chargePiece) = GameInMovePhaseWithChargePiece();
         game.Board.PlaceIcePatch(new Position(0, 7));
 
         var token = Guid.NewGuid();
@@ -434,7 +436,7 @@ public class IcePatchMovementIntegrationTests
     public async Task EtherealPiece_SlidesOnIcePatch_AfterEtherealMovement()
     {
         // Arrange: Ethereal lands on ice and slides one more tile.
-        var (game, p1, _, etherealPiece) = GameInMovePhaseWithEtherealPiece();
+        var (game, p1, etherealPiece) = GameInMovePhaseWithEtherealPiece();
         game.Board.PlaceIcePatch(new Position(0, 1));
 
         var token = Guid.NewGuid();
@@ -467,10 +469,10 @@ public class IcePatchMovementIntegrationTests
                 BuildMultiSegment(new Position(0, 1), new Position(0, 2), new Position(0, 3))),
             CancellationToken.None);
 
-        var patchCount = game.Board.GetIcePatches().Count();
+        var patchCount = game.Board.GetIcePatches().Count;
 
-        Assert.True(game.Board.GetIcePatches().Count() > 0);
-        Assert.Equal(patchCount, game.Board.GetIcePatches().Count());
+        Assert.True(game.Board.GetIcePatches().Any());
+        Assert.Equal(patchCount, game.Board.GetIcePatches().Count);
     }
 
     [Fact]
@@ -498,7 +500,7 @@ public class IcePatchMovementIntegrationTests
     public async Task RegularPiece_WithGoldCoin_CollectedDuringSlide()
     {
         // Arrange: gold coin sits on the slide destination.
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece();
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece();
         game.Board.PlaceIcePatch(new Position(0, 2));
         game.Board.GetTile(new Position(0, 3)).SetOccupant(new Coin(CoinType.Gold));
 
@@ -547,8 +549,8 @@ public class IcePatchMovementIntegrationTests
     [Fact]
     public async Task IcePatchSliding_Idempotent_MultiplePatchesOnSameTile()
     {
-        // Arrange: placing the same patch twice should not change behavior.
-        var (game, p1, _, regularPiece) = GameInMovePhaseWithRegularPiece();
+        // Arrange: placing the same patch twice should not change behaviour.
+        var (game, p1, regularPiece) = GameInMovePhaseWithRegularPiece();
 
         game.Board.PlaceIcePatch(new Position(0, 2));
         game.Board.PlaceIcePatch(new Position(0, 2));

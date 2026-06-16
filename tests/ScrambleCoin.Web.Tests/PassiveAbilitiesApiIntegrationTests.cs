@@ -22,11 +22,6 @@ namespace ScrambleCoin.Web.Tests;
 /// </summary>
 public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitiesApiIntegrationTests.TestWebApplicationFactory>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TestWebApplicationFactory _factory;
 
     public PassiveAbilitiesApiIntegrationTests(TestWebApplicationFactory factory)
@@ -56,7 +51,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
                 foreach (var d in descriptorsToRemove)
                     services.Remove(d);
 
-                // Re-register using in-memory database.
+                // Re-register using an in-memory database.
                 var dbName = _dbName;
                 services.AddScoped<ScrambleCoinDbContext>(_ =>
                 {
@@ -78,7 +73,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
 
     /// <summary>
     /// Seeds a game with a specific passive ability piece into the database.
-    /// Game is in MovePhase with both players having pieces on board.
+    /// The game is in MovePhase with both players having pieces on board.
     /// </summary>
     private async Task<(Game game, Guid tokenP1, Guid tokenP2)> SeedGameWithAbilityAsync(string abilityName)
     {
@@ -107,11 +102,11 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
             new(Guid.NewGuid(), "Porky", p2, EntryPointType.Borders, MovementType.Orthogonal, 3, 1)
         };
 
-        // Create and start game
+        // Create and start a game
         var game = new Game(p1, p2, new Board());
         game.SetLineup(p1, new Lineup(pieces1));
         game.SetLineup(p2, new Lineup(pieces2));
-        game.Start(); // Starts in CoinSpawn phase
+        game.Start(); // Starts in the CoinSpawn phase
 
         // Advance to PlacePhase to allow piece placement
         game.AdvancePhase(); // CoinSpawn → PlacePhase
@@ -147,7 +142,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = await response.Content.ReadAsStringAsync();
         var doc = JsonDocument.Parse(json);
 
@@ -167,7 +162,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Moana piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -184,7 +179,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Flynn piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -201,7 +196,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Merlin piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -218,7 +213,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Rapunzel piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -235,7 +230,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Cinderella piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -252,7 +247,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Forky piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -269,7 +264,8 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var temp = new Uri($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(temp);
 
         // Assert: Response contains Fairy Godmother piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -286,7 +282,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Ursula piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -303,7 +299,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Jafar piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -320,7 +316,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Response contains Mike Wazowski piece
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -338,12 +334,11 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
-        // Assert: Should reject request without token
+        // Assert: Should reject request without a token
         Assert.True(
-            response.StatusCode == HttpStatusCode.Unauthorized ||
-            response.StatusCode == HttpStatusCode.Forbidden,
+            response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
             $"Expected Unauthorized or Forbidden, got {response.StatusCode}");
     }
 
@@ -356,12 +351,11 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", Guid.NewGuid().ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert: Should reject invalid token
         Assert.True(
-            response.StatusCode == HttpStatusCode.Unauthorized ||
-            response.StatusCode == HttpStatusCode.Forbidden,
+            response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
             $"Expected Unauthorized or Forbidden, got {response.StatusCode}");
     }
 
@@ -376,7 +370,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = await response.Content.ReadAsStringAsync();
 
         // Assert: Response is valid JSON
@@ -394,7 +388,7 @@ public class PassiveAbilitiesApiIntegrationTests : IClassFixture<PassiveAbilitie
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = await response.Content.ReadAsStringAsync();
 
         // Assert: Response contains expected properties

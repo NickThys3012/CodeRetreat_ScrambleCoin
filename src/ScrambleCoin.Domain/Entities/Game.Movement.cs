@@ -12,6 +12,13 @@ namespace ScrambleCoin.Domain.Entities;
 public partial class Game
 {
     /// <summary>
+    /// Returns <c>true</c> when <paramref name="pieceId"/> has already been moved (or skipped)
+    /// during the current MovePhase. Read-only query used by CPU/automation callers to decide
+    /// which on-board piece to move next without attempting a disallowed second move.
+    /// </summary>
+    public bool HasPieceMovedThisTurn(Guid pieceId) => _movedPieceIds.Contains(pieceId);
+
+    /// <summary>
     /// Moves a single on-board piece during MovePhase, applying direction validation,
     /// obstacle/fence blocking, and coin collection along the path.
     /// Auto-advances to the next turn (or ends the game) once all on-board pieces
@@ -121,7 +128,7 @@ public partial class Game
         // (excluding start and destination).
         if (piece.IsElsa && startPosition != currentPosition)
         {
-            PlaceElsaIcePatches(startPosition, fullPath);
+            PlaceElsaIcePatches(fullPath);
         }
 
         // Execute on-stop abilities (Issue #49)
@@ -270,6 +277,10 @@ public partial class Game
                         throw new DomainException(
                             $"Piece {pieceId}: step from {segFrom} to {stepTo} is not adjacent.");
                     break;
+                case MovementType.Jump:
+                case MovementType.Charge:
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(segmentMovementType), segmentMovementType, null);
             }
 
             if (segmentMovementType == MovementType.Ethereal)
@@ -337,7 +348,7 @@ public partial class Game
 
         ValidateJumpDirectionConstraint(pieceId, currentPosition, destination, rowDiff, colDiff, MovementType.Jump);
 
-        var distance = CalculateJumpDistance(currentPosition, destination, MovementType.Jump);
+        var distance = CalculateJumpDistance(currentPosition, destination);
         if (distance > segmentMaxDistance)
             throw new DomainException(
                 $"Piece {pieceId}: jump from {currentPosition} to {destination} is {distance} tiles, but MaxDistance is {segmentMaxDistance}.");
@@ -391,6 +402,13 @@ public partial class Game
                     break;
                 case MovementType.AnyDirection:
                     break;
+
+                case MovementType.Jump:
+                case MovementType.Charge:
+                case MovementType.Ethereal:
+                default:
+                    //TODO: no valid move exception
+                    throw new ArgumentOutOfRangeException(nameof(movementType), movementType, null);
             }
         }
 
@@ -625,7 +643,7 @@ public partial class Game
 
         ValidateJumpDirectionConstraint(pieceId, currentPosition, destination, rowDiff, colDiff, MovementType.Jump);
 
-        var distance = CalculateJumpDistance(currentPosition, destination, MovementType.Jump);
+        var distance = CalculateJumpDistance(currentPosition, destination);
 
         if (distance > segmentMaxDistance)
             throw new DomainException(
@@ -915,27 +933,27 @@ public partial class Game
                     throw new DomainException(
                         $"Piece {pieceId}: jump from {from} to {to} is not orthogonal (must move only horizontally or vertically).");
                 break;
-
             case MovementType.Diagonal:
                 // Diagonal-Jump: equal row and column distance
                 if (Math.Abs(rowDiff) != Math.Abs(colDiff))
                     throw new DomainException(
                         $"Piece {pieceId}: jump from {from} to {to} is not diagonal (must move equal rows and columns).");
                 break;
-
             case MovementType.AnyDirection:
                 // AnyDirection-Jump: no directional restriction
                 break;
-
             case MovementType.Jump:
                 // Pure Jump: can go in any direction
                 break;
+            case MovementType.Charge:
+            case MovementType.Ethereal:
+            default:
+                throw new ArgumentOutOfRangeException(nameof(movementType), movementType, null);
         }
     }
 
     /// <summary>
     /// Calculates the jump distance from <paramref name="from"/> to <paramref name="to"/> based on the
-    /// <paramref name="movementType"/>. For Jump pieces, distance determines if the jump is valid
     /// within MaxDistance.
     /// 
     /// Distance is always Chebyshev distance (king move distance / max of |Δrow|, |Δcol|),
@@ -944,10 +962,7 @@ public partial class Game
     /// - Diagonal jump to (3,3) = 3 tiles
     /// - AnyDirection jump to (2,3) = 3 tiles (max of 2 and 3)
     /// </summary>
-    /// <exception cref="DomainException">
-    /// Thrown if <paramref name="movementType"/> is not a valid Jump-compatible type.
-    /// </exception>
-    private static int CalculateJumpDistance(Position from, Position to, MovementType movementType)
+    private static int CalculateJumpDistance(Position from, Position to)
     {
         // All Jump movement types use Chebyshev distance (max of |Δrow|, |Δcol|)
         return to.ChebyshevDistance(from);

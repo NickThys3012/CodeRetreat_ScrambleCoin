@@ -38,14 +38,35 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>
+{
     cfg.RegisterServicesFromAssemblies(
-        typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
+        typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
+    // Serialization must wrap everything — register first so it is the outermost behaviour.
+    cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.GameSerializationBehaviour<,>));
+    cfg.AddOpenBehavior(typeof(ScrambleCoin.Application.Behaviours.SignalRBroadcastBehaviour<,>));
+});
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddSingleton(Random.Shared);
+builder.Services.AddSingleton<GameLockService>();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<ScrambleCoin.Application.Abstractions.IGameBroadcaster,
+    ScrambleCoin.Api.Hubs.GameBroadcaster>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IBotRegistrationRepository, BotRegistrationRepository>();
+builder.Services.AddScoped<IVillainTreeRepository, VillainTreeRepository>();
+builder.Services.AddScoped<IBotUnlocksRepository, BotUnlocksRepository>();
+builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();
+builder.Services.AddScoped<IRankingRepository, RankingRepository>();
+builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
+    GameSnapshotRepository>();
 builder.Services.AddScoped<ICoinSpawnService, CoinSpawnService>();
+builder.Services.AddScoped<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
+    ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
+builder.Services.AddScoped<IVillainActionDispatcher, VillainActionDispatcher>();
+builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>();
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoinDbContext>());
+builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));
 builder.Services.AddSingleton<IQueueService, QueueService>();
 
 // ── EF Core (SQL Server) ──────────────────────────────────────────────────────
@@ -74,11 +95,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     // Admin key security scheme (lock icon on CreateGame)
-    options.AddSecurityDefinition("X-Admin-Key", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    options.AddSecurityDefinition("X-Admin-Key", new OpenApiSecurityScheme
     {
         Name = "X-Admin-Key",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
         Description = "Admin key required to create a game shell. Value: `scramblecoin-admin`"
     });
 
@@ -86,6 +107,21 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+// ── Database initialization ───────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
+    if (dbContext.Database.IsRelational())
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    else
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
+    VillainTreeSeeder.SeedDefaultTree(dbContext);
+}
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
@@ -123,9 +159,12 @@ app.MapGet("/health", async (Microsoft.Extensions.Diagnostics.HealthChecks.Healt
 .WithSummary("Health check")
 .WithDescription("Returns 200 Healthy when the API and database are reachable, or 503 Unhealthy if a dependency is down.")
 .WithTags("Health")
-.Produces<object>(StatusCodes.Status200OK)
+.Produces<object>()
 .Produces<object>(StatusCodes.Status503ServiceUnavailable);
 app.MapGameEndpoints();
+app.MapSoloModeEndpoints();
+app.MapTournamentEndpoints();
+app.MapHub<ScrambleCoin.Api.Hubs.GameHub>("/hubs/game");
 
 app.Run();
 

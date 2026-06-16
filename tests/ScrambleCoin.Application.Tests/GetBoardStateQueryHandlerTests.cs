@@ -58,7 +58,7 @@ public class GetBoardStateQueryHandlerTests
         return new GetBoardStateQueryHandler(gameRepo, botRegRepo, logger);
     }
 
-    // ── AC 1 / AC 2 : Returns a well-formed BoardStateDto ─────────────────────
+    // ── AC 1 / AC 2: Returns a well-formed BoardStateDto ─────────────────────
 
     [Fact]
     public async Task Handle_ValidRequest_ReturnsBoardStateDto()
@@ -250,7 +250,7 @@ public class GetBoardStateQueryHandlerTests
         // Act
         var dto = await handler.Handle(new GetBoardStateQuery(game.Id, reg.Token), CancellationToken.None);
 
-        // Assert: every tile has a non-null FencedEdges list (may be empty)
+        // Assert: every tile has a non-null FencedEdges list (maybe empty)
         Assert.All(dto.Board.Tiles, tile => Assert.NotNull(tile.FencedEdges));
     }
 
@@ -275,7 +275,7 @@ public class GetBoardStateQueryHandlerTests
         Assert.All(dto.Board.Tiles, tile => Assert.False(tile.IsObstacle));
     }
 
-    // ── AC 4 : Pieces have correct shape ──────────────────────────────────────
+    // ── AC 4: Pieces have the correct shape ──────────────────────────────────────
 
     [Fact]
     public async Task Handle_ValidRequest_YourPiecesContainsCallerLineup()
@@ -345,7 +345,7 @@ public class GetBoardStateQueryHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_PiecesNotYetPlacedHaveNullPosition()
     {
-        // Arrange: game just started — no pieces placed yet
+        // Arrange: the game just started — no pieces placed yet
         var (game, p1, _) = NewStartedGame();
         var reg = MakeRegistration(game.Id, p1);
 
@@ -426,13 +426,13 @@ public class GetBoardStateQueryHandlerTests
         Assert.All(dto.YourPieces, piece => Assert.True(piece.MaxDistance >= 1));
     }
 
-    // ── AC 7 : yourPieces / opponentPieces are relative to calling bot ────────
+    // ── AC 7: yourPieces / opponentPieces are relative to calling bot ────────
 
     [Fact]
     public async Task Handle_CalledByPlayerTwo_YourPiecesContainsPlayerTwoPieces()
     {
         // Arrange: player 2 issues the query
-        var (game, p1, p2) = NewStartedGame();
+        var (game, _, p2) = NewStartedGame();
         var reg2 = MakeRegistration(game.Id, p2);
 
         var gameRepo = Substitute.For<IGameRepository>();
@@ -453,7 +453,7 @@ public class GetBoardStateQueryHandlerTests
     public async Task Handle_CalledByPlayerTwo_OpponentPiecesContainsPlayerOnePieces()
     {
         // Arrange
-        var (game, p1, p2) = NewStartedGame();
+        var (game, _, p2) = NewStartedGame();
         var p2pieces = game.LineupPlayerTwo!.Pieces.Select(p => p.Id).ToHashSet();
         var reg2 = MakeRegistration(game.Id, p2);
 
@@ -477,7 +477,7 @@ public class GetBoardStateQueryHandlerTests
     [Fact]
     public async Task Handle_NoCoinsOnBoard_AvailableCoinsIsEmpty()
     {
-        // Arrange: game just started, no coins spawned
+        // Arrange: the game just started, no coins spawned
         var (game, p1, _) = NewStartedGame();
         var reg = MakeRegistration(game.Id, p1);
 
@@ -617,7 +617,7 @@ public class GetBoardStateQueryHandlerTests
         var dto = await handler.Handle(new GetBoardStateQuery(game.Id, reg.Token), CancellationToken.None);
 
         // Assert: the tile at (3,3) should have a coin occupant
-        var coinTile = dto.Board.Tiles.Single(t => t.Position.Row == 3 && t.Position.Col == 3);
+        var coinTile = dto.Board.Tiles.Single(t => t.Position is { Row: 3, Col: 3 });
         Assert.NotNull(coinTile.Occupant);
         Assert.Equal("coin", coinTile.Occupant.Type);
     }
@@ -643,7 +643,7 @@ public class GetBoardStateQueryHandlerTests
         Assert.All(dto.Board.Tiles, tile => Assert.Null(tile.Occupant));
     }
 
-    // ── AC 5 : 404 when game not found ────────────────────────────────────────
+    // ── AC 5: 404 when game not found ────────────────────────────────────────
 
     [Fact]
     public async Task Handle_GameNotFound_PropagatesGameNotFoundException()
@@ -667,7 +667,7 @@ public class GetBoardStateQueryHandlerTests
             handler.Handle(new GetBoardStateQuery(gameId, token), CancellationToken.None));
     }
 
-    // ── AC 6 : 403 when token is missing or invalid ────────────────────────────
+    // ── AC 6: 403 when token is missing or invalid ────────────────────────────
 
     [Fact]
     public async Task Handle_TokenNotFoundInRegistry_ThrowsUnauthorizedGameAccessException()
@@ -728,7 +728,7 @@ public class GetBoardStateQueryHandlerTests
             handler.Handle(new GetBoardStateQuery(requestedGameId, token), CancellationToken.None));
 
         // Assert: game repo was never called since auth failed first
-        await gameRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default);
+        await gameRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(Guid.Empty);
     }
 
     // ── ActivePlayer ──────────────────────────────────────────────────────────
@@ -829,9 +829,12 @@ public class GetBoardStateQueryHandlerTests
     {
         // Arrange: advance game CoinSpawn → PlacePhase → MovePhase
         // After Start(), game is in CoinSpawn phase.
-        var (game, p1, _) = NewStartedGame();
+        var (game, p1, p2) = NewStartedGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase; MovePhaseActivePlayer = PlayerOne
+        // Place one piece per player so MovePhase is not immediately auto-skipped.
+        game.PlacePiece(p1, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(p2, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 7));
+        // MarkPlacePhaseActed auto-advances to MovePhase; MovePhaseActivePlayer = PlayerOne.
 
         var reg = MakeRegistration(game.Id, p1);
 

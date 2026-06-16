@@ -3,7 +3,7 @@ using ScrambleCoin.Domain.ValueObjects;
 namespace ScrambleCoin.Domain.Events;
 
 /// <summary>
-/// Raised when a coin is converted from silver to gold (e.g., by Merlin's ability).
+/// Raised when a coin is converted from silver to gold (e.g. by Merlin's ability).
 /// </summary>
 public sealed record CoinConverted(
     Guid GameId,

@@ -1,4 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using ScrambleCoin.Application.Abstractions;
+using ScrambleCoin.Application.Behaviours;
+using ScrambleCoin.Application.Interfaces;
+using ScrambleCoin.Application.Services;
+using ScrambleCoin.Infrastructure.Persistence;
+using ScrambleCoin.Web.Hubs;
 using Serilog;
 using Serilog.Events;
 
@@ -35,15 +42,67 @@ try
     builder.Services.AddRazorPages();
     builder.Services.AddServerSideBlazor();
 
+    // ── SignalR ───────────────────────────────────────────────────────────────
+    builder.Services.AddSignalR();
+
     // ── MudBlazor ─────────────────────────────────────────────────────────────
     builder.Services.AddMudServices();
 
     // ── MediatR ───────────────────────────────────────────────────────────────
     builder.Services.AddMediatR(cfg =>
+    {
         cfg.RegisterServicesFromAssemblies(
-            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly));
+            typeof(ScrambleCoin.Application.Games.CreateGame.CreateGameCommandHandler).Assembly);
+        // Serialization must wrap everything — register first so it is the outermost behaviour.
+        cfg.AddOpenBehavior(typeof(GameSerializationBehaviour<,>));
+        cfg.AddOpenBehavior(typeof(SignalRBroadcastBehaviour<,>));
+    });
+    builder.Services.AddSingleton<GameLockService>();
+
+    // ── Database & EF Core ─────────────────────────────────────────────────────
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<ScrambleCoinDbContext>(opts =>
+        opts.UseSqlServer(connectionString));
+
+    // ── Repositories ──────────────────────────────────────────────────────────
+    builder.Services.AddScoped<IGameRepository,
+        GameRepository>();
+    builder.Services.AddScoped<IBotUnlocksRepository,
+        BotUnlocksRepository>();
+    builder.Services.AddScoped<IVillainTreeRepository,
+        VillainTreeRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.BotRegistration.IBotRegistrationRepository,
+        BotRegistrationRepository>();
+    builder.Services.AddScoped<ITournamentRepository,
+        TournamentRepository>();
+    builder.Services.AddScoped<IRankingRepository,
+        RankingRepository>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Games.Replay.IGameSnapshotRepository,
+        GameSnapshotRepository>();
+    builder.Services.AddScoped<IUnitOfWork>(
+        sp => sp.GetRequiredService<ScrambleCoinDbContext>());
+
+    // ── Application Services ───────────────────────────────────────────────────
+    builder.Services.AddScoped<ICoinSpawnService,
+        CoinSpawnService>();
+    builder.Services.AddScoped<ScrambleCoin.Application.Services.Villains.IVillainStrategyFactory,
+        ScrambleCoin.Application.Services.Villains.VillainStrategyFactory>();
+    builder.Services.AddScoped<IVillainActionDispatcher, VillainActionDispatcher>();
+    builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>();
+    builder.Services.AddSingleton<Random>();
     
+    // ── SignalR Broadcaster ───────────────────────────────────────────────────
+    builder.Services.AddScoped<IGameBroadcaster, GameBroadcaster>();
+
     var app = builder.Build();
+
+    // ── Database initialization & seeding ─────────────────────────────────────
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ScrambleCoinDbContext>();
+        dbContext.Database.Migrate();
+        VillainTreeSeeder.SeedDefaultTree(dbContext);
+    }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
     if (!app.Environment.IsDevelopment())
@@ -58,6 +117,7 @@ try
     app.UseSerilogRequestLogging();
 
     app.MapBlazorHub();
+    app.MapHub<GameHub>("/hubs/game");
     app.MapFallbackToPage("/_Host");
 
     app.Run();
@@ -70,6 +130,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-
-public partial class Program;

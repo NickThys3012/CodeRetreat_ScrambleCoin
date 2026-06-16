@@ -110,7 +110,7 @@ public class IcePatchesTests
 
     // ── Elsa Ice Patch Placement Tests ─────────────────────────────────────────
 
-    private static (Game game, Guid p1, Guid p2) CreateGameInMovePhase()
+    private static (Game game, Guid p1) CreateGameInMovePhase()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -132,24 +132,28 @@ public class IcePatchesTests
         game.Start();
 
         game.AdvancePhase(); // CoinSpawn → PlacePhase
+        // Elsa is restricted to turn ≥ 2 (Issue #59); skip turn 1 placement.
+        game.SkipPlacement(p1);
+        game.SkipPlacement(p2);
+        game.AdvancePhase(); // CoinSpawn (turn 2) → PlacePhase
         game.PlacePiece(p1, elsaPiece.Id, new Position(0, 0));
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
-        return (game, p1, p2);
+        return (game, p1);
     }
 
     [Fact]
     public void ElsaMove_PlacesIcePatchesOnExitTiles()
     {
         // Arrange
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa from (0,0) to (0,3) via (0,1), (0,2), (0,3)
-        var segment = (IReadOnlyList<Position>)new List<Position> 
+        IReadOnlyList<Position> segment = new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2),
-            new Position(0, 3)
+            new(0, 1),
+            new(0, 2),
+            new(0, 3)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
@@ -167,10 +171,10 @@ public class IcePatchesTests
     public void ElsaMove_SingleStepMove_NoIcePatchesPlaced()
     {
         // Arrange
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa from (0,0) to (0,1) - only 1 step
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(0, 1) }.AsReadOnly();
+        IReadOnlyList<Position> segment = new List<Position> { new(0, 1) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
         var elsaPiece = game.LineupPlayerOne!.Pieces[0];
@@ -205,15 +209,19 @@ public class IcePatchesTests
         game.Start();
 
         game.AdvancePhase(); // CoinSpawn → PlacePhase
+        // Elsa is restricted to turn ≥ 2 (Issue #59); skip turn 1 placement.
+        game.SkipPlacement(p1);
+        game.SkipPlacement(p2);
+        game.AdvancePhase(); // CoinSpawn (turn 2) → PlacePhase
         // Place Elsa at (0,0) on the border, move to (0,2)
         game.PlacePiece(p1, elsaPiece.Id, new Position(0, 0));
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
         // Act: Move Elsa from (0,0) to (0,2) via (0,1), (0,2)
-        var segment = (IReadOnlyList<Position>)new List<Position> 
+        IReadOnlyList<Position> segment = new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2)
+            new(0, 1),
+            new(0, 2)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
@@ -259,7 +267,7 @@ public class IcePatchesTests
         game.PlacePiece(p2, p2Piece.Id, new Position(7, 7));
 
         // Act: Jump piece jumps to (3, 3) which has an ice patch
-        var segment = (IReadOnlyList<Position>)new List<Position> { new Position(3, 3) }.AsReadOnly();
+        IReadOnlyList<Position> segment = new List<Position> { new(3, 3) }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 
         game.MovePiece(p1, jumpPiece.Id, segments);
@@ -272,14 +280,14 @@ public class IcePatchesTests
     public void IcePatches_PersistAcrossTurns()
     {
         // Arrange: Elsa places ice patches
-        var (game, p1, _) = CreateGameInMovePhase();
+        var (game, p1) = CreateGameInMovePhase();
 
         // Act: Move Elsa to place ice patches
-        var segment = (IReadOnlyList<Position>)new List<Position> 
+        IReadOnlyList<Position> segment = new List<Position> 
         { 
-            new Position(0, 1),
-            new Position(0, 2),
-            new Position(0, 3)
+            new(0, 1),
+            new(0, 2),
+            new(0, 3)
         }.AsReadOnly();
         var segments = new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
 

@@ -70,7 +70,7 @@ public sealed class ChangelogComponentTests
         {
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("No releases yet", cut.Markup, StringComparison.OrdinalIgnoreCase),
                 TimeSpan.FromSeconds(2));
         }
@@ -89,10 +89,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), "[]");
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), "[]");
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("No releases yet", cut.Markup, StringComparison.OrdinalIgnoreCase),
                 TimeSpan.FromSeconds(2));
         }
@@ -121,10 +121,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("v1.2.3", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
         }
@@ -153,10 +153,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("First Release Ever", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
         }
@@ -185,10 +185,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("2024-03-07", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
         }
@@ -217,10 +217,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("Fixed login bug", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
             Assert.Contains("Improved performance", cut.Markup, StringComparison.Ordinal);
@@ -250,11 +250,11 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
             // Wait for the component to finish loading (a version must appear)
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("v2.0.0", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
             // Then assert the negative
@@ -274,10 +274,10 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), "not { valid } json !!!");
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), "not { valid } json !!!");
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("No releases yet", cut.Markup, StringComparison.OrdinalIgnoreCase),
                 TimeSpan.FromSeconds(2));
         }
@@ -295,11 +295,11 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), "{\"broken\": true}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), "{\"broken\": true}");
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
             // Wait for loading to finish: the "No releases yet" alert must appear
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("No releases yet", cut.Markup, StringComparison.OrdinalIgnoreCase),
                 TimeSpan.FromSeconds(2));
             // The spinner is rendered only while _loading=true; after init it must be gone.
@@ -343,11 +343,11 @@ public sealed class ChangelogComponentTests
         var dir = CreateTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "changelog.json"), json);
+            await File.WriteAllTextAsync(Path.Combine(dir, "changelog.json"), json);
             await using var ctx = CreateContext(dir);
             var cut = ctx.Render<Changelog>();
             // Wait for the first entry to render, then check all three
-            cut.WaitForAssertion(
+            await cut.WaitForAssertionAsync(
                 () => Assert.Contains("v1.2.0", cut.Markup, StringComparison.Ordinal),
                 TimeSpan.FromSeconds(2));
             Assert.Contains("v1.1.0", cut.Markup, StringComparison.Ordinal);

@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.Games.Admin;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
@@ -13,8 +15,8 @@ namespace ScrambleCoin.Infrastructure.Persistence;
 /// <summary>
 /// EF Core-backed implementation of <see cref="IGameRepository"/>.
 /// Persists the <see cref="Game"/> aggregate by mapping its state to a <see cref="GameRecord"/>
-/// POCO (scalar columns + JSON columns for complex structures) and reconstructing
-/// the domain object on load via reflection where private setters/fields are involved.
+/// POCO (scalar columns and JSON columns for complex structures) and reconstructing
+/// the domain object on a load via reflection where private setters/fields are involved.
 /// </summary>
 public sealed class GameRepository : IGameRepository
 {
@@ -44,6 +46,16 @@ public sealed class GameRepository : IGameRepository
     /// <inheritdoc/>
     public async Task SaveAsync(Game game, CancellationToken cancellationToken = default)
     {
+        await StageAsync(game, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Clear domain events after successful persistence (they are transient).
+        game.ClearDomainEvents();
+    }
+
+    /// <inheritdoc/>
+    public async Task StageAsync(Game game, CancellationToken cancellationToken = default)
+    {
         var record = ExtractRecord(game);
 
         var existing = await _context.Games.FindAsync([game.Id], cancellationToken);
@@ -55,12 +67,73 @@ public sealed class GameRepository : IGameRepository
         {
             _context.Entry(existing).CurrentValues.SetValues(record);
         }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Clear domain events after successful persistence (they are transient).
-        game.ClearDomainEvents();
+        // No SaveChangesAsync — caller commits via IUnitOfWork.SaveChangesAsync.
     }
+
+    /// <inheritdoc/>
+    public async Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
+    {
+        const int inProgress = (int)GameStatus.InProgress;
+        return await _context.Games.AnyAsync(
+            g => (g.PlayerOne == playerId || g.PlayerTwo == playerId) && g.Status == inProgress,
+            cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+    {
+        const int inProgress     = (int)GameStatus.InProgress;
+        const int waitingForBots = (int)GameStatus.WaitingForBots;
+        const int finished       = (int)GameStatus.Finished;
+
+        // Active games + the 12 most recently completed (for replay links on the lobby)
+        var activeRecords = await _context.Games
+            .AsNoTracking()
+            .Where(g => g.Status == inProgress || g.Status == waitingForBots)
+            .ToListAsync(cancellationToken);
+
+        var recentCompleted = await _context.Games
+            .AsNoTracking()
+            .Where(g => g.Status == finished)
+            .OrderByDescending(g => g.LastMoveAt)
+            .Take(12)
+            .ToListAsync(cancellationToken);
+
+        var records = activeRecords.Concat(recentCompleted).ToList();
+        var results = new List<ActiveGameSummaryDto>(records.Count);
+
+        foreach (var r in records)
+        {
+            // Parse scores JSON: {"guid-as-string": score, ...}
+            var scoresDict = string.IsNullOrEmpty(r.ScoresJson)
+                ? new Dictionary<string, int>()
+                : JsonSerializer.Deserialize<Dictionary<string, int>>(r.ScoresJson, JsonOptions)
+                  ?? new Dictionary<string, int>();
+
+            scoresDict.TryGetValue(r.PlayerOne.ToString(), out var scoreOne);
+            scoresDict.TryGetValue(r.PlayerTwo.ToString(), out var scoreTwo);
+
+            var statusStr = ((GameStatus)r.Status).ToString();
+            var phaseStr  = r.CurrentPhase.HasValue
+                ? ((TurnPhase)r.CurrentPhase.Value).ToString()
+                : null;
+
+            results.Add(new ActiveGameSummaryDto(
+                GameId:        r.Id,
+                PlayerOne:     r.PlayerOne,
+                PlayerTwo:     r.PlayerTwo,
+                Status:        statusStr,
+                TurnNumber:    r.TurnNumber,
+                Phase:         phaseStr,
+                ScorePlayerOne: scoreOne,
+                ScorePlayerTwo: scoreTwo,
+                LastMoveAt:    r.LastMoveAt));
+        }
+
+        return results.AsReadOnly();
+    }
+
+
 
     // ── Extraction (Game → GameRecord) ────────────────────────────────────────
 
@@ -77,6 +150,8 @@ public sealed class GameRepository : IGameRepository
             PlayerOne = game.PlayerOne,
             PlayerTwo = game.PlayerTwo,
             Status = (int)game.Status,
+            GameMode = (int)game.GameMode,
+            VillainId = game.VillainId,
             TurnNumber = game.TurnNumber,
             CurrentPhase = game.CurrentPhase.HasValue ? (int)game.CurrentPhase.Value : null,
             MovePhaseActivePlayer = game.MovePhaseActivePlayer,
@@ -90,7 +165,8 @@ public sealed class GameRepository : IGameRepository
             LineupPlayerTwoJson = game.LineupPlayerTwo is not null
                 ? SerializeLineup(game.LineupPlayerTwo)
                 : null,
-            BoardStateJson = SerializeBoardState(game.Board)
+            BoardStateJson = SerializeBoardState(game.Board),
+            LastMoveAt = DateTimeOffset.UtcNow
         };
     }
 
@@ -107,7 +183,7 @@ public sealed class GameRepository : IGameRepository
             ? JsonSerializer.Deserialize<List<PieceDto>>(record.LineupPlayerTwoJson, JsonOptions) ?? []
             : [];
 
-        // 2. Materialise Piece domain objects (Position is applied below).
+        // 2. Materialize Piece domain objects (Position is applied below).
         var piecesOne = pieceDtosOne.Select(ReconstructPiece).ToList();
         var piecesTwo = pieceDtosTwo.Select(ReconstructPiece).ToList();
 
@@ -115,7 +191,7 @@ public sealed class GameRepository : IGameRepository
             .Concat(piecesTwo)
             .ToDictionary(p => p.Id);
 
-        // 3. Reconstruct Board with obstacles.
+        // 3. Reconstruct the Board with obstacles.
         var board = new Board();
         var boardState = JsonSerializer.Deserialize<BoardStateDto>(record.BoardStateJson, JsonOptions);
 
@@ -151,8 +227,8 @@ public sealed class GameRepository : IGameRepository
             }
         }
 
-        // 5. Create Game via the standard constructor.
-        //    The constructor initialises _scores and _piecesOnBoard to zeroes; we override them below.
+        // 5. Create a Game via the standard constructor.
+        //    The constructor initializes _scores and _piecesOnBoard to zeroes; we override them below.
         var game = new Game(record.Id, record.PlayerOne, record.PlayerTwo, board);
 
         var gameType = typeof(Game);
@@ -163,6 +239,10 @@ public sealed class GameRepository : IGameRepository
         SetPrivateProperty(gameType, nameof(Game.CurrentPhase), game,
             record.CurrentPhase.HasValue ? (TurnPhase?)(TurnPhase)record.CurrentPhase.Value : null);
         SetPrivateProperty(gameType, nameof(Game.MovePhaseActivePlayer), game, record.MovePhaseActivePlayer);
+
+        // Restore GameMode and VillainId
+        game.GameMode = (GameMode)record.GameMode;
+        game.VillainId = record.VillainId;
 
         // 7. Restore Lineups (bypasses the WaitingForBots guard in SetLineup).
         if (piecesOne.Count > 0)
@@ -211,7 +291,8 @@ public sealed class GameRepository : IGameRepository
             MaxDistance: p.MaxDistance,
             MovesPerTurn: p.MovesPerTurn,
             PositionRow: p.Position?.Row,
-            PositionCol: p.Position?.Col)).ToList();
+            PositionCol: p.Position?.Col,
+            AvailableFromTurn: p.AvailableFromTurn)).ToList();
 
         return JsonSerializer.Serialize(dtos, JsonOptions);
     }
@@ -253,7 +334,7 @@ public sealed class GameRepository : IGameRepository
 
     private static string SerializeGuidIntDictionary(IReadOnlyDictionary<Guid, int> dict)
     {
-        // Convert Guid keys to strings for JSON serialisation.
+        // Convert Guid keys to strings for JSON serialization.
         var strDict = dict.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value);
         return JsonSerializer.Serialize(strDict, JsonOptions);
     }
@@ -287,7 +368,8 @@ public sealed class GameRepository : IGameRepository
             entryPointType: (EntryPointType)dto.EntryPointType,
             movementType: (MovementType)dto.MovementType,
             maxDistance: dto.MaxDistance,
-            movesPerTurn: dto.MovesPerTurn);
+            movesPerTurn: dto.MovesPerTurn,
+            availableFromTurn: dto.AvailableFromTurn);
     }
 
     // ── Reflection helpers ────────────────────────────────────────────────────

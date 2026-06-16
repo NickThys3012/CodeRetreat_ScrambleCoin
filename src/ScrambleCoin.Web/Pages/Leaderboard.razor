@@ -1,0 +1,148 @@
+@page "/leaderboard"
+@using MediatR
+@using ScrambleCoin.Application.Ranking.GetLeaderboard
+@inject IMediator Mediator
+@implements IDisposable
+
+<PageTitle>Leaderboard — ScrambleCoin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div style="font-size: 2rem; font-weight: bold; margin: 1.5rem 0;">
+        🏆 Ranking Leaderboard
+    </div>
+
+    <MudText Typo="Typo.body2" Class="mb-4" Style="color:#aaa;">
+        Points awarded per game: +3 Win · +2 Draw · +1 Loss · Maximum 550 pts.
+        Refreshes every 10 seconds.
+    </MudText>
+
+    @if (_isLoading && _entries.Count == 0)
+    {
+        <MudProgressCircular Indeterminate="true" Class="my-4" />
+    }
+    else if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="my-4">@_error</MudAlert>
+    }
+    else if (_entries.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="my-4">
+            No ranking data yet. Play some games to get on the board!
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="2">
+            <HeaderContent>
+                <MudTh>Rank</MudTh>
+                <MudTh>Bot Name</MudTh>
+                <MudTh>Points</MudTh>
+                <MudTh>W</MudTh>
+                <MudTh>D</MudTh>
+                <MudTh>L</MudTh>
+                <MudTh>Games</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Rank">
+                    @switch (context.Rank)
+                    {
+                        case 1:
+                            <span>🥇 1</span>
+                            break;
+                        case 2:
+                            <span>🥈 2</span>
+                            break;
+                        case 3:
+                            <span>🥉 3</span>
+                            break;
+                        default:
+                            <span>@context.Rank</span>
+                            break;
+                    }
+                </MudTd>
+                <MudTd DataLabel="Bot Name">
+                    <strong>@context.BotName</strong>
+                </MudTd>
+                <MudTd DataLabel="Points">
+                    <MudChip T="string" Color="@GetPointsColour(context.Points)" Size="Size.Small">
+                        @context.Points
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="W" Style="color: #4caf50;">@context.Wins</MudTd>
+                <MudTd DataLabel="D" Style="color: #ff9800;">@context.Draws</MudTd>
+                <MudTd DataLabel="L" Style="color: #f44336;">@context.Losses</MudTd>
+                <MudTd DataLabel="Games">@context.GamesPlayed</MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudText Typo="Typo.caption" Class="mt-2" Style="color:#666;">
+            Last updated: @_lastRefreshed.ToString("HH:mm:ss")
+        </MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<LeaderboardEntryDto> _entries = [];
+    private bool _isLoading = true;
+    private string? _error;
+    private DateTime _lastRefreshed = DateTime.Now;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        await LoadLeaderboard();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await LoadLeaderboard();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component is being disposed — exit cleanly.
+        }
+    }
+
+    private async Task LoadLeaderboard()
+    {
+        try
+        {
+            _isLoading = true;
+            var result = await Mediator.Send(new GetLeaderboardQuery());
+            _entries = result.ToList();
+            _lastRefreshed = DateTime.Now;
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load leaderboard: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static Color GetPointsColour(int points) => points switch
+    {
+        >= 400 => Color.Success,
+        >= 200 => Color.Primary,
+        >= 100 => Color.Warning,
+        _      => Color.Default
+    };
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

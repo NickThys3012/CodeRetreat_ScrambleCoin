@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ScrambleCoin.Application.BotRegistration;
@@ -83,13 +84,12 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private static IReadOnlyList<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
+    private static ReadOnlyCollection<PieceDto> GetPiecesForPlayer(Game game, Guid playerId)
     {
         var lineup = playerId == game.PlayerOne ? game.LineupPlayerOne : game.LineupPlayerTwo;
-        if (lineup is null)
-            return [];
-
-        return lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
+        return lineup is null ? 
+            Array.Empty<PieceDto>().AsReadOnly() : 
+            lineup.Pieces.Select(MapPiece).ToList().AsReadOnly();
     }
 
     private static PieceDto MapPiece(Piece piece) =>
@@ -100,9 +100,10 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             MovementType: piece.MovementType.ToString(),
             MaxDistance: piece.MaxDistance,
             MovesPerTurn: piece.MovesPerTurn,
-            IsOnBoard: piece.IsOnBoard);
+            IsOnBoard: piece.IsOnBoard,
+            AvailableFromTurn: piece.AvailableFromTurn);
 
-    private static IReadOnlyList<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
+    private static ReadOnlyCollection<TileDto> BuildTiles(Board board, BoardObstacles obstacles)
     {
         var tiles = new List<TileDto>(Board.Size * Board.Size);
 
@@ -114,12 +115,18 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
             var isObstacle = board.IsObstacleCovering(position);
             var occupant = MapOccupant(tile);
             var fencedEdges = GetFencedEdges(position, obstacles.Fences);
+            var obstacleType = board.HasLake(position) ? "Lake"
+                : board.HasRock(position) ? "Rock"
+                : "None";
+            var hasIcePatch = board.HasIcePatch(position);
 
             tiles.Add(new TileDto(
                 Position: new PositionDto(row, col),
                 IsObstacle: isObstacle,
                 Occupant: occupant,
-                FencedEdges: fencedEdges));
+                FencedEdges: fencedEdges,
+                ObstacleType: obstacleType,
+                HasIcePatch: hasIcePatch));
         }
 
         return tiles.AsReadOnly();
@@ -143,7 +150,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
         return null;
     }
 
-    private static IReadOnlyList<string> GetFencedEdges(Position position, IReadOnlyList<Fence> fences)
+    private static ReadOnlyCollection<string> GetFencedEdges(Position position, IReadOnlyList<Fence> fences)
     {
         var edges = new List<string>(4);
 
@@ -182,7 +189,7 @@ public sealed class GetBoardStateQueryHandler : IRequestHandler<GetBoardStateQue
         return edges.AsReadOnly();
     }
 
-    private static IReadOnlyList<CoinDto> BuildAvailableCoins(Board board)
+    private static ReadOnlyCollection<CoinDto> BuildAvailableCoins(Board board)
     {
         return board.GetAllCoins()
             .Select(tile => new CoinDto(

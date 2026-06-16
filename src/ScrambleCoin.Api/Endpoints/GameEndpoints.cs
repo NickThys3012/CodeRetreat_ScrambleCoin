@@ -1,6 +1,8 @@
 using MediatR;
+using ScrambleCoin.Api.RequestBodies;
 using ScrambleCoin.Application.Games.CreateGame;
 using ScrambleCoin.Application.Games.GetBoardState;
+using ScrambleCoin.Application.Games.GetGameResult;
 using ScrambleCoin.Application.Games.JoinGame;
 using ScrambleCoin.Application.Games.MovePiece;
 using ScrambleCoin.Application.Games.SubmitPlacement;
@@ -13,9 +15,8 @@ namespace ScrambleCoin.Api.Endpoints;
 /// <summary>
 /// Minimal API endpoints for game session management and bot registration.
 /// </summary>
-public static class GameEndpoints
+internal static class GameEndpoints
 {
-    private const string AdminKey = "scramblecoin-admin";
 
     public static void MapGameEndpoints(this WebApplication app)
     {
@@ -39,6 +40,11 @@ public static class GameEndpoints
             .WithName("PollQueue")
             .WithTags("Games");
 
+        // GET /api/games/{gameId}/result — retrieve the final result of a finished game
+        app.MapGet("/api/games/{gameId:guid}/result", GetGameResult)
+            .WithName("GetGameResult")
+            .WithTags("Games");
+
         // GET /api/games/{gameId}/state — bot reads current board state
         app.MapGet("/api/games/{gameId:guid}/state", GetBoardState)
             .WithName("GetBoardState")
@@ -50,7 +56,7 @@ public static class GameEndpoints
             .WithTags("Games");
 
         // POST /api/games/{gameId}/move — bot submits a piece move during MovePhase
-        app.MapPost("/api/games/{gameId}/move", MovePiece)
+        app.MapPost("/api/games/{gameId:guid}/move", MovePiece)
             .WithName("MovePiece")
             .WithTags("Games");
     }
@@ -64,12 +70,9 @@ public static class GameEndpoints
         CancellationToken ct)
     {
         if (!httpRequest.Headers.TryGetValue("X-Admin-Key", out var adminKey) ||
-            adminKey != AdminKey)
+            adminKey != AdminAuth.Key)
         {
-            return Results.Problem(
-                detail: "Missing or invalid X-Admin-Key header.",
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized");
+            return AdminAuth.Unauthorized();
         }
 
         var result = await sender.Send(new CreateGameCommand(), ct);
@@ -80,7 +83,7 @@ public static class GameEndpoints
     /// <summary>Bot joins a game and submits a lineup of 5-piece names.</summary>
     private static async Task<IResult> JoinGame(
         Guid gameId,
-        JoinGameRequest body,
+        GameEndpointRequests.JoinGameRequest body,
         ISender sender,
         CancellationToken ct)
     {
@@ -107,26 +110,42 @@ public static class GameEndpoints
 
     /// <summary>Bot joins the matchmaking queue with a lineup.</summary>
     private static async Task<IResult> QueueBot(
-        QueueRequest body,
+        GameEndpointRequests.QueueRequest body,
+        HttpRequest httpRequest,
         IQueueService queueService,
         CancellationToken ct)
     {
-        var entry = await queueService.EnqueueAsync(body.Lineup, ct);
+        // Bot identity is required to enforce duplicate-queue and active-game conflict checks.
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
 
-        if (entry.Status == "matched")
+        QueueEntry entry;
+        try
         {
-            return Results.Ok(new
-            {
-                gameId = entry.GameId,
-                playerId = entry.PlayerId,
-                token = entry.Token
-            });
+            entry = await queueService.EnqueueAsync(body.Lineup, botToken, ct);
+        }
+        catch (DomainException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid Lineup");
         }
 
+        return entry.Status switch
+        {
+            "conflict" => Results.Problem(detail: "Bot is already waiting in the queue or has an active game in progress.", statusCode: StatusCodes.Status409Conflict, title: "Conflict"),
+            "matched" => Results.Ok(new
+            {
+                gameId = entry.GameId, playerId = entry.PlayerId, token = entry.Token
+            }),
+            _ => Results.Accepted($"/api/games/queue/{entry.QueueId}", new
+            {
+                queueId = entry.QueueId
+            })
+        };
+
         // 202 Accepted — bot is waiting in the queue
-        return Results.Accepted(
-            $"/api/games/queue/{entry.QueueId}",
-            new { queueId = entry.QueueId });
     }
 
     /// <summary>Polls a queue entry for matchmaking status.</summary>
@@ -135,7 +154,7 @@ public static class GameEndpoints
         IQueueService queueService,
         CancellationToken ct)
     {
-        var entry = await queueService.PollAsync(queueId, ct);
+        var entry = await queueService.PollAsync(queueId);
 
         if (entry is null)
         {
@@ -145,24 +164,24 @@ public static class GameEndpoints
                 title: "Not Found");
         }
 
-        if (entry.Status == "waiting")
+        return entry.Status switch
         {
-            return Results.Ok(new { status = "waiting" });
-        }
-
-        return Results.Ok(new
-        {
-            status = "matched",
-            gameId = entry.GameId,
-            playerId = entry.PlayerId,
-            token = entry.Token
-        });
+            "timed_out" => Results.Problem(detail: "No opponent was found before the queue entry expired. Please re-enqueue.", statusCode: StatusCodes.Status409Conflict, title: "Queue Timed Out"),
+            "waiting" => Results.Ok(new
+            {
+                status = "waiting"
+            }),
+            _ => Results.Ok(new
+            {
+                status = "matched", gameId = entry.GameId, playerId = entry.PlayerId, token = entry.Token
+            })
+        };
     }
 
     /// <summary>Bot submits a placement decision (place, replace, or skip) during PlacePhase.</summary>
     private static async Task<IResult> PlacePiece(
         Guid gameId,
-        PlacementRequest body,
+        GameEndpointRequests.PlacementRequest body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)
@@ -216,6 +235,44 @@ public static class GameEndpoints
 
     // ── Shared helpers ────────────────────────────────────────────────────────
 
+    /// <summary>Retrieves the final result of a finished game. Requires <c>X-Bot-Token</c> header.</summary>
+    private static async Task<IResult> GetGameResult(
+        Guid gameId,
+        HttpRequest httpRequest,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!TryExtractBotToken(httpRequest, out var botToken))
+            return ForbiddenBotToken();
+
+        try
+        {
+            var result = await sender.Send(new GetGameResultQuery(gameId, botToken), ct);
+            return Results.Ok(result);
+        }
+        catch (UnauthorizedGameAccessException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+        catch (GameNotFoundException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
+        }
+        catch (GameNotFinishedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Game Not Finished");
+        }
+    }
+
     private static bool TryExtractBotToken(HttpRequest request, out Guid token)
     {
         token = Guid.Empty;
@@ -229,36 +286,11 @@ public static class GameEndpoints
             statusCode: StatusCodes.Status403Forbidden,
             title: "Forbidden");
 
-    // ── Request bodies ────────────────────────────────────────────────────────
-
-    private sealed record JoinGameRequest(IReadOnlyList<string> Lineup);
-
-    private sealed record QueueRequest(IReadOnlyList<string> Lineup);
-
-    /// <summary>
-    /// Request body for <c>POST /api/games/{gameId}/move</c>.
-    /// </summary>
-    /// <param name="PieceId">The piece to move.</param>
-    /// <param name="Segments">One segment per MovesPerTurn; each segment is an ordered list of positions.</param>
-    private sealed record MoveRequest(Guid PieceId, IReadOnlyList<IReadOnlyList<PositionRequest>> Segments);
-
-    /// <summary>
-    /// Request body for <c>POST /api/games/{gameId}/place</c>.
-    /// </summary>
-    /// <param name="Action">One of: "place", "replace", "skip".</param>
-    /// <param name="PieceId">The piece to place or use as a replacement (required for "place" and "replace").</param>
-    /// <param name="ReplacedPieceId">The on-board piece to remove (required for "replace" only).</param>
-    /// <param name="Position">Target board position (required for "place" and "replace").</param>
-    private sealed record PlacementRequest(
-        string? Action,
-        Guid? PieceId,
-        Guid? ReplacedPieceId,
-        PositionRequest? Position);
-
+  
     /// <summary>Bot submits a piece move during MovePhase.</summary>
     private static async Task<IResult> MovePiece(
         Guid gameId,
-        MoveRequest body,
+        GameEndpointRequests.MoveRequest body,
         HttpRequest httpRequest,
         ISender sender,
         CancellationToken ct)
@@ -270,9 +302,9 @@ public static class GameEndpoints
         {
             if (body.Segments is null)
                 return Results.Problem(detail: "'segments' is required.", statusCode: StatusCodes.Status400BadRequest, title: "Bad Request");
-
+            
             IReadOnlyList<IReadOnlyList<Position>> segments = body.Segments
-                .Select(seg => (IReadOnlyList<Position>)seg
+                .Select(IReadOnlyList<Position> (seg) => seg
                     .Select(p => new Position(p.Row, p.Col))
                     .ToList()
                     .AsReadOnly())

@@ -153,7 +153,7 @@ csharp_prefer_braces = true:silent
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_style_prefer_method_group_conversion = true:silent
-csharp_style_prefer_primary_constructors = false:suggestion
+csharp_style_prefer_primary_constructors = false:none
 csharp_style_prefer_top_level_statements = false:silent
 
 # Expression-level preferences
@@ -296,7 +296,6 @@ dotnet_diagnostic.CA1511.severity = error
 dotnet_diagnostic.CA1512.severity = error
 dotnet_diagnostic.CA1513.severity = error
 dotnet_diagnostic.CA1514.severity = error
-dotnet_diagnostic.CA1515.severity = warning     # review roel 20250114
 
 # IL Trimming Rules
 dotnet_diagnostic.IL3000.severity = error
@@ -489,16 +488,60 @@ dotnet_diagnostic.CA2254.severity = error       # Structured logging: template s
 dotnet_diagnostic.CA2263.severity = warning     # review roel 20250114
 dotnet_diagnostic.CA2264.severity = error
 
+# Test method naming convention
+dotnet_naming_symbols.test_members.applicable_kinds = method
+dotnet_naming_symbols.test_members.resharper_applicable_kinds = test_member
+
+dotnet_naming_style.test_method_with_underscores.capitalization = pascal_case
+dotnet_naming_style.test_method_with_underscores.required_prefix =
+dotnet_naming_style.test_method_with_underscores.required_suffix =
+dotnet_naming_style.test_method_with_underscores.word_separator = _
+
+dotnet_naming_rule.test_members_should_allow_underscores.symbols = test_members
+dotnet_naming_rule.test_members_should_allow_underscores.style = test_method_with_underscores
+dotnet_naming_rule.test_members_should_allow_underscores.severity = suggestion
+
+resharper_loop_can_be_converted_to_query_highlighting = none
+
+# CA1515 is a Roslyn SDK analyzer (not a ReSharper inspection), so only the
+# dotnet_diagnostic severity controls it — there is no resharper_*_highlighting alias.
+# Public types here are intentionally public (API / Domain surface).
+dotnet_diagnostic.CA1515.severity = none
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Path-based overrides
 # ─────────────────────────────────────────────────────────────────────────────
-
-[tests/*.Tests/**/*.cs]
-dotnet_diagnostic.IDE1006.severity = none
-resharper_inconsistent_naming_highlighting = none
-
 # Migrations: class names and file names follow the FluentMigrator timestamp
 # convention and may contain underscores (e.g. M20240101_AddRegistrationTable).
-[scr/ScrambleCoin.Infrastructure/Migrations/*.cs]
+
+[{tests/**/*.cs,src/ScrambleCoin.Infrastructure/Migrations/*.cs}]
 dotnet_diagnostic.IDE1006.severity = none
+dotnet_diagnostic.CA1707.severity = none
 resharper_inconsistent_naming_highlighting = none
+
+[{src/ScrambleCoin.Application/**/*Dto.cs,src/ScrambleCoin.Infrastructure/Persistence/Records/*Dtos.cs,src/ScrambleCoin.Domain/Events/*.cs}]
+dotnet_diagnostic.CS8907.severity = none
+resharper_not_accessed_positional_property_global_highlighting = none
+dotnet_diagnostic.IDE0051.severity = none
+csharp_style_unused_value_assignment_preference = discard_variable:none
+
+
+[src/ScrambleCoin.Domain/Exceptions/*.cs]
+resharper_unused_auto_property_accessor_global_highlighting  = none
+resharper_unused_auto_property_accessor_local_highlighting = none
+
+[samples/ScrambleCoin.StarterBot/Models/**/*.cs]
+resharper_unused_auto_property_accessor_global_highlighting  = none
+resharper_unused_auto_property_accessor_local_highlighting = none
+resharper_unused_member_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+
+[src/ScrambleCoin.Api/RequestBodies/**/*.cs]
+resharper_class_never_instantiated_global_highlighting = none
+
+[src/ScrambleCoin.Infrastructure/Persistence/Records/*.cs]
+resharper_entity_framework_model_validation_unlimited_string_length_highlighting = none
+
+[tests/ScrambleCoin.Web.Tests/*Tests.cs]
+resharper_class_never_instantiated_global_highlighting = none

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -93,14 +94,15 @@ public class EtherealMovementIntegrationTests
         => new(gameRepo,
             botRepo,
             publisher ?? Substitute.For<IPublisher>(),
+            Substitute.For<Services.IVillainAutomationService>(),
             Substitute.For<ILogger<MovePieceCommandHandler>>());
 
     /// <summary>
     /// Builds a multi-step segment for Ethereal movement.
     /// </summary>
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildEtherealSegment(params Position[] positions)
     {
-        var segment = (IReadOnlyList<Position>)positions.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = positions.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 
@@ -148,7 +150,7 @@ public class EtherealMovementIntegrationTests
     public async Task EtherealMovement_PassThroughOpponentPiece_ReachesDestinationAndSaves()
     {
         // Arrange: Ethereal at (0,0), opponent at (0,1), destination at (0,2)
-        var (game, p1, p2, etherealPiece, p2Piece) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, etherealPiece, p2Piece) = GameInMovePhaseWithEtherealPiece(
             etherealStartPos: new Position(0, 0),
             p2StartPos: new Position(0, 1),
             etherealMaxDistance: 2);
@@ -180,7 +182,7 @@ public class EtherealMovementIntegrationTests
     public async Task EtherealMovement_EndOnOccupiedTile_ThrowsAndDoesNotSave()
     {
         // Arrange: Ethereal at (0,0), opponent at destination (0,1)
-        var (game, p1, p2, etherealPiece, p2Piece) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, etherealPiece, _) = GameInMovePhaseWithEtherealPiece(
             etherealStartPos: new Position(0, 0),
             p2StartPos: new Position(0, 1));
 
@@ -273,7 +275,7 @@ public class EtherealMovementIntegrationTests
     public async Task EtherealMovement_MultipleRocksOpponentAndCoins_PassThroughAllAndCollectCoins()
     {
         // Arrange: Ethereal at (0,0), path with rock, opponent, rock, and coin
-        var (game, p1, p2, etherealPiece, p2Piece) = GameInMovePhaseWithEtherealPiece(
+        var (game, p1, _, etherealPiece, p2Piece) = GameInMovePhaseWithEtherealPiece(
             etherealStartPos: new Position(0, 0),
             p2StartPos: new Position(0, 2),
             etherealMaxDistance: 4);

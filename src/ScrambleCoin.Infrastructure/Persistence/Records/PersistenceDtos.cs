@@ -49,4 +49,5 @@ internal sealed record PieceDto(
     int MaxDistance,
     int MovesPerTurn,
     int? PositionRow,
-    int? PositionCol);
+    int? PositionCol,
+    int? AvailableFromTurn = null);

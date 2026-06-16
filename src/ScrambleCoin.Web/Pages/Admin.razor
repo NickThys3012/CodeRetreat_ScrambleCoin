@@ -1,0 +1,806 @@
+@page "/admin"
+@using MediatR
+@using ScrambleCoin.Application.Games.Admin
+@using ScrambleCoin.Application.Tournament.GetAllTournaments
+@using ScrambleCoin.Application.Tournament.GetStandings
+@using ScrambleCoin.Application.Tournament.CreateTournament
+@using ScrambleCoin.Application.Tournament.AddParticipant
+@using ScrambleCoin.Application.Tournament.StartTournament
+@using ScrambleCoin.Application.Tournament.CancelTournament
+@using ScrambleCoin.Application.Ranking.GetLeaderboard
+@using ScrambleCoin.Application.Ranking.GetAllBotsProgress
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@implements IDisposable
+
+<PageTitle>Admin — ScrambleCoin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+
+    <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">⚙️ Admin Dashboard</div>
+    <MudText Typo="Typo.caption" Style="color:#888;" Class="mb-4">
+        Auto-refreshes every 10 seconds. Last refresh: @_lastRefreshed.ToString("HH:mm:ss")
+    </MudText>
+
+    @if (!string.IsNullOrEmpty(_globalError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4" ShowCloseIcon="true"
+                  CloseIconClicked="@(() => _globalError = null)">
+            @_globalError
+        </MudAlert>
+    }
+
+    <!-- ── Summary cards ────────────────────────────────────────────────── -->
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent Class="pa-4">
+                    <MudText Typo="Typo.body2" Style="color:#aaa;">🎮 Active Games</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; line-height: 1.2;">@_activeGames.Count</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent Class="pa-4">
+                    <MudText Typo="Typo.body2" Style="color:#aaa;">🏆 Tournaments</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; line-height: 1.2;">@_tournaments.Count</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent Class="pa-4">
+                    <MudText Typo="Typo.body2" Style="color:#aaa;">📊 Ranked Bots</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; line-height: 1.2;">@_leaderboard.Count</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent Class="pa-4">
+                    <MudText Typo="Typo.body2" Style="color:#aaa;">👾 Solo Players</MudText>
+                    <div style="font-size: 2.5rem; font-weight: bold; line-height: 1.2;">@_botsProgress.Count</div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- ── Tabs ──────────────────────────────────────────────────────────── -->
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+
+        <!-- ─────────────── Active Games tab ──────────────────────────── -->
+        <MudTabPanel Text="🎮 Active Games">
+
+            @if (_isLoading && _activeGames.Count == 0)
+            {
+                <MudProgressCircular Indeterminate="true" Class="my-4" />
+            }
+            else if (_activeGames.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">No active games right now.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_activeGames" Dense="true" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Game ID</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Turn</MudTh>
+                        <MudTh>Phase</MudTh>
+                        <MudTh>P1 Score</MudTh>
+                        <MudTh>P2 Score</MudTh>
+                        <MudTh>Last Move</MudTh>
+                        <MudTh>Action</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Game ID">
+                            <code title="@context.GameId.ToString()" style="font-size: 0.75rem;">
+                                @context.GameId.ToString()[..8]&hellip;
+                            </code>
+                        </MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColour(context.Status)">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Turn">@context.TurnNumber</MudTd>
+                        <MudTd DataLabel="Phase">
+                            @if (context.Phase is not null)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="@GetPhaseColour(context.Phase)">
+                                    @context.Phase
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <span style="color:#666;">—</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="P1 Score">
+                            <strong>@context.ScorePlayerOne</strong>
+                        </MudTd>
+                        <MudTd DataLabel="P2 Score">
+                            <strong>@context.ScorePlayerTwo</strong>
+                        </MudTd>
+                        <MudTd DataLabel="Last Move">
+                            @{
+                                var elapsed = DateTimeOffset.UtcNow - context.LastMoveAt;
+                                var lastMoveLabel = elapsed > TimeSpan.FromDays(1) ? "unknown" : $"{elapsed.TotalSeconds:F0}s ago";
+                            }
+                            @lastMoveLabel
+                        </MudTd>
+                        <MudTd DataLabel="Action">
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Error"
+                                       StartIcon="@Icons.Material.Filled.Stop"
+                                       OnClick="@(() => ForceEndGameAsync(context.GameId))">
+                                Force End
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+        <!-- ─────────────── Tournaments tab ───────────────────────────── -->
+        <MudTabPanel Text="🏆 Tournaments">
+
+            @if (!string.IsNullOrEmpty(_tournamentMessage))
+            {
+                <MudAlert Severity="@_tournamentSeverity" Class="mb-4" ShowCloseIcon="true"
+                          CloseIconClicked="@(() => _tournamentMessage = "")">
+                    @_tournamentMessage
+                </MudAlert>
+            }
+
+            <MudGrid>
+
+                <!-- Create form -->
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="1">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.subtitle1"><b>Create Tournament</b></MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudTextField @bind-Value="_newTournamentName"
+                                          Label="Tournament Name"
+                                          Variant="Variant.Outlined"
+                                          FullWidth="true"
+                                          Class="mb-3" />
+                            <MudNumericField T="int"
+                                             @bind-Value="_newTournamentMaxParticipants"
+                                             Label="Max Participants"
+                                             Min="2" Max="64"
+                                             Variant="Variant.Outlined"
+                                             FullWidth="true"
+                                             Class="mb-3" />
+                            <MudNumericField T="int"
+                                             @bind-Value="_newTournamentTopN"
+                                             Label="Top N advance to knockout"
+                                             Min="2" Max="16"
+                                             Variant="Variant.Outlined"
+                                             FullWidth="true"
+                                             Class="mb-3" />
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="CreateTournamentAsync"
+                                       Disabled="@(string.IsNullOrWhiteSpace(_newTournamentName))">
+                                Create
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+
+                <!-- Tournament list -->
+                <MudItem xs="12" md="8">
+                    @if (_tournaments.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info">No tournaments yet. Create one!</MudAlert>
+                    }
+                    else
+                    {
+                        @foreach (var t in _tournaments)
+                        {
+                            var isSelected = _selectedTournament?.TournamentId == t.TournamentId;
+                            <MudPaper Elevation="@(isSelected ? 4 : 1)"
+                                      Class="pa-3 mb-2"
+                                      Style="@($"cursor:pointer; border-left: 4px solid {TournamentStatusBorderColour(t.Status)}; {(isSelected ? "background:rgba(var(--mud-palette-primary-rgb),0.08);" : "")}")"
+                                      @onclick="@(() => SelectTournamentAsync(t))">
+                                <div class="d-flex justify-space-between align-center">
+                                    <span>
+                                        <b>@t.Name</b>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@GetTournamentStatusColour(t.Status)"
+                                                 Class="ml-2">
+                                            @t.Status
+                                        </MudChip>
+                                    </span>
+                                    <MudText Typo="Typo.caption" Style="color:#aaa;">
+                                        @t.ParticipantCount / @t.MaxParticipants bots ·
+                                        @t.CreatedAtUtc.ToLocalTime().ToString("dd MMM HH:mm")
+                                    </MudText>
+                                </div>
+                            </MudPaper>
+                        }
+                    }
+                </MudItem>
+
+            </MudGrid>
+
+            <!-- Selected tournament management -->
+            @if (_selectedTournament is not null)
+            {
+                <MudDivider Class="my-4" />
+
+                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;">
+                    Managing: @_selectedTournament.Name
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@GetTournamentStatusColour(_selectedTournament.Status)"
+                             Class="ml-2">
+                        @_selectedTournament.Status
+                    </MudChip>
+                </div>
+
+                <MudGrid>
+
+                    @switch (_selectedTournament.Status)
+                    {
+                        case "Pending":
+                            @:<!-- Add participant -->
+                            <MudItem xs="12" md="4">
+                                <MudCard Elevation="1">
+                                    <MudCardHeader>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.subtitle2">Add Bot Participant</MudText>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudTextField @bind-Value="_addBotName"
+                                                      Label="Bot Name *"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                        <MudTextField @bind-Value="_addBotId"
+                                                      Label="Bot ID (leave blank to auto-generate)"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                        <MudTextField @bind-Value="_addBotLineup"
+                                                      Label="Lineup (comma-separated piece names)"
+                                                      HelperText="Default: Mickey,Minnie,Donald,Goofy,Scrooge"
+                                                      Variant="Variant.Outlined"
+                                                      FullWidth="true"
+                                                      Class="mb-2" />
+                                    </MudCardContent>
+                                    <MudCardActions>
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Secondary"
+                                                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                                                   OnClick="AddParticipantAsync"
+                                                   Disabled="@(string.IsNullOrWhiteSpace(_addBotName))">
+                                            Add Bot
+                                        </MudButton>
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+
+                            @:<!-- Actions -->
+                            <MudItem xs="12" md="8">
+                                <MudCard Elevation="1">
+                                    <MudCardHeader>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.subtitle2">Tournament Actions</MudText>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.body2" Class="mb-3">
+                                            Registered participants:
+                                            <b>@_selectedTournament.ParticipantCount</b> /
+                                            @_selectedTournament.MaxParticipants
+                                        </MudText>
+                                        @if (_selectedTournament.ParticipantCount < 2)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                                                At least 2 bots are required to start.
+                                            </MudAlert>
+                                        }
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                                   OnClick="StartTournamentAsync"
+                                                   Disabled="@(_selectedTournament.ParticipantCount < 2)"
+                                                   Class="mr-3 mb-2">
+                                            Start Tournament
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                                   OnClick="CancelTournamentAsync"
+                                                   Class="mb-2">
+                                            Cancel Tournament
+                                        </MudButton>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                            break;
+                        case "GroupStage" or "KnockoutStage":
+                            <MudItem xs="12" md="4">
+                                <MudCard Elevation="1">
+                                    <MudCardContent>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                                   OnClick="CancelTournamentAsync">
+                                            Cancel Tournament
+                                        </MudButton>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                            break;
+                    }
+
+                    <!-- Standings -->
+                    @if (_standings is not null)
+                    {
+                        <MudItem xs="12">
+                            <MudCard Elevation="1">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.subtitle1">
+                                            Group Stage Standings — @_standings.TournamentName
+                                        </MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    @if (_standings.Standings.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.body2" Style="color:#888;">
+                                            No matches completed yet.
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTable Items="_standings.Standings"
+                                                  Dense="true" Hover="true" Elevation="0">
+                                            <HeaderContent>
+                                                <MudTh>#</MudTh>
+                                                <MudTh>Bot</MudTh>
+                                                <MudTh>P</MudTh>
+                                                <MudTh>W</MudTh>
+                                                <MudTh>D</MudTh>
+                                                <MudTh>L</MudTh>
+                                                <MudTh>Pts</MudTh>
+                                                <MudTh>Coins</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd>@context.Rank</MudTd>
+                                                <MudTd><b>@context.BotName</b></MudTd>
+                                                <MudTd>@context.Played</MudTd>
+                                                <MudTd Style="color:#4caf50;">@context.Wins</MudTd>
+                                                <MudTd Style="color:#ff9800;">@context.Draws</MudTd>
+                                                <MudTd Style="color:#f44336;">@context.Losses</MudTd>
+                                                <MudTd>
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">
+                                                        @context.Points
+                                                    </MudChip>
+                                                </MudTd>
+                                                <MudTd>@context.TotalCoins</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+
+                </MudGrid>
+            }
+
+        </MudTabPanel>
+
+        <!-- ─────────────── Solo Progress tab ────────────────────────── -->
+        <MudTabPanel Text="👾 Solo Progress">
+
+            @if (_isLoading && _botsProgress.Count == 0)
+            {
+                <MudProgressCircular Indeterminate="true" Class="my-4" />
+            }
+            else if (_botsProgress.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">
+                    No solo mode data yet. Bots must play solo games first.
+                </MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_botsProgress" Dense="true" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Bot Name</MudTh>
+                        <MudTh>Villains Defeated</MudTh>
+                        <MudTh>Pieces Unlocked</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Bot Name"><b>@context.BotName</b></MudTd>
+                        <MudTd DataLabel="Villains Defeated">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">
+                                @context.VillainsDefeated
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Pieces Unlocked">@context.PiecesUnlocked</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+        </MudTabPanel>
+
+        <!-- ─────────────── Leaderboard tab ──────────────────────────── -->
+        <MudTabPanel Text="📊 Leaderboard">
+
+            <MudText Typo="Typo.caption" Style="color:#888;" Class="mb-3">
+                Points: +3 Win · +2 Draw · +1 Loss · Max 550 pts.
+            </MudText>
+
+            @if (_isLoading && _leaderboard.Count == 0)
+            {
+                <MudProgressCircular Indeterminate="true" Class="my-4" />
+            }
+            else if (_leaderboard.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">
+                    No ranking data yet. Bots must complete games first.
+                </MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_leaderboard" Dense="true" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Rank</MudTh>
+                        <MudTh>Bot</MudTh>
+                        <MudTh>Points</MudTh>
+                        <MudTh>W</MudTh>
+                        <MudTh>D</MudTh>
+                        <MudTh>L</MudTh>
+                        <MudTh>Games</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Rank">
+                            @switch (context.Rank)
+                            {
+                                case 1: <span>🥇 1</span> break;
+                                case 2: <span>🥈 2</span> break;
+                                case 3: <span>🥉 3</span> break;
+                                default: <span>@context.Rank</span> break;
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Bot"><b>@context.BotName</b></MudTd>
+                        <MudTd DataLabel="Points">
+                            <MudChip T="string" Size="Size.Small" Color="@GetPointsColour(context.Points)">
+                                @context.Points
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="W" Style="color:#4caf50;">@context.Wins</MudTd>
+                        <MudTd DataLabel="D" Style="color:#ff9800;">@context.Draws</MudTd>
+                        <MudTd DataLabel="L" Style="color:#f44336;">@context.Losses</MudTd>
+                        <MudTd DataLabel="Games">@context.GamesPlayed</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+        </MudTabPanel>
+
+    </MudTabs>
+
+</MudContainer>
+
+@code {
+
+    // ── Data state ────────────────────────────────────────────────────────────
+
+    private List<ActiveGameSummaryDto> _activeGames = [];
+    private List<TournamentSummaryDto> _tournaments  = [];
+    private List<BotProgressDto>       _botsProgress = [];
+    private List<LeaderboardEntryDto>  _leaderboard  = [];
+
+    private TournamentSummaryDto?   _selectedTournament;
+    private TournamentStandingsDto? _standings;
+
+    private bool    _isLoading;
+    private string? _globalError;
+    private DateTime _lastRefreshed = DateTime.Now;
+    private CancellationTokenSource? _cts;
+
+    // Tournament create form
+    private string _newTournamentName            = "";
+    private int    _newTournamentMaxParticipants  = 8;
+    private int    _newTournamentTopN             = 4;
+
+    // Add participant form
+    private string _addBotName   = "";
+    private string _addBotId     = "";
+    private string _addBotLineup = "Mickey,Minnie,Donald,Goofy,Scrooge";
+
+    // Feedback
+    private string   _tournamentMessage  = "";
+    private Severity _tournamentSeverity = Severity.Success;
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        await LoadAllAsync();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                // Marshal the entire load onto the Blazor circuit thread so that all
+                // state-field writes and the final StateHasChanged happen on the same
+                // thread, eliminating any race with in-progress renders.
+                await InvokeAsync(LoadAllAsync);
+            }
+        }
+        catch (OperationCanceledException) { /* component disposed */ }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _activeGames  = (await Mediator.Send(new GetAllActiveGamesQuery())).ToList();
+            _tournaments  = (await Mediator.Send(new GetAllTournamentsQuery())).ToList();
+            _botsProgress = (await Mediator.Send(new GetAllBotsProgressQuery())).ToList();
+            _leaderboard  = (await Mediator.Send(new GetLeaderboardQuery())).ToList();
+            _lastRefreshed = DateTime.Now;
+            _globalError = null;
+
+            // Refresh selected tournament standings.
+            if (_selectedTournament is not null)
+            {
+                _selectedTournament = _tournaments
+                    .FirstOrDefault(t => t.TournamentId == _selectedTournament.TournamentId)
+                    ?? _selectedTournament;
+
+                if (_selectedTournament.Status is not ("Pending" or "Cancelled"))
+                    await LoadStandingsAsync(_selectedTournament.TournamentId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _globalError = $"Refresh failed: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+
+        // Called from both OnInitializedAsync (already on the circuit thread) and
+        // from InvokeAsync inside RefreshLoopAsync (also on the circuit thread).
+        StateHasChanged();
+    }
+
+    // ── Tournament actions ────────────────────────────────────────────────────
+
+    private async Task CreateTournamentAsync()
+    {
+        try
+        {
+            var result = await Mediator.Send(new CreateTournamentCommand(
+                _newTournamentName.Trim(),
+                _newTournamentMaxParticipants,
+                _newTournamentTopN));
+
+            _tournamentMessage  = $"✅ Tournament '{_newTournamentName.Trim()}' created. ID: {result.TournamentId}";
+            _tournamentSeverity = Severity.Success;
+            _newTournamentName  = "";
+
+            await LoadAllAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _tournamentMessage  = $"❌ {ex.Message}";
+            _tournamentSeverity = Severity.Error;
+        }
+    }
+
+    private async Task AddParticipantAsync()
+    {
+        if (_selectedTournament is null) return;
+
+        try
+        {
+            var botId = Guid.TryParse(_addBotId.Trim(), out var parsed) ? parsed : Guid.NewGuid();
+
+            var lineup = _addBotLineup
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList()
+                .AsReadOnly();
+
+            if (lineup.Count == 0)
+                throw new InvalidOperationException("Lineup must contain at least one piece name.");
+
+            await Mediator.Send(new AddTournamentParticipantCommand(
+                _selectedTournament.TournamentId,
+                botId,
+                _addBotName.Trim(),
+                lineup));
+
+            _tournamentMessage  = $"✅ Bot '{_addBotName.Trim()}' added. Bot ID to share: {botId}";
+            _tournamentSeverity = Severity.Success;
+            _addBotName = "";
+            _addBotId   = "";
+
+            await LoadAllAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _tournamentMessage  = $"❌ {ex.Message}";
+            _tournamentSeverity = Severity.Error;
+        }
+    }
+
+    private async Task StartTournamentAsync()
+    {
+        if (_selectedTournament is null) return;
+        try
+        {
+            await Mediator.Send(new StartTournamentCommand(_selectedTournament.TournamentId));
+            _tournamentMessage  = "🚀 Tournament started! Group-stage games are now being scheduled.";
+            _tournamentSeverity = Severity.Success;
+
+            await LoadAllAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _tournamentMessage  = $"❌ {ex.Message}";
+            _tournamentSeverity = Severity.Error;
+        }
+    }
+
+    private async Task CancelTournamentAsync()
+    {
+        if (_selectedTournament is null) return;
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Cancel Tournament",
+            $"Are you sure you want to cancel '{_selectedTournament.Name}'? This cannot be undone.",
+            yesText: "Yes, Cancel",
+            cancelText: "No");
+
+        if (confirmed != true) return;
+
+        try
+        {
+            await Mediator.Send(new CancelTournamentCommand(_selectedTournament.TournamentId));
+            _tournamentMessage  = "Tournament cancelled.";
+            _tournamentSeverity = Severity.Warning;
+            _selectedTournament = null;
+            _standings = null;
+
+            await LoadAllAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _tournamentMessage  = $"❌ {ex.Message}";
+            _tournamentSeverity = Severity.Error;
+        }
+    }
+
+    private async Task SelectTournamentAsync(TournamentSummaryDto tournament)
+    {
+        _selectedTournament = tournament;
+        _standings = null;
+
+        if (tournament.Status is not ("Pending" or "Cancelled"))
+            await LoadStandingsAsync(tournament.TournamentId);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadStandingsAsync(Guid tournamentId)
+    {
+        try
+        {
+            _standings = await Mediator.Send(new GetTournamentStandingsQuery(tournamentId));
+        }
+        catch
+        {
+            _standings = null;
+        }
+    }
+
+    // ── Game actions ──────────────────────────────────────────────────────────
+
+    private async Task ForceEndGameAsync(Guid gameId)
+    {
+        var shortId = gameId.ToString()[..8];
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Force End Game",
+            $"Force-end game {shortId}…? The winner will be determined by current coin scores. " +
+            "Ranking points will be awarded normally. This cannot be undone.",
+            yesText: "Force End",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        try
+        {
+            await Mediator.Send(new ForceEndGameCommand(gameId));
+            await LoadAllAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _globalError = $"Force end failed for game {shortId}: {ex.Message}";
+        }
+    }
+
+    // ── Colour helpers ────────────────────────────────────────────────────────
+
+    private static Color GetStatusColour(string status) => status switch
+    {
+        "InProgress"    => Color.Success,
+        "WaitingForBots" => Color.Warning,
+        _               => Color.Default
+    };
+
+    private static Color GetPhaseColour(string? phase) => phase switch
+    {
+        "CoinSpawn"  => Color.Info,
+        "PlacePhase" => Color.Warning,
+        "MovePhase"  => Color.Success,
+        _            => Color.Default
+    };
+
+    private static Color GetTournamentStatusColour(string status) => status switch
+    {
+        "Pending"       => Color.Warning,
+        "GroupStage"    => Color.Info,
+        "KnockoutStage" => Color.Primary,
+        "Completed"     => Color.Success,
+        "Cancelled"     => Color.Error,
+        _               => Color.Default
+    };
+
+    private static string TournamentStatusBorderColour(string status) => status switch
+    {
+        "Pending"       => "#ff9800",
+        "GroupStage"    => "#2196f3",
+        "KnockoutStage" => "#9c27b0",
+        "Completed"     => "#4caf50",
+        "Cancelled"     => "#f44336",
+        _               => "#666"
+    };
+
+    private static Color GetPointsColour(int points) => points switch
+    {
+        >= 400 => Color.Success,
+        >= 200 => Color.Primary,
+        >= 100 => Color.Warning,
+        _      => Color.Default
+    };
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

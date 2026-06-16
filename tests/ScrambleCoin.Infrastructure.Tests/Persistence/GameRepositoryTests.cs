@@ -274,11 +274,14 @@ public sealed class GameRepositoryTests
     public async Task SaveAsync_ThenGetByIdAsync_MovePhase_MovePhaseActivePlayerIsPreserved()
     {
         var options = BuildOptions(nameof(SaveAsync_ThenGetByIdAsync_MovePhase_MovePhaseActivePlayerIsPreserved));
-        var (game, playerOne, _) = BuildStartedGame();
+        var (game, playerOne, playerTwo) = BuildStartedGame();
 
-        // Advance through CoinSpawn → PlacePhase → MovePhase
-        game.AdvancePhase(); // → PlacePhase
-        game.AdvancePhase(); // → MovePhase (MovePhaseActivePlayer = PlayerOne)
+        // Advance through CoinSpawn → PlacePhase, then place pieces.
+        // The second PlacePiece auto-advances to MovePhase (MovePhaseActivePlayer = PlayerOne).
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(playerOne, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(playerTwo, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 7));
+        // game is now in MovePhase (auto-advanced by MarkPlacePhaseActed)
 
         await using var writeCtx = new ScrambleCoinDbContext(options);
         await new GameRepository(writeCtx).SaveAsync(game);
@@ -293,10 +296,13 @@ public sealed class GameRepositoryTests
     public async Task SaveAsync_ThenGetByIdAsync_MovePhase_CurrentPhaseIsMovePhase()
     {
         var options = BuildOptions(nameof(SaveAsync_ThenGetByIdAsync_MovePhase_CurrentPhaseIsMovePhase));
-        var (game, _, _) = BuildStartedGame();
+        var (game, playerOne, playerTwo) = BuildStartedGame();
 
+        // The second PlacePiece auto-advances to MovePhase.
         game.AdvancePhase(); // CoinSpawn → PlacePhase
-        game.AdvancePhase(); // PlacePhase → MovePhase
+        game.PlacePiece(playerOne, game.LineupPlayerOne!.Pieces[0].Id, new Position(0, 0));
+        game.PlacePiece(playerTwo, game.LineupPlayerTwo!.Pieces[0].Id, new Position(7, 7));
+        // game is now in MovePhase (auto-advanced by MarkPlacePhaseActed)
 
         await using var writeCtx = new ScrambleCoinDbContext(options);
         await new GameRepository(writeCtx).SaveAsync(game);
@@ -483,7 +489,7 @@ public sealed class GameRepositoryTests
         await repo.SaveAsync(game);
         await repo.SaveAsync(game);
 
-        // If we can GetById successfully without ambiguity it means exactly one record exists.
+        // If we can GetById successfully without ambiguity, it means exactly one record exists.
         var loaded = await repo.GetByIdAsync(game.Id);
         Assert.Equal(game.Id, loaded.Id);
     }
@@ -494,7 +500,7 @@ public sealed class GameRepositoryTests
     public async Task SaveAsync_ThenGetByIdAsync_MovedPieceIds_ArePersisted()
     {
         var options = BuildOptions(nameof(SaveAsync_ThenGetByIdAsync_MovedPieceIds_ArePersisted));
-        var (game, playerOne, _) = BuildStartedGame();
+        var (game, _, _) = BuildStartedGame();
 
         // Advance to MovePhase
         game.AdvancePhase(); // → PlacePhase
@@ -542,7 +548,7 @@ public sealed class GameRepositoryTests
         Assert.Contains(playerOne, loadedPlacePhaseDone);
     }
 
-    // ── Board obstacles survive round-trip ────────────────────────────────────
+    // ── Board obstacles survive a round-trip ────────────────────────────────────
 
     [Fact]
     public async Task SaveAsync_ThenGetByIdAsync_RockObstacle_IsPreserved()

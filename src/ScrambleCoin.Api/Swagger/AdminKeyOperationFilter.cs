@@ -4,12 +4,18 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 namespace ScrambleCoin.Api.Swagger;
 
 /// <summary>
-/// Applies the <c>X-Admin-Key</c> security requirement to operations that need it
-/// (currently: <c>CreateGame</c>).
+/// Applies the <c>X-Admin-Key</c> security requirement to operations that need it.
 /// </summary>
-public sealed class AdminKeyOperationFilter : IOperationFilter
+internal sealed class AdminKeyOperationFilter : IOperationFilter
 {
-    private static readonly string[] AdminKeyOperations = ["CreateGame"];
+    private static readonly string[] AdminKeyOperations =
+    [
+        "CreateGame",
+        "CreateTournament",
+        "AddTournamentParticipant",
+        "StartTournament",
+        "CancelTournament"
+    ];
 
     private static readonly OpenApiSecurityRequirement Requirement = new()
     {

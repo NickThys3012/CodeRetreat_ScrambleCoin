@@ -4,6 +4,7 @@ using ScrambleCoin.Application.Services;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.ValueObjects;
+using ScrambleCoint.Console.PlayGround;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 var rng = new Random(42); // change to new Random(42) for a reproducible run
@@ -59,6 +60,7 @@ Console.WriteLine($"  P1 score : {s1}");
 Console.WriteLine($"  P2 score : {s2}");
 Console.WriteLine($"  Result   : {(s1 > s2 ? "P1 wins 🏆" : s2 > s1 ? "P2 wins 🏆" : "Draw 🤝")}");
 Console.ReadLine();
+return;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +80,7 @@ Lineup CreateLineup(Guid playerId, params string[] names)
 void PlaceForPlayer(Game g, Guid playerId, string label)
 {
     var lineup = playerId == p1 ? g.LineupPlayerOne! : g.LineupPlayerTwo!;
-    var onBoard = g.PiecesOnBoard.TryGetValue(playerId, out var cnt) ? cnt : 0;
+    var onBoard = g.PiecesOnBoard.GetValueOrDefault(playerId, 0);
 
     if (onBoard >= Game.MaxPiecesOnBoard)
     {
@@ -115,7 +117,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(row, col);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && g.Board.IsValidEntryPoint(pos, type))
+            && Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     for (var r = 0; r < Board.Size; r++)
@@ -124,7 +126,7 @@ Position? FindEntryPoint(Game g, EntryPointType type, bool preferLeft)
         var pos = new Position(r, c);
         if (g.Board.GetTile(pos).IsEmpty
             && !g.Board.IsObstacleCovering(pos)
-            && g.Board.IsValidEntryPoint(pos, type))
+            && Board.IsValidEntryPoint(pos, type))
             return pos;
     }
     return null;
@@ -225,21 +227,36 @@ void Step(string message)
 
 // ── In-memory repository (playground only) ────────────────────────────────────
 
-/// <summary>
-/// Minimal IGameRepository that keeps a single game in memory.
-/// No EF Core or SQL — used only by the Playground console app.
-/// </summary>
-sealed class InMemoryGameRepository(Game initial) : IGameRepository
+namespace ScrambleCoint.Console.PlayGround
 {
-    private Game _game = initial;
-
-    public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        => Task.FromResult(_game);
-
-    public Task SaveAsync(Game game, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Minimal IGameRepository that keeps a single game in memory.
+    /// No EF Core or SQL — used only by the Playground console app.
+    /// </summary>
+    sealed class InMemoryGameRepository(Game initial) : IGameRepository
     {
-        _game = game;
-        game.ClearDomainEvents();
-        return Task.CompletedTask;
+        private Game _game = initial;
+
+        public Task<Game> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_game);
+
+        public Task SaveAsync(Game game, CancellationToken cancellationToken = default)
+        {
+            _game = game;
+            game.ClearDomainEvents();
+            return Task.CompletedTask;
+        }
+
+        public Task StageAsync(Game game, CancellationToken cancellationToken = default)
+        {
+            _game = game;
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> HasActiveGameAsync(Guid playerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ScrambleCoin.Application.Games.Admin.ActiveGameSummaryDto>>([]);
     }
 }

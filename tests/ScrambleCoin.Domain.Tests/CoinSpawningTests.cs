@@ -12,14 +12,13 @@ public class CoinSpawningTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Lineup NewLineup() =>
-        new Lineup(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
+    private static Lineup NewLineup() => new(Enumerable.Range(0, 5).Select(i => PieceFactory.Any($"Piece{i}")).ToList());
 
     /// <summary>
     /// Creates a Game that has been started. After Start() the game is in
     /// TurnPhase.CoinSpawn on turn 1, ready to accept <see cref="Game.SpawnCoins"/>.
     /// </summary>
-    private static (Game game, Guid p1, Guid p2) StartedGame()
+    private static Game StartedGame()
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -27,13 +26,13 @@ public class CoinSpawningTests
         game.SetLineup(p1, NewLineup());
         game.SetLineup(p2, NewLineup());
         game.Start();
-        return (game, p1, p2);
+        return game;
     }
 
     /// <summary>
     /// Creates a Game that has been started with a custom Board (so obstacles can be pre-added).
     /// </summary>
-    private static (Game game, Guid p1, Guid p2) StartedGameWithBoard(Board board)
+    private static Game StartedGameWithBoard(Board board)
     {
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
@@ -41,7 +40,7 @@ public class CoinSpawningTests
         game.SetLineup(p1, NewLineup());
         game.SetLineup(p2, NewLineup());
         game.Start();
-        return (game, p1, p2);
+        return game;
     }
 
     // ── Phase guard ───────────────────────────────────────────────────────────
@@ -49,7 +48,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_OutsideCoinSpawnPhase_ThrowsDomainException()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
         Assert.Throws<DomainException>(() =>
@@ -65,7 +64,7 @@ public class CoinSpawningTests
         var rockPosition = new Position(3, 3);
         board.AddRock(new Rock(rockPosition));
 
-        var (game, _, _) = StartedGameWithBoard(board);
+        var game = StartedGameWithBoard(board);
 
         Assert.Throws<DomainException>(() =>
             game.SpawnCoins([(rockPosition, CoinType.Silver)]));
@@ -78,7 +77,7 @@ public class CoinSpawningTests
         board.AddLake(new Lake(new Position(2, 2)));
         var lakeCoveredPosition = new Position(2, 2); // top-left of the 2×2 lake
 
-        var (game, _, _) = StartedGameWithBoard(board);
+        var game = StartedGameWithBoard(board);
 
         Assert.Throws<DomainException>(() =>
             game.SpawnCoins([(lakeCoveredPosition, CoinType.Silver)]));
@@ -91,7 +90,7 @@ public class CoinSpawningTests
         board.AddLake(new Lake(new Position(2, 2)));
         var interiorLakePosition = new Position(3, 3); // bottom-right of 2×2 lake at (2,2)
 
-        var (game, _, _) = StartedGameWithBoard(board);
+        var game = StartedGameWithBoard(board);
 
         Assert.Throws<DomainException>(() =>
             game.SpawnCoins([(interiorLakePosition, CoinType.Silver)]));
@@ -104,7 +103,7 @@ public class CoinSpawningTests
         var coinPosition = new Position(1, 1);
         board.GetTile(coinPosition).SetOccupant(new Coin(CoinType.Silver));
 
-        var (game, _, _) = StartedGameWithBoard(board);
+        var game = StartedGameWithBoard(board);
 
         Assert.Throws<DomainException>(() =>
             game.SpawnCoins([(coinPosition, CoinType.Silver)]));
@@ -117,7 +116,7 @@ public class CoinSpawningTests
         var piecePosition = new Position(4, 4);
         board.GetTile(piecePosition).SetOccupant(PieceFactory.Any("Blocker"));
 
-        var (game, _, _) = StartedGameWithBoard(board);
+        var game = StartedGameWithBoard(board);
 
         Assert.Throws<DomainException>(() =>
             game.SpawnCoins([(piecePosition, CoinType.Silver)]));
@@ -128,7 +127,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_OnFreeTile_PlacesCoin()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         var spawnPosition = new Position(5, 5);
 
         game.SpawnCoins([(spawnPosition, CoinType.Silver)]);
@@ -141,7 +140,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_OnFreeTile_PlacesGoldCoin()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         var spawnPosition = new Position(0, 0);
 
         game.SpawnCoins([(spawnPosition, CoinType.Gold)]);
@@ -156,7 +155,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_RaisesCoinsSpawnedEvent()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.ClearDomainEvents();
 
         game.SpawnCoins([(new Position(0, 0), CoinType.Silver)]);
@@ -168,7 +167,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_CoinsSpawnedEvent_HasCorrectGameId()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.ClearDomainEvents();
 
         game.SpawnCoins([(new Position(0, 0), CoinType.Silver)]);
@@ -180,7 +179,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_CoinsSpawnedEvent_HasCorrectTurnNumber()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.ClearDomainEvents();
 
         game.SpawnCoins([(new Position(0, 0), CoinType.Silver)]);
@@ -192,7 +191,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_CoinsSpawnedEvent_HasCorrectCoinCount()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.ClearDomainEvents();
         var positions = new[]
         {
@@ -210,7 +209,7 @@ public class CoinSpawningTests
     [Fact]
     public void SpawnCoins_CoinsSpawnedEvent_ContainsSpawnedPositions()
     {
-        var (game, _, _) = StartedGame();
+        var game = StartedGame();
         game.ClearDomainEvents();
         var spawnPosition = new Position(3, 3);
 
@@ -309,7 +308,7 @@ public class CoinSpawningTests
     {
         var board = new Board();
         var piecePosition = new Position(5, 5);
-        board.GetTile(piecePosition).SetOccupant(PieceFactory.Any("TestPiece"));
+        board.GetTile(piecePosition).SetOccupant(PieceFactory.Any());
 
         var freeTiles = board.GetFreeTiles();
 

@@ -13,6 +13,12 @@ public sealed class GameRecord
     /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.GameStatus"/> cast to int.</summary>
     public int Status { get; set; }
 
+    /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.GameMode"/> cast to int. Default is Standard (0).</summary>
+    public int GameMode { get; set; }
+
+    /// <summary>(Solo mode only) The ID of the villain being challenged.</summary>
+    public string? VillainId { get; set; }
+
     public int TurnNumber { get; set; }
 
     /// <summary>Persisted value of <see cref="ScrambleCoin.Domain.Enums.TurnPhase"/> cast to int; null when no active phase.</summary>
@@ -39,6 +45,9 @@ public sealed class GameRecord
 
     /// <summary>JSON: array of <see cref="PieceDto"/> — null until PlayerTwo submits a lineup.</summary>
     public string? LineupPlayerTwoJson { get; set; }
+
+    /// <summary>UTC timestamp of the most recent move recorded in this game.</summary>
+    public DateTimeOffset LastMoveAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>JSON: <see cref="BoardStateDto"/> capturing all obstacles and tile occupants.</summary>
     public string BoardStateJson { get; set; } = "{}";

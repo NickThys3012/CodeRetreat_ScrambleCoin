@@ -1,14 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Infrastructure.Persistence.Records;
+using ScrambleCoin.Domain.Entities;
 
 namespace ScrambleCoin.Infrastructure.Persistence;
 
 /// <summary>
 /// EF Core DbContext for ScrambleCoin.
 /// Maps the <see cref="GameRecord"/> persistence POCO to the <c>Games</c> table.
-/// Complex domain types are stored as JSON columns to minimise table count.
+/// Complex domain types are stored as JSON columns to minimize table count.
 /// </summary>
-public class ScrambleCoinDbContext : DbContext
+public class ScrambleCoinDbContext : DbContext, IUnitOfWork
 {
     public ScrambleCoinDbContext(DbContextOptions<ScrambleCoinDbContext> options)
         : base(options)
@@ -20,6 +22,24 @@ public class ScrambleCoinDbContext : DbContext
 
     /// <summary>The BotRegistrations table — one row per bot that has joined a game.</summary>
     public DbSet<BotRegistrationRecord> BotRegistrations => Set<BotRegistrationRecord>();
+
+    /// <summary>The VillainTreeNodes table — villain unlock tree nodes.</summary>
+    public DbSet<VillainTreeNode> VillainTreeNodes => Set<VillainTreeNode>();
+
+    /// <summary>The BotUnlocks table — records of villain defeats and piece unlocks.</summary>
+    public DbSet<BotUnlock> BotUnlocks => Set<BotUnlock>();
+
+    /// <summary>The VillainNodeParents join table — DAG edges (parent→child).</summary>
+    public DbSet<VillainNodeParent> VillainNodeParents => Set<VillainNodeParent>();
+
+    /// <summary>The Tournaments table — one row per tournament aggregate.</summary>
+    public DbSet<TournamentRecord> Tournaments => Set<TournamentRecord>();
+
+    /// <summary>The RankingTracks table — one row per bot's cumulative ranking record.</summary>
+    public DbSet<RankingTrackRecord> RankingTracks => Set<RankingTrackRecord>();
+
+    /// <summary>The GameSnapshots table — ordered board-state snapshots for game replay.</summary>
+    public DbSet<GameSnapshotRecord> GameSnapshots => Set<GameSnapshotRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,11 +61,13 @@ public class ScrambleCoinDbContext : DbContext
             entity.Property(g => g.PlayerOne).IsRequired();
             entity.Property(g => g.PlayerTwo).IsRequired();
             entity.Property(g => g.Status).IsRequired();
+            entity.Property(g => g.GameMode).IsRequired();
+            entity.Property(g => g.VillainId);
             entity.Property(g => g.TurnNumber).IsRequired();
             entity.Property(g => g.CurrentPhase);
             entity.Property(g => g.MovePhaseActivePlayer);
 
-            // JSON columns: stored as unicode text; EF Core provider picks the right column type.
+            // JSON columns: stored as Unicode text; EF Core provider picks the right column type.
             entity.Property(g => g.ScoresJson).IsRequired().HasColumnName("Scores");
             entity.Property(g => g.PiecesOnBoardJson).IsRequired().HasColumnName("PiecesOnBoard");
             entity.Property(g => g.PlacePhaseDoneJson).IsRequired().HasColumnName("PlacePhaseDone");
@@ -54,5 +76,120 @@ public class ScrambleCoinDbContext : DbContext
             entity.Property(g => g.LineupPlayerTwoJson).HasColumnName("LineupPlayerTwo");
             entity.Property(g => g.BoardStateJson).IsRequired().HasColumnName("BoardState");
         });
+
+        modelBuilder.Entity<VillainTreeNode>(entity =>
+        {
+            entity.ToTable("VillainTreeNodes");
+            entity.HasKey(v => v.Id);
+
+            entity.Property(v => v.VillainId).IsRequired().HasMaxLength(100);
+            entity.Property(v => v.VillainName).IsRequired().HasMaxLength(200);
+            entity.Property(v => v.UnlockedPieceId).HasMaxLength(100);
+            entity.Property(v => v.DisplayOrder).IsRequired();
+            entity.Property(v => v.CreatedAtUtc).IsRequired();
+
+            entity.HasIndex(v => v.VillainId).IsUnique();
+
+            // One VillainTreeNode has many parent-link rows, joined on VillainId (not Guid PK)
+            entity.HasMany(v => v.ParentLinks)
+                  .WithOne()
+                  .HasForeignKey(p => p.ChildVillainId)
+                  .HasPrincipalKey(v => v.VillainId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VillainNodeParent>(entity =>
+        {
+            entity.ToTable("VillainNodeParents");
+            entity.HasKey(p => new { p.ChildVillainId, p.ParentVillainId });
+            entity.Property(p => p.ChildVillainId).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.ParentVillainId).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<BotUnlock>(entity =>
+        {
+            entity.ToTable("BotUnlocks");
+            entity.HasKey(bu => bu.Id);
+
+            entity.Property(bu => bu.BotId).IsRequired();
+            entity.Property(bu => bu.VillainId).IsRequired().HasMaxLength(100);
+            entity.Property(bu => bu.UnlockedPieceId).HasMaxLength(100);
+            entity.Property(bu => bu.DefeatedAtUtc).IsRequired();
+
+            // Foreign key to VillainTreeNodes
+            entity.HasOne<VillainTreeNode>()
+                .WithMany()
+                .HasForeignKey(bu => bu.VillainId)
+                .HasPrincipalKey(v => v.VillainId);
+
+            // Index on (BotId, VillainId): non-unique to allow re-challenges
+            entity.HasIndex(bu => new { bu.BotId, bu.VillainId }).IsUnique(false);
+        });
+
+        modelBuilder.Entity<TournamentRecord>(entity =>
+        {
+            entity.ToTable("Tournaments");
+            entity.HasKey(t => t.Id);
+
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
+            entity.Property(t => t.MaxParticipants).IsRequired();
+            entity.Property(t => t.TopN).IsRequired();
+            entity.Property(t => t.Status).IsRequired();
+            entity.Property(t => t.WinnerId);
+            entity.Property(t => t.CreatedAtUtc).IsRequired();
+            entity.Property(t => t.RowVersion).IsRowVersion();
+
+            // JSON columns — stored as Unicode text
+            entity.Property(t => t.ParticipantsJson).IsRequired().HasColumnName("Participants");
+            entity.Property(t => t.GroupMatchesJson).IsRequired().HasColumnName("GroupMatches");
+            entity.Property(t => t.KnockoutMatchesJson).IsRequired().HasColumnName("KnockoutMatches");
+        });
+
+        modelBuilder.Entity<RankingTrackRecord>(entity =>
+        {
+            entity.ToTable("RankingTracks");
+            entity.HasKey(r => r.BotId);
+
+            entity.Property(r => r.BotName).IsRequired().HasMaxLength(200);
+            entity.Property(r => r.Points).IsRequired();
+            entity.Property(r => r.Wins).IsRequired();
+            entity.Property(r => r.Draws).IsRequired();
+            entity.Property(r => r.Losses).IsRequired();
+            entity.Property(r => r.GamesPlayed).IsRequired();
+            entity.Property(r => r.MilestonesHitJson).IsRequired().HasColumnName("MilestonesHit");
+        });
+
+        modelBuilder.Entity<GameSnapshotRecord>(entity =>
+        {
+            entity.ToTable("GameSnapshots");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedOnAdd();
+            entity.Property(s => s.GameId).IsRequired();
+            entity.Property(s => s.SequenceNumber).IsRequired();
+            entity.Property(s => s.Turn).IsRequired();
+            entity.Property(s => s.Phase).HasMaxLength(50);
+            entity.Property(s => s.BoardStateJson).IsRequired().HasColumnName("BoardState");
+            entity.Property(s => s.CapturedAt).IsRequired();
+            entity.HasIndex(s => new { s.GameId, s.SequenceNumber }).IsUnique();
+            entity.HasIndex(s => s.GameId);
+        });
+    }
+
+    /// <inheritdoc cref="IUnitOfWork.SaveChangesAsync" />
+    /// <remarks>
+    /// Wraps <see cref="DbUpdateConcurrencyException"/> as <see cref="ConcurrencyConflictException"/>
+    /// so the Application layer can handle concurrency conflicts without referencing EF Core.
+    /// </remarks>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyConflictException(
+                "A concurrent update was detected. Reload the aggregate and retry.", ex);
+        }
     }
 }

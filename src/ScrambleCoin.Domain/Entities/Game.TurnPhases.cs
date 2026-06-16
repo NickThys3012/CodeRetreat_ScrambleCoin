@@ -50,6 +50,9 @@ public partial class Game
                 _movedPieceIds.Clear();
                 MovePhaseActivePlayer = PlayerOne;
                 _domainEvents.Add(new TurnPhaseAdvanced(Id, TurnNumber, previousPhase, CurrentPhase, DateTimeOffset.UtcNow));
+                // Eagerly skip any player(s) with no pieces on board so the turn
+                // advances automatically without waiting for a MovePiece call.
+                SkipActiveMoverIfNoPiecesRemaining();
                 break;
 
             case TurnPhase.MovePhase:
@@ -187,6 +190,10 @@ public partial class Game
         if (piece.IsOnBoard)
             throw new DomainException($"Piece {pieceId} is already on the board. Use ReplacePiece to swap it.");
 
+        if (piece.AvailableFromTurn is { } availableFromTurn && TurnNumber < availableFromTurn)
+            throw new DomainException(
+                $"Piece '{piece.Name}' ({pieceId}) cannot be placed before turn {availableFromTurn}. Current turn: {TurnNumber}.");
+
         if (!Board.IsValidEntryPoint(position, piece.EntryPointType))
             throw new DomainException($"Position {position} is not a valid entry point for entry type {piece.EntryPointType}.");
 
@@ -261,6 +268,10 @@ public partial class Game
         if (newPiece.IsOnBoard)
             throw new DomainException($"Piece {newPieceId} is already on the board; cannot use it as the replacement.");
 
+        if (newPiece.AvailableFromTurn is { } availableFromTurn && TurnNumber < availableFromTurn)
+            throw new DomainException(
+                $"Piece '{newPiece.Name}' ({newPieceId}) cannot be placed before turn {availableFromTurn}. Current turn: {TurnNumber}.");
+
         // Remove the existing piece — this clears the tile the new piece will occupy.
         var existingTile = Board.GetTile(targetPosition);
         existingTile.ClearOccupant();
@@ -307,6 +318,37 @@ public partial class Game
             throw new PlayerAlreadyActedException(playerId);
 
         MarkPlacePhaseActed(playerId);
+    }
+
+    /// <summary>
+    /// Skips the movement action for the active player this turn.
+    /// Marks all their on-board pieces as already moved, triggering auto-advance to the next player
+    /// or advancement to the next turn/phase if all players are done.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown when the current phase is not <see cref="TurnPhase.MovePhase"/>,
+    /// or when the player is not the active mover.
+    /// </exception>
+    public void SkipMovement(Guid playerId)
+    {
+        EnsureInMovePhase();
+
+        if (playerId != MovePhaseActivePlayer)
+            throw new DomainException(
+                $"It is not player {playerId}'s turn to move. " +
+                $"Current active mover: {MovePhaseActivePlayer}.");
+
+        var lineup = GetLineupForPlayer(playerId);
+        var onBoardPieceIds = lineup.Pieces
+            .Where(p => p.IsOnBoard)
+            .Select(p => p.Id)
+            .ToList();
+
+        // Mark all on-board pieces as moved
+        foreach (var pieceId in onBoardPieceIds)
+            _movedPieceIds.Add(pieceId);
+
+        TryAutoAdvanceMovePhase();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

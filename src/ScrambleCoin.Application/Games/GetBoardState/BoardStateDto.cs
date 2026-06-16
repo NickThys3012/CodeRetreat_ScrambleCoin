@@ -4,7 +4,7 @@ namespace ScrambleCoin.Application.Games.GetBoardState;
 /// Top-level DTO returned by <see cref="GetBoardStateQuery"/>.
 /// All fields are relative to the requesting bot (yourScore, yourPieces, etc.).
 /// </summary>
-/// <param name="Turn">Current turn number (1–5); 0 before game starts.</param>
+/// <param name="Turn">Current turn number (1–5); 0 before the game starts.</param>
 /// <param name="Phase">Current phase name ("CoinSpawn", "PlacePhase", "MovePhase"), or null if not started.</param>
 /// <param name="YourScore">The requesting bot's current score.</param>
 /// <param name="OpponentScore">The opponent's current score.</param>
@@ -33,11 +33,15 @@ public sealed record BoardDto(IReadOnlyList<TileDto> Tiles);
 /// <param name="IsObstacle">True when the tile is covered by a Rock or Lake (impassable).</param>
 /// <param name="Occupant">Current occupant (coin or piece info), or null if empty.</param>
 /// <param name="FencedEdges">Directions ("North","South","East","West") where a fence blocks movement out of this tile.</param>
+/// <param name="ObstacleType">Discriminated obstacle kind: "None", "Rock", or "Lake".</param>
+/// <param name="HasIcePatch">True when Elsa has placed an ice patch on this tile.</param>
 public sealed record TileDto(
     PositionDto Position,
     bool IsObstacle,
     TileOccupantDto? Occupant,
-    IReadOnlyList<string> FencedEdges);
+    IReadOnlyList<string> FencedEdges,
+    string ObstacleType = "None",
+    bool HasIcePatch = false);
 
 /// <summary>A position on the board.</summary>
 public sealed record PositionDto(int Row, int Col);
@@ -57,12 +61,16 @@ public sealed record TileOccupantDto(
 
 /// <summary>A piece in a player's lineup.</summary>
 /// <param name="PieceId">Unique identifier of the piece.</param>
-/// <param name="Name">Display name of the piece (e.g. "Mickey").</param>
+/// <param name="Name">Display the name of the piece (e.g. "Mickey").</param>
 /// <param name="Position">Current board position, or null if not yet placed.</param>
 /// <param name="MovementType">Allowed movement directions ("Orthogonal", "Diagonal", "AnyDirection").</param>
 /// <param name="MaxDistance">Maximum tiles per move action.</param>
 /// <param name="MovesPerTurn">Number of move actions the piece must perform each turn.</param>
 /// <param name="IsOnBoard">True when the piece has been placed on the board.</param>
+/// <param name="AvailableFromTurn">
+/// Earliest turn (1-based) at which this piece may be placed on the board.
+/// <c>null</c> means the piece is available from turn 1 (no restriction).
+/// </param>
 public sealed record PieceDto(
     Guid PieceId,
     string Name,
@@ -70,7 +78,8 @@ public sealed record PieceDto(
     string MovementType,
     int MaxDistance,
     int MovesPerTurn,
-    bool IsOnBoard);
+    bool IsOnBoard,
+    int? AvailableFromTurn);
 
 /// <summary>A coin currently available on the board.</summary>
 /// <param name="Position">The tile this coin occupies.</param>

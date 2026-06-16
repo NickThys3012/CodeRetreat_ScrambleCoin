@@ -24,11 +24,6 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
     private static readonly IReadOnlyList<string> DefaultLineup =
         ["Mickey", "Minnie", "Donald", "Goofy", "Scrooge"];
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TestWebApplicationFactory _factory;
 
     public GetBoardStateEndpointTests(TestWebApplicationFactory factory)
@@ -127,7 +122,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -142,14 +137,14 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.NotNull(response.Content.Headers.ContentType);
         Assert.Contains("application/json", response.Content.Headers.ContentType!.MediaType);
     }
 
-    // ── AC 2 : Response body has correct shape ────────────────────────────────
+    // ── AC 2: Response body has the correct shape ────────────────────────────────
 
     [Fact]
     public async Task GetBoardState_Response_ContainsTurnField()
@@ -160,7 +155,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -177,7 +172,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -194,7 +189,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -211,7 +206,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -228,7 +223,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -247,7 +242,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -264,7 +259,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -281,7 +276,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -298,10 +293,10 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        // Assert: activePlayer key must be present (may be null)
+        // Assert: activePlayer key must be present (maybe null)
         Assert.True(json.RootElement.TryGetProperty("activePlayer", out _),
             "Response JSON must contain an 'activePlayer' field (may be null).");
     }
@@ -317,7 +312,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -334,7 +329,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert: all tiles have 'position' with 'row' and 'col'
@@ -356,7 +351,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -374,7 +369,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -383,7 +378,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
             Assert.True(tile.TryGetProperty("fencedEdges", out _));
     }
 
-    // ── AC 4 : Pieces have correct shape ──────────────────────────────────────
+    // ── AC 4: Pieces have the correct shape ──────────────────────────────────────
 
     [Fact]
     public async Task GetBoardState_YourPieces_ContainsLineupCount()
@@ -394,7 +389,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -411,7 +406,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -428,7 +423,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -445,7 +440,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -462,7 +457,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -479,7 +474,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -487,7 +482,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
             Assert.True(piece.TryGetProperty("isOnBoard", out _));
     }
 
-    // ── AC 5 : 404 when game not found ────────────────────────────────────────
+    // ── AC 5: 404 when game not found ────────────────────────────────────────
 
     [Fact]
     public async Task GetBoardState_WhenTokenBelongsToADifferentGame_Returns403()
@@ -500,7 +495,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{nonExistentGameId}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{nonExistentGameId}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -516,7 +511,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", unknownToken.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -532,7 +527,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", unknownToken.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert: ProblemDetails must have 'title' and 'status'
@@ -552,7 +547,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -566,7 +561,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert: must be a ProblemDetails body
@@ -583,7 +578,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", "not-a-guid");
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -603,8 +598,8 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         clientP2.DefaultRequestHeaders.Add("X-Bot-Token", tokenP2.ToString());
 
         // Act
-        var responseP1 = await clientP1.GetAsync($"/api/games/{game.Id}/state");
-        var responseP2 = await clientP2.GetAsync($"/api/games/{game.Id}/state");
+        var responseP1 = await clientP1.GetAsync(new Uri($"/api/games/{game.Id}/state"));
+        var responseP2 = await clientP2.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         var jsonP1 = JsonDocument.Parse(await responseP1.Content.ReadAsStringAsync());
         var jsonP2 = JsonDocument.Parse(await responseP2.Content.ReadAsStringAsync());
@@ -638,8 +633,8 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         clientP2.DefaultRequestHeaders.Add("X-Bot-Token", tokenP2.ToString());
 
         // Act: get the state from P1's perspective and from P2's perspective
-        var p1Response = await clientP1.GetAsync($"/api/games/{game.Id}/state");
-        var p2Response = await clientP2.GetAsync($"/api/games/{game.Id}/state");
+        var p1Response = await clientP1.GetAsync(new Uri($"/api/games/{game.Id}/state"));
+        var p2Response = await clientP2.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         var p1Json = JsonDocument.Parse(await p1Response.Content.ReadAsStringAsync());
         var p2Json = JsonDocument.Parse(await p2Response.Content.ReadAsStringAsync());
@@ -671,7 +666,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -715,7 +710,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -755,7 +750,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert: the single coin has the required fields
@@ -778,7 +773,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
@@ -794,14 +789,14 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert
         Assert.Equal("CoinSpawn", json.RootElement.GetProperty("phase").GetString());
     }
 
-    // ── AC 5 : True 404 when game row is deleted ──────────────────────────────
+    // ── AC 5: True 404 when game row is deleted ──────────────────────────────
 
     [Fact]
     public async Task GetBoardState_UnknownGameId_Returns404()
@@ -825,7 +820,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act: token is valid and belongs to the (now-deleted) game → handler loads game → GameNotFoundException → 404
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -847,7 +842,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         // Assert: every piece in yourPieces has a 'movesPerTurn' JSON property
@@ -872,7 +867,7 @@ public class GetBoardStateEndpointTests : IClassFixture<GetBoardStateEndpointTes
         client.DefaultRequestHeaders.Add("X-Bot-Token", tokenP1.ToString());
 
         // Act
-        var response = await client.GetAsync($"/api/games/{game.Id}/state");
+        var response = await client.GetAsync(new Uri($"/api/games/{game.Id}/state"));
         var rawJson = await response.Content.ReadAsStringAsync();
 
         // Use JsonIgnoreCondition.Never-aware options so we can detect null-valued keys.

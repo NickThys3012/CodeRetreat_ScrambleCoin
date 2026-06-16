@@ -72,11 +72,11 @@ public class PieceFactoryTests
     }
 
     [Fact]
-    public void Create_Goofy_ReturnsAnyDirectionPiece()
+    public void Create_Goofy_ReturnsJumpPiece()
     {
         var piece = PieceFactory.Create("Goofy", AnyPlayerId);
 
-        Assert.Equal(MovementType.AnyDirection, piece.MovementType);
+        Assert.Equal(MovementType.Jump, piece.MovementType);
     }
 
     [Fact]
@@ -104,17 +104,10 @@ public class PieceFactoryTests
         Assert.Equal(EntryPointType.Corners, piece.EntryPointType);
     }
 
-    // ── Parameterised: all starter pieces return a non-null Piece ────────────
+    // ── Parameterized: all starter pieces return a non-null Piece ────────────
 
-    public static IEnumerable<object[]> StarterPieceNames =>
-        new List<object[]>
-        {
-            new object[] { "Mickey"  },
-            new object[] { "Minnie"  },
-            new object[] { "Donald"  },
-            new object[] { "Goofy"   },
-            new object[] { "Scrooge" }
-        };
+    public static TheoryData<string> StarterPieceNames =>
+    ["Mickey", "Minnie", "Donald", "Goofy", "Scrooge"];
 
     [Theory]
     [MemberData(nameof(StarterPieceNames))]
@@ -180,7 +173,7 @@ public class PieceFactoryTests
     [InlineData("Stitch")]
     public void Create_OnStopAbilityPiece_ReturnsValidPiece(string pieceName)
     {
-        // Verify Issue #49 on-stop ability pieces are recognised
+        // Verify Issue #49 on-stop ability pieces are recognized
         var piece = PieceFactory.Create(pieceName, AnyPlayerId);
         Assert.NotNull(piece);
     }

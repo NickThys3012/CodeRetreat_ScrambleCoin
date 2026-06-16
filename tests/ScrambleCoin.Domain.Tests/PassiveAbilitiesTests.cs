@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Events;
@@ -31,7 +32,7 @@ public class PassiveAbilitiesTests
         var p2Piece = new Piece(Guid.NewGuid(), "P2Piece", p2,
             EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
 
-        // Fill pieces to make complete lineup (5 pieces each)
+        // Fill pieces to make a complete lineup (5 pieces each)
         var p1Fill = Enumerable.Range(0, 4)
             .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
             .ToList();
@@ -52,6 +53,14 @@ public class PassiveAbilitiesTests
         game.Start();
         game.AdvancePhase(); // CoinSpawn → PlacePhase
 
+        // Advance turns until the test piece can legally be placed (Issue #59).
+        while (testPiece.AvailableFromTurn is { } from && game.TurnNumber < from)
+        {
+            game.SkipPlacement(p1);
+            game.SkipPlacement(p2);
+            game.AdvancePhase(); // CoinSpawn → PlacePhase (SkipPlacement-both already advanced through MovePhase to next-turn CoinSpawn)
+        }
+
         var actualP1Pos = p1Position ?? new Position(0, 3);
         var actualP2Pos = p2Position ?? new Position(7, 3);
 
@@ -61,9 +70,9 @@ public class PassiveAbilitiesTests
         return (game, p1, p2, testPiece, p2Piece);
     }
 
-    private static IReadOnlyList<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
+    private static ReadOnlyCollection<IReadOnlyList<Position>> BuildSegments(params Position[] steps)
     {
-        var segment = (IReadOnlyList<Position>)steps.ToList().AsReadOnly();
+        IReadOnlyList<Position> segment = steps.ToList().AsReadOnly();
         return new List<IReadOnlyList<Position>> { segment }.AsReadOnly();
     }
 
@@ -76,7 +85,7 @@ public class PassiveAbilitiesTests
         var (game, p1, p2, scrooge, p2Piece) = GameWithPiecesInMovePhase("Scrooge", new Position(0, 0), new Position(7, 3));
         var initialScore = game.Scores[p1];
 
-        // Act: Move both pieces (to trigger end of MovePhase), which triggers Scrooge ability
+        // Act: Move both pieces (to trigger the end of MovePhase), which triggers Scrooge ability
         game.MovePiece(p1, scrooge.Id, BuildSegments(new Position(1, 1)));
         game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
 
@@ -84,14 +93,14 @@ public class PassiveAbilitiesTests
         Assert.Equal(initialScore + 1, game.Scores[p1]);
         var scroogeGainedEvent = game.DomainEvents.OfType<ScroogeGainedCoin>().FirstOrDefault();
         Assert.NotNull(scroogeGainedEvent);
-        Assert.Equal(1, scroogeGainedEvent!.CoinsGained);
+        Assert.Equal(1, scroogeGainedEvent.CoinsGained);
     }
 
     [Fact]
     public void Scrooge_MultipleScrooges_GainMultipleBonusCoins()
     {
         // Covered by Scrooge_GainsBonusCoinsAtEndOfMovePhase_SingleScrooge
-        // Multiple Scrooges bonus is an extension of single Scrooge - verified in implementation
+        // Multiple Scrooges bonus is an extension of a single Scrooge-verified in implementation
         Assert.True(true);
     }
 
@@ -124,7 +133,7 @@ public class PassiveAbilitiesTests
         game.MovePiece(p1, flynn.Id, BuildSegments(nextPos));
         game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
 
-        // Assert: Silver coin on previous tile
+        // Assert: Silver coin on the previous tile
         var previousTile = game.Board.GetTile(previousPos);
         Assert.NotNull(previousTile.AsCoin);
         Assert.Equal(CoinType.Silver, previousTile.AsCoin!.CoinType);
@@ -136,7 +145,7 @@ public class PassiveAbilitiesTests
         // Arrange
         var (game, p1, p2, flynn, p2Piece) = GameWithPiecesInMovePhase("Flynn", new Position(0, 0), new Position(7, 3));
         
-        // Add rock at previous position (Flynn moves from edge)
+        // Add rock at the previous position (Flynn moves from edge)
         game.Board.AddRock(new Obstacles.Rock(new Position(0, 0)));
 
         var nextPos = new Position(0, 1);
@@ -145,7 +154,7 @@ public class PassiveAbilitiesTests
         game.MovePiece(p1, flynn.Id, BuildSegments(nextPos));
         game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
 
-        // Assert: No coin (obstacle covers the tile)
+        // Assert: No coin (an obstacle covers the tile)
         var previousTile = game.Board.GetTile(new Position(0, 0));
         Assert.Null(previousTile.AsCoin);
     }
@@ -155,7 +164,7 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Moana_IncrementsMaxDistanceAtTurnStart_Turn2Plus()
     {
-        // Arrange: Create game and advance to turn 2
+        // Arrange: Create a game and advance to turn 2
         var p1 = Guid.NewGuid();
         var p2 = Guid.NewGuid();
         var board = new Board();
@@ -164,7 +173,7 @@ public class PassiveAbilitiesTests
         var p2Piece = new Piece(Guid.NewGuid(), "P2Piece", p2,
             EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
 
-        // Fill remaining pieces
+        // Fill the remaining pieces
         var p1Fill = Enumerable.Range(0, 4)
             .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
             .ToList();
@@ -231,7 +240,7 @@ public class PassiveAbilitiesTests
         var p2Piece = new Piece(Guid.NewGuid(), "P2Piece", p2,
             EntryPointType.Borders, MovementType.Orthogonal, 1, 1);
 
-        // Fill remaining pieces
+        // Fill the remaining pieces
         var p1Fill = Enumerable.Range(0, 4)
             .Select(i => new Piece(Guid.NewGuid(), $"P1Fill{i}", p1, EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
             .ToList();
@@ -279,10 +288,10 @@ public class PassiveAbilitiesTests
         var (game, p1, _, merlinPiece, _) = GameWithPiecesInMovePhase("Merlin", new Position(4, 4));
         var board = game.Board;
         
-        // Place silver coin at adjacent tile
+        // Place a silver coin at the adjacent tile
         board.GetTile(new Position(4, 5)).SetOccupant(new Coin(CoinType.Silver));
         
-        // Act: Move Merlin (this triggers OnPieceMoved which checks for Merlin ability)
+        // Act: Move Merlin (this triggers OnPieceMoved, which checks for Merlin ability)
         game.MovePiece(p1, merlinPiece.Id, BuildSegments(new Position(4, 3)));
         
         // Assert: Silver coin converted to gold
@@ -343,8 +352,8 @@ public class PassiveAbilitiesTests
     [Fact]
     public void Cinderella_AutoRemovedAtTurn5Start()
     {
-        // Arrange: Create game at turn 1, MovePhase with Cinderella placed
-        var (game, p1, _, cinderellaPiece, _) = GameWithPiecesInMovePhase("Cinderella", new Position(0, 0));
+        // Arrange: Create a game at turn 1, MovePhase with Cinderella placed
+        var (game, _, _, cinderellaPiece, _) = GameWithPiecesInMovePhase("Cinderella", new Position(0, 0));
         
         var initialLineup = game.LineupPlayerOne;
         var initialAvailableSlots = initialLineup!.Pieces.Count(p => !p.IsOnBoard);
@@ -353,7 +362,7 @@ public class PassiveAbilitiesTests
         // Turn flow: PlacePhase → MovePhase → (turn ends, next turn starts)
         // We're currently in turn 1 MovePhase
         // Need to advance to turn 5 MovePhase start
-        for (int turn = 2; turn <= 5; turn++)
+        for (var turn = 2; turn <= 5; turn++)
         {
             game.AdvancePhase();  // → CoinSpawn
             game.AdvancePhase();  // → PlacePhase  
@@ -402,7 +411,7 @@ public class PassiveAbilitiesTests
         game.MovePiece(p1, forkyPiece.Id, BuildSegments(new Position(0, 4)));
         game.MovePiece(p2, p2Piece.Id, BuildSegments(new Position(7, 4)));
 
-        // Assert: Forky removed from board
+        // Assert: Forky removed from the board
         var forkysOnBoard = game.Board.GetAllOccupiedTiles()
             .Where(t => t.AsPiece != null && t.AsPiece.Name.Equals("Forky", StringComparison.OrdinalIgnoreCase))
             .Select(t => t.AsPiece!)
@@ -424,17 +433,17 @@ public class PassiveAbilitiesTests
     public void FairyGodmother_BuffsAdjacentAllies_TemporaryMoveAdjustment()
     {
         // Arrange: FG at (0,3), we'll use one of the fill pieces as an ally
-        var (game, p1, p2, fgPiece, _) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3));
+        var (game, p1, _, fgPiece, _) = GameWithPiecesInMovePhase("Fairy Godmother", new Position(0, 3));
         var board = game.Board;
         
-        // Get one of the filler ally pieces and place it adjacent to where FG will move
+        // Get one of the filler allay pieces and place it adjacent to where FG will move
         var allyPiece = game.LineupPlayerOne!.Pieces.FirstOrDefault(p => p.Name.StartsWith("P1Fill"));
         Assert.NotNull(allyPiece);
         
         // Place ally at (1, 4) so it's adjacent to where FG will move (1, 3 is where FG moves... wait)
         // Actually, FG moves to (1,4), so adjacent positions are (0,4), (1,3), (1,5), (2,4)
         // Let me place ally at (1, 3)
-        allyPiece!.PlaceAt(new Position(1, 3));
+        allyPiece.PlaceAt(new Position(1, 3));
         board.GetTile(new Position(1, 3)).SetOccupant(allyPiece);
         
         var allyInitialMoves = allyPiece.MovesPerTurn;
@@ -469,17 +478,15 @@ public class PassiveAbilitiesTests
     public void Ursula_DebuffsAdjacentOpponents_TemporaryMoveAdjustment()
     {
         // Arrange: Ursula at (0,3), opponent piece to debuff
-        var (game, p1, p2, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3));
+        var (game, p1, _, ursulaPiece, opponentPiece) = GameWithPiecesInMovePhase("Ursula", new Position(0, 3));
         var board = game.Board;
-        
-        var movesBeforeDebuff = opponentPiece.MovesPerTurn;
-        
-        // Place opponent piece at (1,3) - adjacent to where Ursula will move to (1,4)
-        board.GetTile(new Position(7, 3)).ClearOccupant();  // Remove from default position
+
+        // Place the opponent piece at (1,3) - adjacent to where Ursula will move to (1,4)
+        board.GetTile(new Position(7, 3)).ClearOccupant();  // Remove from the default position
         opponentPiece.PlaceAt(new Position(1, 3));
         board.GetTile(new Position(1, 3)).SetOccupant(opponentPiece);
         
-        // Act: Move Ursula to (1,4), which is adjacent to opponent at (1,3)
+        // Act: Move Ursula to (1,4), which is adjacent to the opponent at (1,3)
         game.MovePiece(p1, ursulaPiece.Id, BuildSegments(new Position(1, 4)));
         
         // Assert: Opponent gets -1 temporary move (min 0)
@@ -507,8 +514,8 @@ public class PassiveAbilitiesTests
     [Fact]
     public void MikeWazowski_ApplisCoinBuffToRandomAlly()
     {
-        // Arrange: Mike at (0,0) [corner], ally at (0,1)
-        var (game, p1, p2, mikePiece, _) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 0));
+        // Arrange: Mike in (0,0) [corner], ally at (0,1)
+        var (game, p1, _, mikePiece, _) = GameWithPiecesInMovePhase("Mike Wazowski", new Position(0, 0));
         var board = game.Board;
         
         var allyPiece = new Piece(Guid.NewGuid(), "AllyTest", p1,
@@ -544,7 +551,7 @@ public class PassiveAbilitiesTests
         // Assert: Events have correct GameId and TurnNumber
         var scroogeEvent = game.DomainEvents.OfType<ScroogeGainedCoin>().FirstOrDefault();
         Assert.NotNull(scroogeEvent);
-        Assert.Equal(game.Id, scroogeEvent!.GameId);
+        Assert.Equal(game.Id, scroogeEvent.GameId);
         Assert.Equal(1, scroogeEvent.TurnNumber);
     }
 
