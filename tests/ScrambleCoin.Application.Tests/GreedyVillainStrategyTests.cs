@@ -3,6 +3,7 @@ using ScrambleCoin.Application.Services.Villains;
 using ScrambleCoin.Application.Services.Villains.Implementations;
 using ScrambleCoin.Domain.Entities;
 using ScrambleCoin.Domain.Enums;
+using ScrambleCoin.Domain.Factories;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
 
@@ -56,6 +57,49 @@ public class GreedyVillainStrategyTests
 
     private static int ManhattanDistance(Position a, Position b) =>
         Math.Abs(a.Row - b.Row) + Math.Abs(a.Col - b.Col);
+
+    /// <summary>
+    /// Builds a solo game (bot = PlayerOne, villain = PlayerTwo) where the villain owns the piece
+    /// produced by <paramref name="villainPieceFactory"/> (placed first in a 5-piece lineup padded with
+    /// orthogonal border fillers), spawns the given coins, places only that villain piece on
+    /// <paramref name="villainStart"/>, and drives the game into the villain's
+    /// <see cref="TurnPhase.MovePhase"/>. The bot places nothing, so the villain becomes the active mover.
+    /// Returns the live <see cref="Game"/>, the player ids, and the placed villain piece.
+    /// </summary>
+    private static (Game game, Guid bot, Guid villain, Piece villainPiece) NewGameInVillainMovePhase(
+        Func<Guid, Piece> villainPieceFactory,
+        Position villainStart,
+        IEnumerable<(Position Position, CoinType CoinType)> coins)
+    {
+        var bot = Guid.NewGuid();
+        var villain = Guid.NewGuid();
+        var board = new Board();
+
+        var villainPiece = villainPieceFactory(villain);
+        var fillers = Enumerable.Range(0, Lineup.RequiredPieceCount - 1)
+            .Select(i => new Piece(
+                Guid.NewGuid(), $"VillainFill{i}", villain,
+                EntryPointType.Borders, MovementType.Orthogonal, 1, 1))
+            .ToList();
+        var villainLineup = new Lineup(new[] { villainPiece }.Concat(fillers));
+
+        var game = new Game(Guid.NewGuid(), bot, villain, board)
+        {
+            GameMode = GameMode.Solo,
+            VillainId = VillainRegistry.Elsa.Id
+        };
+        game.SetLineup(bot, VillainRegistry.GetDefaultLineup(bot));
+        game.SetLineup(villain, villainLineup);
+
+        game.Start(); // → CoinSpawn, turn 1
+        game.SpawnCoins(coins);
+
+        game.AdvancePhase(); // CoinSpawn → PlacePhase
+        game.PlacePiece(villain, villainPiece.Id, villainStart);
+        game.SkipPlacement(bot); // → MovePhase (bot has 0 pieces; villain becomes the active mover)
+
+        return (game, bot, villain, villainPiece);
+    }
 
     // ── 1. Placement ──────────────────────────────────────────────────────────
 
@@ -139,9 +183,58 @@ public class GreedyVillainStrategyTests
             ManhattanDistance(destination, coin) < ManhattanDistance(start, coin),
             $"Destination {destination} (dist {ManhattanDistance(destination, coin)}) must be closer " +
             $"to coin {coin} than start {start} (dist {ManhattanDistance(start, coin)}).");
+
+        // Round-trip through the real domain engine: the produced single-segment move must be legal to
+        // apply, and the piece must actually land on the destination tile the strategy reported.
+        var applyMove = () => game.MovePiece(villain, movement.PieceId, movement.Segments);
+        var exception = Record.Exception(applyMove);
+        Assert.Null(exception);
+        Assert.Equal(destination, mickey.Position);
     }
 
-    // ── 4. Skip movement when no legal move exists ─────────────────────────────
+    // ── 3b. Multi-segment move stays domain-legal across an ice-patch slide ──────
+
+    [Fact]
+    public void DecideAction_InMovePhaseWithMultiSegmentPieceOverIcePatch_ProducesDomainLegalSlideMove()
+    {
+        // Arrange: Anna (3× Orthogonal, MovesPerTurn 3) starts in the corner at (0,0); the only coin is
+        // far to the east at (0,7). An ice patch sits at (0,1) — the very tile Anna's first step toward
+        // the coin lands on. The domain slides the piece one extra tile (→ (0,2)) after that step, so the
+        // strategy MUST start its second segment from the post-slide tile. If it instead advanced the
+        // cursor naively to (0,1), the second segment would target (0,2) — the tile the piece already
+        // occupies after the slide — and the domain would reject the multi-segment move.
+        var coin = new Position(0, 7);
+        var icePatch = new Position(0, 1);
+        var start = new Position(0, 0);
+
+        var (game, _, villain, anna) = NewGameInVillainMovePhase(
+            owner => PieceFactory.Create("Anna", owner),
+            start,
+            [(coin, CoinType.Silver)]);
+
+        game.Board.PlaceIcePatch(icePatch);
+
+        var strategy = new ElsaStrategy();
+
+        // Act
+        var action = strategy.DecideAction(game, villain);
+
+        // Assert: a multi-segment movement is produced whose first step lands on the ice patch.
+        var movement = Assert.IsType<MovementAction>(action);
+        Assert.Equal(anna.Id, movement.PieceId);
+        Assert.Equal(icePatch, movement.Segments[0][^1]);
+
+        // The whole point: applying the strategy's move to the real domain must NOT throw, proving the
+        // ice-slide simulation kept every inter-segment cursor aligned with the domain's resolution.
+        var applyMove = () => game.MovePiece(villain, movement.PieceId, movement.Segments);
+        var exception = Record.Exception(applyMove);
+        Assert.Null(exception);
+
+        // After: step 1 (0,0)→(0,1) slides to (0,2); step 2 → (0,3); step 3 → (0,4).
+        Assert.Equal(new Position(0, 4), anna.Position);
+    }
+
+
 
     [Fact]
     public void DecideAction_InMovePhaseWithFullyBlockedPiece_ReturnsSkipMovement()
