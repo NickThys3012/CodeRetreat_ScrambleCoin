@@ -60,6 +60,58 @@ dotnet ef database update \
 
 ---
 
+## 📊 Live Tournament Dashboard (Grafana)
+
+A pre-provisioned [Grafana](https://grafana.com/) dashboard reads live tournament
+stats directly from the SQL Server container. No manual import or configuration is
+required — the datasource and dashboard are provisioned from `infra/grafana/`.
+
+### 1. Create your local `.env`
+
+Docker Compose auto-loads a `.env` file from the project root for the SQL Server
+and Grafana passwords. Copy the committed example and optionally edit the passwords:
+
+```bash
+cp .env.example .env
+```
+
+> `.env` is gitignored — it stays on your machine only. The defaults keep the
+> existing dev setup working (`MSSQL_SA_PASSWORD=ScrambleCoin_Dev!2024`).
+
+### 2. Start the stack
+
+```bash
+docker compose up -d
+```
+
+This starts SQL Server **and** Grafana. Grafana waits for the SQL Server health
+check to pass before starting.
+
+### 3. Open the dashboard
+
+- Browse to <http://localhost:3000>
+- Log in as `admin` / value of `GRAFANA_ADMIN_PASSWORD` (default `admin`)
+- The dashboard appears automatically under **Dashboards → "Tournament Dashboard"**
+- It refreshes every **5 s** and shows: Active Games, Games by Status, the Bot
+  Leaderboard, and Games Completed per Minute.
+
+### 4. Validate the provisioning (optional)
+
+The Grafana provisioning artifacts (datasource, dashboard provider and the
+`tournament.json` dashboard) are checked in CI by
+[`.github/workflows/infra-validate.yml`](.github/workflows/infra-validate.yml).
+You can run the same structural validation locally:
+
+```bash
+python3 infra/grafana/validate_provisioning.py
+```
+
+It asserts the dashboard's `uid`/`refresh`, the 4 expected panels, that every
+panel's datasource `uid` matches the provisioned datasource, and that
+`docker-compose.yml` / `.env.example` keep the SA password out of source control.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Restore & Build
