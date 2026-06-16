@@ -114,6 +114,7 @@
 
     .piece-p1 { background: radial-gradient(circle at 35% 35%, #1e88e5, #0d47a1); }
     .piece-p2 { background: radial-gradient(circle at 35% 35%, #e53935, #b71c1c); }
+    .piece-villain { background: radial-gradient(circle at 35% 35%, #7e57c2, #4527a0); }
 
     .piece-name {
         font-size: 0.48rem;
@@ -188,6 +189,7 @@
     [Parameter] public bool GameEnded { get; set; }
     [Parameter] public Guid? WinnerId { get; set; }
     [Parameter] public bool IsDraw { get; set; }
+    [Parameter] public bool IsSoloMode { get; set; }
 
     private string? _previousPhase;
     private bool _showBanner;
@@ -331,12 +333,13 @@
                 @foreach (var piece in AllPlacedPieces())
                 {
                     var isP1 = IsPlayerOnePiece(piece);
+                    var pieceClass = isP1 ? "piece-p1" : IsSoloMode ? "piece-villain" : "piece-p2";
                     var top  = piece.Position!.Row * 68;
                     var left = piece.Position!.Col * 68;
                     <div class="piece-token"
                          @key="piece.PieceId"
                          style="top: @(top)px; left: @(left)px;">
-                        <div class="piece-bubble @(isP1 ? "piece-p1" : "piece-p2")">
+                        <div class="piece-bubble @pieceClass">
                             @PieceEmoji(piece.Name)
                         </div>
                         <div class="piece-name">@piece.Name</div>

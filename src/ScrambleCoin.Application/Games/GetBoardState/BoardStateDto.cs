@@ -13,6 +13,15 @@ namespace ScrambleCoin.Application.Games.GetBoardState;
 /// <param name="OpponentPieces">All pieces belonging to the opponent.</param>
 /// <param name="AvailableCoins">All coin tiles currently on the board.</param>
 /// <param name="ActivePlayer">The playerId of the player whose turn it is, or null outside MovePhase.</param>
+/// <param name="IsSoloMode">
+/// True when the game is a solo-mode game (bot vs. villain/CPU). In solo mode PlayerTwo is the villain,
+/// which spectator UIs use to render PlayerTwo's pieces in the distinct villain colour. Bot-facing callers
+/// can ignore this field.
+/// </param>
+/// <param name="VillainId">
+/// In solo mode, the slug/id of the villain controlling PlayerTwo (e.g. "elsa"); null otherwise.
+/// Useful for spectator tooltips. Bot-facing callers can ignore this field.
+/// </param>
 public sealed record BoardStateDto(
     int Turn,
     string? Phase,
@@ -22,7 +31,9 @@ public sealed record BoardStateDto(
     IReadOnlyList<PieceDto> YourPieces,
     IReadOnlyList<PieceDto> OpponentPieces,
     IReadOnlyList<CoinDto> AvailableCoins,
-    string? ActivePlayer);
+    string? ActivePlayer,
+    bool IsSoloMode = false,
+    string? VillainId = null);
 
 /// <summary>The board container: holds the flat list of all 64 tiles.</summary>
 /// <param name="Tiles">All tiles on the 8×8 board, in row-major order.</param>

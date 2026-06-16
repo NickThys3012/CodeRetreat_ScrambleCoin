@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using MediatR;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Domain.Entities;
+using ScrambleCoin.Domain.Enums;
 using ScrambleCoin.Domain.Obstacles;
 using ScrambleCoin.Domain.ValueObjects;
 
@@ -52,7 +53,9 @@ public sealed class GetSpectatorBoardStateQueryHandler : IRequestHandler<GetSpec
             YourPieces: playerOnePieces,
             OpponentPieces: playerTwoPieces,
             AvailableCoins: availableCoins,
-            ActivePlayer: activePlayer);
+            ActivePlayer: activePlayer,
+            IsSoloMode: game.GameMode == GameMode.Solo,
+            VillainId: game.GameMode == GameMode.Solo ? game.VillainId : null);
     }
 
     // ── Private mapping helpers ───────────────────────────────────────────────
