@@ -68,6 +68,24 @@ LOKI_DATASOURCE_URL = "http://loki:3100"
 PROMTAIL_PUSH_URL = "http://loki:3100/loki/api/v1/push"
 README_GAMEID_QUERY = '{job="scramblecoin-api"} |= "<GameId>"'
 
+# ---- Issue #132 (Azure Container Apps full-stack deploy) artifacts -----------
+ACA_BICEP = os.path.join(ROOT, "infra", "aca.bicep")
+ACA_PARAMS = os.path.join(ROOT, "infra", "aca.parameters.json")
+PROM_CLOUD_CONFIG = os.path.join(ROOT, "infra", "prometheus", "prometheus.cloud.yml")
+CLOUD_DATASOURCES_DIR = os.path.join(ROOT, "infra", "grafana", "provisioning-cloud", "datasources")
+CLOUD_LOKI_DS = os.path.join(CLOUD_DATASOURCES_DIR, "loki.yaml")
+CLOUD_PROM_DS = os.path.join(CLOUD_DATASOURCES_DIR, "prometheus.yaml")
+CLOUD_MSSQL_DS = os.path.join(CLOUD_DATASOURCES_DIR, "mssql.yaml")
+LOKI_DOCKERFILE = os.path.join(ROOT, "infra", "loki", "Dockerfile")
+PROM_DOCKERFILE = os.path.join(ROOT, "infra", "prometheus", "Dockerfile")
+GRAFANA_DOCKERFILE = os.path.join(ROOT, "infra", "grafana", "Dockerfile")
+WEB_DOCKERFILE = os.path.join(ROOT, "src", "ScrambleCoin.Web", "Dockerfile")
+DEPLOY_ACA_WORKFLOW = os.path.join(ROOT, ".github", "workflows", "deploy-aca.yml")
+ACA_VALIDATE_WORKFLOW = os.path.join(ROOT, ".github", "workflows", "aca-validate.yml")
+
+ACA_CONTAINER_APP_NAMES = ["loki", "prometheus", "grafana", "scramblecoin-api", "scramblecoin-web"]
+CLOUD_MSSQL_UID = "scramblecoin-mssql"
+
 _failures = []
 _checks = 0
 
@@ -456,6 +474,184 @@ def validate_issue_81():
               "paths filter includes 'infra/promtail/**'")
 
 
+def validate_issue_132():
+    """Assert the Azure Container Apps full-stack deploy artifacts (issue #132)."""
+    print("\n== Azure Container Apps deploy validation (issue #132) ==")
+
+    # ---- aca.bicep: resources + container apps --------------------------------
+    print("\ninfra/aca.bicep:")
+    bicep_text = ""
+    if check(os.path.isfile(ACA_BICEP), "aca.bicep exists"):
+        bicep_text = open(ACA_BICEP, "r", encoding="utf-8").read()
+        check("Microsoft.ContainerRegistry/registries" in bicep_text,
+              "aca.bicep declares an ACR (Microsoft.ContainerRegistry/registries)")
+        check("Microsoft.App/managedEnvironments" in bicep_text,
+              "aca.bicep declares a managed environment (Microsoft.App/managedEnvironments)")
+        check("Microsoft.App/containerApps" in bicep_text,
+              "aca.bicep declares container apps (Microsoft.App/containerApps)")
+        for app in ACA_CONTAINER_APP_NAMES:
+            check(f"name: '{app}'" in bicep_text,
+                  f"aca.bicep defines a container app named {app!r}")
+
+        # ---- Critical regression guard: port-less internal service URLs ------
+        # The review-fixed bug was internal URLs carrying the container port
+        # (ACA internal DNS resolves by app name, ingress maps the port).
+        check("'http://loki'" in bicep_text,
+              "aca.bicep uses port-less Loki URL ('http://loki')")
+        check("'http://prometheus'" in bicep_text,
+              "aca.bicep uses port-less Prometheus URL ('http://prometheus')")
+        check("http://loki:3100" not in bicep_text,
+              "aca.bicep does NOT use ported Loki URL ('http://loki:3100') [regression guard]")
+        check("http://prometheus:9090" not in bicep_text,
+              "aca.bicep does NOT use ported Prometheus URL ('http://prometheus:9090') [regression guard]")
+
+    # ---- aca.parameters.json: valid JSON --------------------------------------
+    print("\ninfra/aca.parameters.json:")
+    if check(os.path.isfile(ACA_PARAMS), "aca.parameters.json exists"):
+        try:
+            json.load(open(ACA_PARAMS, "r", encoding="utf-8"))
+            check(True, "aca.parameters.json is valid JSON")
+        except json.JSONDecodeError as exc:
+            check(False, f"aca.parameters.json is valid JSON ({exc})")
+
+    # ---- prometheus.cloud.yml: port-less api scrape target --------------------
+    print("\ninfra/prometheus/prometheus.cloud.yml:")
+    if check(os.path.isfile(PROM_CLOUD_CONFIG), "prometheus.cloud.yml exists"):
+        prom_doc = load_yaml(PROM_CLOUD_CONFIG)
+        prom_text = open(PROM_CLOUD_CONFIG, "r", encoding="utf-8").read()
+        if prom_doc is not None:
+            check(isinstance(prom_doc, dict) and "scrape_configs" in prom_doc,
+                  "prometheus.cloud.yml parses as YAML with 'scrape_configs'")
+            jobs = prom_doc.get("scrape_configs") or []
+            api_job = next((j for j in jobs if j.get("job_name") == "scramblecoin-api"), None)
+            check(api_job is not None,
+                  "prometheus.cloud.yml has a 'scramblecoin-api' scrape job")
+            if api_job is not None:
+                check(api_job.get("metrics_path") == "/metrics",
+                      f"api scrape job metrics_path is '/metrics' (got {api_job.get('metrics_path')!r})")
+                targets = []
+                for sc in (api_job.get("static_configs") or []):
+                    targets.extend(sc.get("targets") or [])
+                check("scramblecoin-api" in targets,
+                      f"api scrape target is port-less 'scramblecoin-api' (got {targets})")
+                check(not any(":" in t for t in targets),
+                      f"api scrape targets carry no port (got {targets})")
+        else:
+            check("job_name: scramblecoin-api" in prom_text,
+                  "prometheus.cloud.yml targets 'scramblecoin-api' (text check)")
+            check("metrics_path: /metrics" in prom_text,
+                  "prometheus.cloud.yml uses metrics_path /metrics (text check)")
+            check("'scramblecoin-api'" in prom_text or "scramblecoin-api']" in prom_text,
+                  "prometheus.cloud.yml scrape target present (text check)")
+
+    # ---- Cloud Grafana datasources -------------------------------------------
+    print("\ninfra/grafana/provisioning-cloud/datasources/:")
+
+    # loki.yaml
+    if check(os.path.isfile(CLOUD_LOKI_DS), "cloud loki.yaml exists"):
+        loki_text = open(CLOUD_LOKI_DS, "r", encoding="utf-8").read()
+        loki_doc = load_yaml(CLOUD_LOKI_DS)
+        if loki_doc is not None:
+            ds0 = (loki_doc.get("datasources") or [{}])[0]
+            check(ds0.get("type") == "loki",
+                  f"cloud loki datasource type is 'loki' (got {ds0.get('type')!r})")
+            check(ds0.get("url") == "${LOKI_URL}",
+                  f"cloud loki datasource url is '${{LOKI_URL}}' (got {ds0.get('url')!r})")
+        else:
+            check("type: loki" in loki_text, "cloud loki type is 'loki' (text check)")
+            check("${LOKI_URL}" in loki_text, "cloud loki url uses ${LOKI_URL} (text check)")
+
+    # prometheus.yaml
+    if check(os.path.isfile(CLOUD_PROM_DS), "cloud prometheus.yaml exists"):
+        prom_ds_text = open(CLOUD_PROM_DS, "r", encoding="utf-8").read()
+        prom_ds_doc = load_yaml(CLOUD_PROM_DS)
+        if prom_ds_doc is not None:
+            ds0 = (prom_ds_doc.get("datasources") or [{}])[0]
+            check(ds0.get("type") == "prometheus",
+                  f"cloud prometheus datasource type is 'prometheus' (got {ds0.get('type')!r})")
+            check(ds0.get("url") == "${PROMETHEUS_URL}",
+                  f"cloud prometheus datasource url is '${{PROMETHEUS_URL}}' (got {ds0.get('url')!r})")
+        else:
+            check("type: prometheus" in prom_ds_text, "cloud prometheus type is 'prometheus' (text check)")
+            check("${PROMETHEUS_URL}" in prom_ds_text, "cloud prometheus url uses ${PROMETHEUS_URL} (text check)")
+
+    # mssql.yaml
+    if check(os.path.isfile(CLOUD_MSSQL_DS), "cloud mssql.yaml exists"):
+        mssql_text = open(CLOUD_MSSQL_DS, "r", encoding="utf-8").read()
+        mssql_doc = load_yaml(CLOUD_MSSQL_DS)
+        if mssql_doc is not None:
+            ds0 = (mssql_doc.get("datasources") or [{}])[0]
+            check(ds0.get("type") == "mssql",
+                  f"cloud mssql datasource type is 'mssql' (got {ds0.get('type')!r})")
+            check(ds0.get("uid") == CLOUD_MSSQL_UID,
+                  f"cloud mssql datasource uid is {CLOUD_MSSQL_UID!r} (got {ds0.get('uid')!r})")
+            check(str(ds0.get("url", "")).startswith("${"),
+                  f"cloud mssql url is env-var-driven (got {ds0.get('url')!r})")
+            check(str(ds0.get("user", "")).startswith("${"),
+                  f"cloud mssql user is env-var-driven (got {ds0.get('user')!r})")
+            pw = ((ds0.get("secureJsonData") or {}).get("password"))
+            check(str(pw or "").startswith("${"),
+                  f"cloud mssql password is env-var-driven (got {pw!r})")
+            encrypt = ((ds0.get("jsonData") or {}).get("encrypt"))
+            check(str(encrypt) == "true",
+                  f"cloud mssql jsonData.encrypt is 'true' (got {encrypt!r})")
+        else:
+            check("type: mssql" in mssql_text, "cloud mssql type is 'mssql' (text check)")
+            check(f"uid: {CLOUD_MSSQL_UID}" in mssql_text, "cloud mssql uid (text check)")
+            check("${AZURE_SQL_HOST}" in mssql_text, "cloud mssql url uses ${AZURE_SQL_HOST} (text check)")
+            check("${AZURE_SQL_USER}" in mssql_text, "cloud mssql user uses ${AZURE_SQL_USER} (text check)")
+            check("${AZURE_SQL_PASSWORD}" in mssql_text, "cloud mssql password uses ${AZURE_SQL_PASSWORD} (text check)")
+            check("encrypt: 'true'" in mssql_text, "cloud mssql encrypt is 'true' (text check)")
+
+    # No hardcoded local hostnames in any cloud datasource.
+    cloud_ds_combined = ""
+    for p in (CLOUD_LOKI_DS, CLOUD_PROM_DS, CLOUD_MSSQL_DS):
+        if os.path.isfile(p):
+            cloud_ds_combined += open(p, "r", encoding="utf-8").read()
+    check("localhost" not in cloud_ds_combined,
+          "no hardcoded 'localhost' in cloud datasources")
+    check("scramblecoin-sqlserver" not in cloud_ds_combined,
+          "no hardcoded 'scramblecoin-sqlserver' hostname in cloud datasources")
+
+    # ---- Config-baking Dockerfiles -------------------------------------------
+    print("\nobservability + web Dockerfiles:")
+    check(os.path.isfile(LOKI_DOCKERFILE), "infra/loki/Dockerfile exists")
+    check(os.path.isfile(PROM_DOCKERFILE), "infra/prometheus/Dockerfile exists")
+    check(os.path.isfile(GRAFANA_DOCKERFILE), "infra/grafana/Dockerfile exists")
+    check(os.path.isfile(WEB_DOCKERFILE), "src/ScrambleCoin.Web/Dockerfile exists")
+
+    # ---- deploy-aca.yml workflow ---------------------------------------------
+    print("\n.github/workflows/deploy-aca.yml:")
+    if check(os.path.isfile(DEPLOY_ACA_WORKFLOW), "deploy-aca.yml exists"):
+        deploy_text = open(DEPLOY_ACA_WORKFLOW, "r", encoding="utf-8").read()
+        deploy_doc = load_yaml(DEPLOY_ACA_WORKFLOW)
+        if deploy_doc is not None:
+            # PyYAML parses the bare `on:` key as boolean True.
+            on_block = deploy_doc.get("on", deploy_doc.get(True))
+            check(isinstance(on_block, dict) and "workflow_dispatch" in on_block,
+                  "deploy-aca.yml is triggered by workflow_dispatch")
+        else:
+            check("workflow_dispatch:" in deploy_text,
+                  "deploy-aca.yml is triggered by workflow_dispatch (text check)")
+        check("az acr build" in deploy_text,
+              "deploy-aca.yml builds images via 'az acr build'")
+        check("dotnet ef database update" in deploy_text,
+              "deploy-aca.yml runs an EF Core migration step")
+
+    # ---- aca-validate.yml CI workflow ----------------------------------------
+    print("\n.github/workflows/aca-validate.yml:")
+    if check(os.path.isfile(ACA_VALIDATE_WORKFLOW), "aca-validate.yml exists"):
+        acaval_text = open(ACA_VALIDATE_WORKFLOW, "r", encoding="utf-8").read()
+        acaval_doc = load_yaml(ACA_VALIDATE_WORKFLOW)
+        check(acaval_doc is not None, "aca-validate.yml is valid YAML")
+        if acaval_doc is not None:
+            on_block = acaval_doc.get("on", acaval_doc.get(True))
+            check(isinstance(on_block, dict) and "pull_request" in on_block,
+                  "aca-validate.yml is triggered on pull_request")
+        check("az bicep build" in acaval_text,
+              "aca-validate.yml runs 'az bicep build'")
+
+
 def main():
     print("== tournament dashboard provisioning validation (issue #79) ==\n")
 
@@ -572,6 +768,9 @@ def main():
 
     # ---- Issue #81: Loki + Promtail log aggregation --------------------------
     validate_issue_81()
+
+    # ---- Issue #132: Azure Container Apps full-stack deploy ------------------
+    validate_issue_132()
 
     # ---- Summary -------------------------------------------------------------
     print("\n" + "=" * 60)

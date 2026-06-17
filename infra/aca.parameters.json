@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "scramblecoin"
+    },
+    "location": {
+      "value": "swedencentral"
+    },
+    "sqlAdminLogin": {
+      "value": "scrambleadmin"
+    },
+    "sqlAdminPassword": {
+      "value": "REPLACE_WITH_SQL_ADMIN_PASSWORD"
+    },
+    "sqlServerFqdn": {
+      "value": "sql-scramblecoin.database.windows.net"
+    },
+    "grafanaAdminPassword": {
+      "value": "REPLACE_WITH_GRAFANA_ADMIN_PASSWORD"
+    },
+    "imageTag": {
+      "value": "latest"
+    },
+    "acrName": {
+      "value": "acrscramblecoin"
+    },
+    "appInsightsConnectionString": {
+      "value": ""
+    }
+  }
+}

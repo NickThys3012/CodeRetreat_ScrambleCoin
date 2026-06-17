@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Grafana.Loki;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
@@ -35,6 +36,20 @@ builder.Host.UseSerilog((context, services, configuration) =>
         configuration.WriteTo.ApplicationInsights(
             aiConnectionString,
             TelemetryConverter.Traces);
+    }
+
+    // Grafana Loki push sink — only active in the cloud (ACA) where Loki__Url is set.
+    // Local docker compose keeps using Promtail file-tailing (Loki__Url unset).
+    var lokiUrl = Environment.GetEnvironmentVariable("Loki__Url");
+    if (!string.IsNullOrWhiteSpace(lokiUrl))
+    {
+        configuration.WriteTo.GrafanaLoki(
+            lokiUrl,
+            labels: new[]
+            {
+                new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "app", Value = "scramblecoin-api" }
+            },
+            propertiesAsLabels: new[] { "level" });
     }
 });
 
