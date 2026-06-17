@@ -1,0 +1,58 @@
+name: Infra — Validate ACA Deploy Artifacts
+
+# Statically validates the Azure Container Apps deploy artifacts (issue #132)
+# on PRs. No Azure subscription or Docker daemon is required: we only compile
+# the bicep template and build the app projects whose Loki sink wiring must
+# keep compiling. The actual deploy is the manual workflow_dispatch
+# deploy-aca.yml workflow.
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - infra/aca.bicep
+      - infra/aca.parameters.json
+      - infra/grafana/**
+      - infra/loki/**
+      - infra/prometheus/**
+      - src/ScrambleCoin.Web/Dockerfile
+      - .github/workflows/aca-validate.yml
+
+jobs:
+  validate-aca:
+    name: validate-aca
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Bicep compile (az is preinstalled on ubuntu-latest runners) ─────────
+      # Fails on bicep errors. The two known `use-secure-value-for-secure-inputs`
+      # warnings are tolerated because `az bicep build` returns exit 0 on
+      # warnings (we deliberately do NOT pass --error-on-warnings).
+      - name: Install Bicep
+        run: az bicep install
+
+      - name: Compile aca.bicep
+        run: az bicep build --file infra/aca.bicep
+
+      # ── App build: keep the conditional Loki sink wiring compiling ──────────
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build API project
+        run: dotnet build src/ScrambleCoin.Api/ScrambleCoin.Api.csproj --nologo
+
+      - name: Build Web project
+        run: dotnet build src/ScrambleCoin.Web/ScrambleCoin.Web.csproj --nologo
+
+      # ── Optional, non-blocking Dockerfile lint (hadolint not yet adopted) ───
+      - name: Lint Web Dockerfile (non-blocking)
+        continue-on-error: true
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: src/ScrambleCoin.Web/Dockerfile
