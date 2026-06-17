@@ -1,0 +1,46 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: scramblecoin-api
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: scramblecoin-api
+          __path__: /var/log/scramblecoin/api/scramblecoin-api-*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            level: Level
+            timestamp: Timestamp
+            game_id: 'Properties.GameId'
+            bot_id: 'Properties.BotId'
+      - labels:
+          level:
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+  - job_name: scramblecoin-web
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: scramblecoin-web
+          __path__: /var/log/scramblecoin/web/scramblecoin-web-*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            level: Level
+            timestamp: Timestamp
+      - labels:
+          level:
+      - timestamp:
+          source: timestamp
+          format: RFC3339

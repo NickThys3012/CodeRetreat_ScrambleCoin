@@ -8,6 +8,7 @@ using ScrambleCoin.Infrastructure.Persistence;
 using ScrambleCoin.Web.Hubs;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Grafana.Loki;
 
 // ── Serilog bootstrap logger (catches startup errors) ────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -33,9 +34,24 @@ try
             .Enrich.WithEnvironmentName()
             .WriteTo.Console()
             .WriteTo.File(
+                formatter: new Serilog.Formatting.Json.JsonFormatter(),
                 path: "logs/scramblecoin-web-.log",
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7);
+
+        // Grafana Loki push sink — only active in the cloud (ACA) where Loki__Url is set.
+        // Local docker compose keeps using Promtail file-tailing (Loki__Url unset).
+        var lokiUrl = Environment.GetEnvironmentVariable("Loki__Url");
+        if (!string.IsNullOrWhiteSpace(lokiUrl))
+        {
+            configuration.WriteTo.GrafanaLoki(
+                lokiUrl,
+                labels: new[]
+                {
+                    new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "app", Value = "scramblecoin-web" }
+                },
+                propertiesAsLabels: new[] { "level" });
+        }
     });
 
     // ── Blazor Server ─────────────────────────────────────────────────────────

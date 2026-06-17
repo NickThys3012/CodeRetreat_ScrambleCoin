@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Grafana.Loki;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Services;
@@ -23,6 +25,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .Enrich.WithEnvironmentName()
         .WriteTo.Console()
         .WriteTo.File(
+            formatter: new Serilog.Formatting.Json.JsonFormatter(),
             path: "logs/scramblecoin-api-.log",
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 7);
@@ -33,6 +36,20 @@ builder.Host.UseSerilog((context, services, configuration) =>
         configuration.WriteTo.ApplicationInsights(
             aiConnectionString,
             TelemetryConverter.Traces);
+    }
+
+    // Grafana Loki push sink — only active in the cloud (ACA) where Loki__Url is set.
+    // Local docker compose keeps using Promtail file-tailing (Loki__Url unset).
+    var lokiUrl = Environment.GetEnvironmentVariable("Loki__Url");
+    if (!string.IsNullOrWhiteSpace(lokiUrl))
+    {
+        configuration.WriteTo.GrafanaLoki(
+            lokiUrl,
+            labels: new[]
+            {
+                new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "app", Value = "scramblecoin-api" }
+            },
+            propertiesAsLabels: new[] { "level" });
     }
 });
 
@@ -68,6 +85,11 @@ builder.Services.AddScoped<IVillainAutomationService, VillainAutomationService>(
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ScrambleCoinDbContext>());
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("Queue"));
 builder.Services.AddSingleton<IQueueService, QueueService>();
+
+// ── Prometheus metrics ────────────────────────────────────────────────────────
+// Singleton: the underlying scramblecoin_moves_total counter is static/process-wide.
+builder.Services.AddSingleton<ScrambleCoin.Application.Abstractions.IMoveMetrics,
+    ScrambleCoin.Api.Observability.PrometheusMoveMetrics>();
 
 // ── EF Core (SQL Server) ──────────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -131,6 +153,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+// Collect default HTTP metrics (http_requests_received_total, http_request_duration_seconds).
+app.UseHttpMetrics();
+
 app.UseSerilogRequestLogging();
 
 // ── Swagger UI (all environments for the event) ───────────────────────────────
@@ -165,6 +191,12 @@ app.MapGameEndpoints();
 app.MapSoloModeEndpoints();
 app.MapTournamentEndpoints();
 app.MapHub<ScrambleCoin.Api.Hubs.GameHub>("/hubs/game");
+
+// Prometheus scrape endpoint (GET /metrics) — exposed in all non-Production environments.
+if (!app.Environment.IsProduction())
+{
+    app.MapMetrics();
+}
 
 app.Run();
 

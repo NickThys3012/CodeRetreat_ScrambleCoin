@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using ScrambleCoin.Application.Abstractions;
 using ScrambleCoin.Application.BotRegistration;
 using ScrambleCoin.Application.Interfaces;
 using ScrambleCoin.Application.Notifications;
@@ -28,19 +29,22 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
     private readonly IPublisher _publisher;
     private readonly IVillainAutomationService _villainAutomationService;
     private readonly ILogger<MovePieceCommandHandler> _logger;
+    private readonly IMoveMetrics _moveMetrics;
 
     public MovePieceCommandHandler(
         IGameRepository gameRepository,
         IBotRegistrationRepository botRegistrationRepository,
         IPublisher publisher,
         IVillainAutomationService villainAutomationService,
-        ILogger<MovePieceCommandHandler> logger)
+        ILogger<MovePieceCommandHandler> logger,
+        IMoveMetrics moveMetrics)
     {
         _gameRepository = gameRepository;
         _botRegistrationRepository = botRegistrationRepository;
         _publisher = publisher;
         _villainAutomationService = villainAutomationService;
         _logger = logger;
+        _moveMetrics = moveMetrics;
     }
 
     public async Task<MoveResult> Handle(MovePieceCommand request, CancellationToken cancellationToken)
@@ -77,6 +81,9 @@ public sealed class MovePieceCommandHandler : IRequestHandler<MovePieceCommand, 
         _logger.LogInformation(
             "Piece {PieceId} moved by bot {BotId} in game {GameId} on turn {Turn}.",
             request.PieceId, playerId, request.GameId, turnNumber);
+
+        // Record the successful move for Prometheus (scramblecoin_moves_total).
+        _moveMetrics.RecordMove(request.GameId, playerId);
 
         foreach (var phaseEvent in phaseAdvancedEvents)
             await _publisher.Publish(

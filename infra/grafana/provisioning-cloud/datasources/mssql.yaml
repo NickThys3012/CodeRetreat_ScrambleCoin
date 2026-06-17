@@ -1,0 +1,20 @@
+apiVersion: 1
+datasources:
+  - name: ScrambleCoin SQL Server
+    uid: scramblecoin-mssql
+    type: mssql
+    access: proxy
+    # Azure SQL FQDN + port, e.g. sql-scramblecoin.database.windows.net:1433.
+    # Grafana expands ${ENV} in provisioning files at startup.
+    url: ${AZURE_SQL_HOST}
+    user: ${AZURE_SQL_USER}
+    jsonData:
+      database: ${AZURE_SQL_DB}
+      # Azure SQL requires encrypted connections.
+      encrypt: 'true'
+      maxOpenConns: 5
+      maxIdleConns: 2
+    secureJsonData:
+      password: ${AZURE_SQL_PASSWORD}
+    isDefault: true
+    editable: false

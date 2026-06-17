@@ -60,6 +60,98 @@ dotnet ef database update \
 
 ---
 
+## 📊 Live Tournament Dashboard (Grafana)
+
+A pre-provisioned [Grafana](https://grafana.com/) dashboard reads live tournament
+stats directly from the SQL Server container. No manual import or configuration is
+required — the datasource and dashboard are provisioned from `infra/grafana/`.
+
+### 1. Create your local `.env`
+
+Docker Compose auto-loads a `.env` file from the project root for the SQL Server
+and Grafana passwords. Copy the committed example and optionally edit the passwords:
+
+```bash
+cp .env.example .env
+```
+
+> `.env` is gitignored — it stays on your machine only. The defaults keep the
+> existing dev setup working (`MSSQL_SA_PASSWORD=ScrambleCoin_Dev!2024`).
+
+### 2. Start the stack
+
+```bash
+docker compose up -d
+```
+
+This starts SQL Server **and** Grafana. Grafana waits for the SQL Server health
+check to pass before starting.
+
+### 3. Open the dashboard
+
+- Browse to <http://localhost:3000>
+- Log in as `admin` / value of `GRAFANA_ADMIN_PASSWORD` (default `admin`)
+- The dashboard appears automatically under **Dashboards → "Tournament Dashboard"**
+- It refreshes every **5 s** and shows: Active Games, Games by Status, the Bot
+  Leaderboard, and Games Completed per Minute.
+
+### 4. Validate the provisioning (optional)
+
+The Grafana provisioning artifacts (datasource, dashboard provider and the
+`tournament.json` dashboard) are checked in CI by
+[`.github/workflows/infra-validate.yml`](.github/workflows/infra-validate.yml).
+You can run the same structural validation locally:
+
+```bash
+python3 infra/grafana/validate_provisioning.py
+```
+
+It asserts the dashboard's `uid`/`refresh`, the 4 expected panels, that every
+panel's datasource `uid` matches the provisioned datasource, and that
+`docker-compose.yml` / `.env.example` keep the SA password out of source control.
+
+---
+
+## 📈 Prometheus Metrics / API Observability
+
+The `ScrambleCoin.Api` exposes a Prometheus `/metrics` endpoint
+([`prometheus-net.AspNetCore`](https://github.com/prometheus-net/prometheus-net))
+with default HTTP metrics (`http_requests_received_total`,
+`http_request_duration_seconds`) plus a custom `scramblecoin_moves_total`
+counter (labelled by `game_id` / `player_id`) that increments on every committed
+move. A `prometheus` container scrapes the API every **5 s** and Grafana renders
+an **"API Health"** dashboard.
+
+### Bring up the stack
+
+```bash
+docker compose up -d
+```
+
+In addition to SQL Server and Grafana, this now also starts:
+
+- **`scramblecoin-api`** — the API, containerized and listening on
+  <http://localhost:5001> (env `Docker`, a non-Production value, so `/metrics`
+  stays exposed).
+- **`prometheus`** — Prometheus, UI at <http://localhost:9090>.
+
+### Endpoints
+
+- **Metrics**: <http://localhost:5001/metrics> (Prometheus exposition format).
+  It is **disabled in Production** (guarded by `!IsProduction()`).
+- **Prometheus targets**: <http://localhost:9090/targets>. Two scrape targets are
+  configured in [`infra/prometheus.yml`](infra/prometheus.yml):
+  `scramblecoin-api:5001` (the container, `source=container`) and
+  `host.docker.internal:5001` (a host fallback for `dotnet run`,
+  `source=host`). Whichever API instance is running shows **UP**; the other shows
+  **DOWN** — that is expected.
+- **Grafana**: the **"API Health"** dashboard appears automatically under
+  **Dashboards** alongside the Tournament dashboard. Panels: HTTP requests/sec by
+  endpoint, move-submission latency (p50/p95/p99), error rate (4xx+5xx), and moves
+  per second.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Restore & Build

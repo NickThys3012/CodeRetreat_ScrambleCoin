@@ -1,0 +1,39 @@
+name: Infra — Validate Grafana Provisioning
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - docker-compose.yml
+      - .env.example
+      - infra/grafana/**
+      - infra/prometheus.yml
+      - infra/promtail/**
+      - .github/workflows/infra-validate.yml
+
+jobs:
+  validate:
+    name: validate-grafana-provisioning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Validate Grafana provisioning artifacts (issue #79 invariants)
+        run: python3 infra/grafana/validate_provisioning.py
+
+      - name: Validate docker-compose.yml resolves
+        run: |
+          cp .env.example .env
+          docker compose config -q
+          rm -f .env
