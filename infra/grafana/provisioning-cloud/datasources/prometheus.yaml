@@ -6,6 +6,6 @@ datasources:
     uid: scramblecoin-prometheus
     # Grafana expands ${ENV} in provisioning files at startup. Defaults to the
     # ACA internal hostname; overridable via the PROMETHEUS_URL env.
-    url: ${PROMETHEUS_URL:-http://prometheus:9090}
+    url: ${PROMETHEUS_URL}
     isDefault: false
     editable: false

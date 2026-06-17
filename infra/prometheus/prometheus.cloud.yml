@@ -9,5 +9,5 @@ scrape_configs:
       # ACA internal service-to-service DNS resolves Container Apps by name.
       # The API Container App is named "scramblecoin-api" and exposes its
       # Prometheus metrics on its targetPort 5001.
-      - targets: ['scramblecoin-api:5001']
+      - targets: ['scramblecoin-api']
         labels: { source: 'aca' }

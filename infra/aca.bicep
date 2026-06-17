@@ -226,11 +226,11 @@ resource grafana 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'LOKI_URL'
-              value: 'http://loki:3100'
+              value: 'http://loki'
             }
             {
               name: 'PROMETHEUS_URL'
-              value: 'http://prometheus:9090'
+              value: 'http://prometheus'
             }
             {
               name: 'AZURE_SQL_HOST'
@@ -312,7 +312,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'Loki__Url'
-              value: 'http://loki:3100'
+              value: 'http://loki'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -377,7 +377,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'Loki__Url'
-              value: 'http://loki:3100'
+              value: 'http://loki'
             }
           ]
         }
