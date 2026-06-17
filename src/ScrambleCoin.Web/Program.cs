@@ -33,6 +33,7 @@ try
             .Enrich.WithEnvironmentName()
             .WriteTo.Console()
             .WriteTo.File(
+                formatter: new Serilog.Formatting.Json.JsonFormatter(),
                 path: "logs/scramblecoin-web-.log",
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7);

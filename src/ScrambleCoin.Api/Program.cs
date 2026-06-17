@@ -24,6 +24,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .Enrich.WithEnvironmentName()
         .WriteTo.Console()
         .WriteTo.File(
+            formatter: new Serilog.Formatting.Json.JsonFormatter(),
             path: "logs/scramblecoin-api-.log",
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 7);

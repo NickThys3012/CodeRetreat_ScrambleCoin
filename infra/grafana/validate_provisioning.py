@@ -56,6 +56,18 @@ EXPECTED_PANEL_TITLES = [
 ]
 PLAINTEXT_SA_PASSWORD = "ScrambleCoin_Dev!2024"
 
+# ---- Issue #81 (Loki + Promtail log aggregation) artifacts -------------------
+LOKI_DATASOURCE = os.path.join(ROOT, "infra", "grafana", "provisioning", "datasources", "loki.yaml")
+LOGS_DASHBOARD = os.path.join(ROOT, "infra", "grafana", "provisioning", "dashboards", "logs.json")
+PROMTAIL_CONFIG = os.path.join(ROOT, "infra", "promtail", "config.yml")
+INFRA_README = os.path.join(ROOT, "infra", "README.md")
+CI_WORKFLOW = os.path.join(ROOT, ".github", "workflows", "infra-validate.yml")
+
+LOKI_DATASOURCE_UID = "scramblecoin-loki"
+LOKI_DATASOURCE_URL = "http://loki:3100"
+PROMTAIL_PUSH_URL = "http://loki:3100/loki/api/v1/push"
+README_GAMEID_QUERY = '{job="scramblecoin-api"} |= "<GameId>"'
+
 _failures = []
 _checks = 0
 
@@ -223,6 +235,227 @@ def validate_issue_80():
               "declares a 'scramblecoin-api' service (text check)")
 
 
+def validate_issue_81():
+    """Assert the Loki + Promtail log-aggregation artifacts (issue #81)."""
+    print("\n== Loki + Promtail log aggregation validation (issue #81) ==")
+
+    # ---- Loki datasource ----------------------------------------------------
+    print("\ndatasources/loki.yaml:")
+    loki_ds_uid = None
+    loki_ds0 = None
+    if check(os.path.isfile(LOKI_DATASOURCE), "loki.yaml exists"):
+        ds_doc = load_yaml(LOKI_DATASOURCE)
+        if ds_doc is not None:
+            check(isinstance(ds_doc, dict) and "datasources" in ds_doc,
+                  "loki.yaml parses as YAML with a 'datasources' list")
+            try:
+                loki_ds0 = ds_doc["datasources"][0]
+                loki_ds_uid = loki_ds0.get("uid")
+                check(loki_ds0.get("type") == "loki",
+                      f"datasource type is 'loki' (got {loki_ds0.get('type')!r})")
+                check(loki_ds0.get("url") == LOKI_DATASOURCE_URL,
+                      f"datasource url is {LOKI_DATASOURCE_URL!r} (got {loki_ds0.get('url')!r})")
+            except (KeyError, IndexError, TypeError):
+                loki_ds_uid = None
+        else:
+            loki_ds_uid = datasource_uid_via_regex(LOKI_DATASOURCE)
+            check(loki_ds_uid is not None, "loki.yaml uid readable (regex fallback)")
+            loki_text = open(LOKI_DATASOURCE, "r", encoding="utf-8").read()
+            check("type: loki" in loki_text, "datasource type is 'loki' (text check)")
+            check(LOKI_DATASOURCE_URL in loki_text,
+                  f"datasource url is {LOKI_DATASOURCE_URL!r} (text check)")
+    check(loki_ds_uid == LOKI_DATASOURCE_UID,
+          f"datasource uid is {LOKI_DATASOURCE_UID!r} (got {loki_ds_uid!r})")
+
+    # ---- logs.json dashboard ------------------------------------------------
+    print("\ndashboards/logs.json:")
+    dash = None
+    if check(os.path.isfile(LOGS_DASHBOARD), "logs.json exists"):
+        try:
+            dash = json.load(open(LOGS_DASHBOARD, "r", encoding="utf-8"))
+            check(True, "logs.json is valid JSON")
+        except json.JSONDecodeError as exc:
+            check(False, f"logs.json is valid JSON ({exc})")
+
+    if dash is not None:
+        check(bool(dash.get("uid")),
+              f"dashboard has a fixed top-level uid (got {dash.get('uid')!r})")
+
+        panels = dash.get("panels", []) or []
+        check(len(panels) >= 2,
+              f"dashboard has at least 2 panels (got {len(panels)})")
+
+        panel_types = [p.get("type") for p in panels]
+        check("logs" in panel_types,
+              f"dashboard has a 'logs'-type panel (got types {panel_types})")
+        check(any(t in ("barchart", "timeseries") for t in panel_types),
+              f"dashboard has a bar/timeseries volume panel (got types {panel_types})")
+
+        # Every panel/target datasource uid must equal the Loki datasource uid
+        # (a uid mismatch yields a blank panel).
+        uids = _all_datasource_uids(dash)
+        check(len(uids) > 0, "logs.json declares datasource references")
+        mismatches = [u for u in uids if u != LOKI_DATASOURCE_UID]
+        check(not mismatches,
+              f"all datasource uids match {LOKI_DATASOURCE_UID!r} "
+              f"({'OK' if not mismatches else 'mismatches: ' + repr(mismatches)})")
+
+        # Templating: a 'job' variable and a free-text 'search' variable.
+        tmpl = ((dash.get("templating") or {}).get("list")) or []
+        tmpl_names = [v.get("name") for v in tmpl]
+        check("job" in tmpl_names,
+              f"templating contains a 'job' variable (got {tmpl_names})")
+        search_var = next((v for v in tmpl if v.get("name") == "search"), None)
+        check(search_var is not None,
+              f"templating contains a 'search' variable (got {tmpl_names})")
+        if search_var is not None:
+            check(search_var.get("type") == "textbox",
+                  f"'search' variable is free-text (type 'textbox', got {search_var.get('type')!r})")
+
+    # ---- promtail config ----------------------------------------------------
+    print("\ninfra/promtail/config.yml:")
+    pt_doc = None
+    pt_text = ""
+    if check(os.path.isfile(PROMTAIL_CONFIG), "promtail config.yml exists"):
+        pt_text = open(PROMTAIL_CONFIG, "r", encoding="utf-8").read()
+        pt_doc = load_yaml(PROMTAIL_CONFIG)
+    if pt_doc is not None:
+        clients = pt_doc.get("clients") or []
+        client_url = clients[0].get("url") if clients else None
+        check(client_url == PROMTAIL_PUSH_URL,
+              f"clients[0].url is {PROMTAIL_PUSH_URL!r} (got {client_url!r})")
+
+        scrape_configs = pt_doc.get("scrape_configs") or []
+        check(len(scrape_configs) == 2,
+              f"exactly two scrape_configs (got {len(scrape_configs)})")
+
+        # Index scrape configs by job label.
+        jobs = {}
+        for sc in scrape_configs:
+            for static in (sc.get("static_configs") or []):
+                labels = static.get("labels") or {}
+                job = labels.get("job")
+                if job:
+                    jobs[job] = (sc, labels)
+        check("scramblecoin-api" in jobs,
+              f"has a scrape job labelled 'scramblecoin-api' (got {sorted(jobs)})")
+        check("scramblecoin-web" in jobs,
+              f"has a scrape job labelled 'scramblecoin-web' (got {sorted(jobs)})")
+
+        expected_paths = {
+            "scramblecoin-api": "scramblecoin-api-*.log",
+            "scramblecoin-web": "scramblecoin-web-*.log",
+        }
+        for job, suffix in expected_paths.items():
+            if job in jobs:
+                sc, labels = jobs[job]
+                path = labels.get("__path__", "")
+                check(path.endswith(suffix),
+                      f"{job} __path__ ends with {suffix!r} (got {path!r})")
+
+                stages = sc.get("pipeline_stages") or []
+                stage_keys = [k for st in stages if isinstance(st, dict) for k in st.keys()]
+                check("json" in stage_keys,
+                      f"{job} has a 'json' pipeline stage (got {stage_keys})")
+
+                labels_stage = next((st.get("labels") for st in stages
+                                     if isinstance(st, dict) and "labels" in st), None) or {}
+                check("level" in labels_stage,
+                      f"{job} labels stage promotes 'level' (got {list(labels_stage)})")
+                # High-cardinality fields must NOT be promoted to labels.
+                check("game_id" not in labels_stage and "GameId" not in labels_stage,
+                      f"{job} labels stage does NOT promote high-cardinality game_id "
+                      f"(got {list(labels_stage)})")
+    else:
+        # PyYAML unavailable — fall back to textual checks.
+        check(PROMTAIL_PUSH_URL in pt_text,
+              f"clients url contains {PROMTAIL_PUSH_URL!r} (text check)")
+        check("job: scramblecoin-api" in pt_text,
+              "has a scrape job labelled 'scramblecoin-api' (text check)")
+        check("job: scramblecoin-web" in pt_text,
+              "has a scrape job labelled 'scramblecoin-web' (text check)")
+        check("scramblecoin-api-*.log" in pt_text,
+              "api __path__ ends with 'scramblecoin-api-*.log' (text check)")
+        check("scramblecoin-web-*.log" in pt_text,
+              "web __path__ ends with 'scramblecoin-web-*.log' (text check)")
+
+    # ---- docker-compose.yml: loki + promtail services -----------------------
+    print("\ndocker-compose.yml (issue #81 services):")
+    if os.path.isfile(COMPOSE):
+        compose_text = open(COMPOSE, "r", encoding="utf-8").read()
+        compose_doc = load_yaml(COMPOSE)
+    else:
+        compose_text, compose_doc = "", None
+    if compose_doc is not None:
+        services = (compose_doc.get("services") or {})
+        volumes = (compose_doc.get("volumes") or {})
+
+        check("loki" in services, "declares a 'loki' service")
+        loki_svc = services.get("loki") or {}
+        check("grafana/loki" in str(loki_svc.get("image", "")),
+              f"loki service uses 'grafana/loki' image (got {loki_svc.get('image')!r})")
+
+        check("promtail" in services, "declares a 'promtail' service")
+        promtail_svc = services.get("promtail") or {}
+        check("grafana/promtail" in str(promtail_svc.get("image", "")),
+              f"promtail service uses 'grafana/promtail' image (got {promtail_svc.get('image')!r})")
+
+        check("api-logs" in volumes, "declares the top-level 'api-logs' volume")
+
+        # scramblecoin-api mounts the api-logs volume at /app/logs
+        api_svc = services.get("scramblecoin-api") or {}
+        api_mounts = [str(m) for m in (api_svc.get("volumes") or [])]
+        check(any("api-logs:/app/logs" in m for m in api_mounts),
+              f"scramblecoin-api mounts 'api-logs:/app/logs' (got {api_mounts})")
+
+        # promtail mounts: same api-logs volume (read-only), web bind, and config
+        pt_mounts = [str(m) for m in (promtail_svc.get("volumes") or [])]
+        check(any(m.startswith("api-logs:") and m.endswith(":ro") for m in pt_mounts),
+              f"promtail mounts the 'api-logs' volume read-only (got {pt_mounts})")
+        check(any("./src/ScrambleCoin.Web/logs" in m for m in pt_mounts),
+              f"promtail binds './src/ScrambleCoin.Web/logs' (got {pt_mounts})")
+        check(any("infra/promtail/config.yml" in m for m in pt_mounts),
+              f"promtail mounts its config file (got {pt_mounts})")
+
+        # depends_on relationships
+        def _depends(svc):
+            dep = svc.get("depends_on")
+            if isinstance(dep, dict):
+                return list(dep.keys())
+            if isinstance(dep, list):
+                return dep
+            return []
+        check("loki" in _depends(promtail_svc),
+              f"promtail depends_on 'loki' (got {_depends(promtail_svc)})")
+        grafana_svc = services.get("grafana") or {}
+        check("loki" in _depends(grafana_svc),
+              f"grafana depends_on includes 'loki' (got {_depends(grafana_svc)})")
+    else:
+        check(re.search(r"^\s{2}loki:", compose_text, re.MULTILINE) is not None,
+              "declares a 'loki' service (text check)")
+        check("grafana/loki" in compose_text,
+              "loki service uses 'grafana/loki' image (text check)")
+        check(re.search(r"^\s{2}promtail:", compose_text, re.MULTILINE) is not None,
+              "declares a 'promtail' service (text check)")
+        check("grafana/promtail" in compose_text,
+              "promtail service uses 'grafana/promtail' image (text check)")
+        check("api-logs" in compose_text, "declares the 'api-logs' volume (text check)")
+
+    # ---- infra/README.md documents the GameId LogQL query -------------------
+    print("\ninfra/README.md:")
+    if check(os.path.isfile(INFRA_README), "infra/README.md exists"):
+        readme_text = open(INFRA_README, "r", encoding="utf-8").read()
+        check(README_GAMEID_QUERY in readme_text,
+              f"documents the GameId LogQL query {README_GAMEID_QUERY!r}")
+
+    # ---- CI workflow includes infra/promtail in its paths filter ------------
+    print("\n.github/workflows/infra-validate.yml:")
+    if check(os.path.isfile(CI_WORKFLOW), "infra-validate.yml exists"):
+        ci_text = open(CI_WORKFLOW, "r", encoding="utf-8").read()
+        check("infra/promtail/**" in ci_text,
+              "paths filter includes 'infra/promtail/**'")
+
+
 def main():
     print("== tournament dashboard provisioning validation (issue #79) ==\n")
 
@@ -336,6 +569,9 @@ def main():
 
     # ---- Issue #80: Prometheus API observability -----------------------------
     validate_issue_80()
+
+    # ---- Issue #81: Loki + Promtail log aggregation --------------------------
+    validate_issue_81()
 
     # ---- Summary -------------------------------------------------------------
     print("\n" + "=" * 60)
