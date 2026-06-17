@@ -1,0 +1,119 @@
+name: Deploy to Azure Container Apps
+
+# Manual-only deploy so it never conflicts with the App Service
+# release-and-deploy.yml workflow (which runs on push to main).
+on:
+  workflow_dispatch:
+    inputs:
+      resourceGroup:
+        description: 'Azure resource group (must already contain the Azure SQL from main.bicep)'
+        required: true
+        default: 'rg-scramblecoin'
+      acrName:
+        description: 'Azure Container Registry name (globally unique, alphanumeric, 5-50 chars)'
+        required: true
+        default: 'acrscramblecoin'
+      location:
+        description: 'Azure region'
+        required: true
+        default: 'swedencentral'
+      sqlServerFqdn:
+        description: 'Azure SQL Server FQDN (from main.bicep output sqlServerFqdn)'
+        required: true
+        default: 'sql-scramblecoin.database.windows.net'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-aca:
+    name: deploy-aca
+    runs-on: ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: true
+      RESOURCE_GROUP: ${{ github.event.inputs.resourceGroup }}
+      ACR_NAME: ${{ github.event.inputs.acrName }}
+      LOCATION: ${{ github.event.inputs.location }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Azure login ────────────────────────────────────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── 3. Ensure the ACR exists (idempotent) before pushing images ───────────
+      - name: Ensure ACR exists
+        run: |
+          az acr create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$ACR_NAME" \
+            --sku Basic \
+            --admin-enabled true \
+            --location "$LOCATION" \
+            --only-show-errors \
+            --output none || \
+          az acr update --name "$ACR_NAME" --admin-enabled true --only-show-errors --output none
+
+      # ── 4. Build + push all images server-side (no local Docker needed) ───────
+      - name: Build API image
+        run: az acr build --registry "$ACR_NAME" --image "scramblecoin-api:$IMAGE_TAG" --file src/ScrambleCoin.Api/Dockerfile .
+
+      - name: Build Web image
+        run: az acr build --registry "$ACR_NAME" --image "scramblecoin-web:$IMAGE_TAG" --file src/ScrambleCoin.Web/Dockerfile .
+
+      - name: Build Loki image
+        run: az acr build --registry "$ACR_NAME" --image "loki:$IMAGE_TAG" --file infra/loki/Dockerfile infra/loki
+
+      - name: Build Prometheus image
+        run: az acr build --registry "$ACR_NAME" --image "prometheus:$IMAGE_TAG" --file infra/prometheus/Dockerfile infra/prometheus
+
+      - name: Build Grafana image
+        run: az acr build --registry "$ACR_NAME" --image "grafana:$IMAGE_TAG" --file infra/grafana/Dockerfile infra/grafana
+
+      # ── 5. Deploy the ACA stack ───────────────────────────────────────────────
+      - name: Deploy aca.bicep
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/aca.bicep \
+            --parameters infra/aca.parameters.json \
+            --parameters \
+              acrName="$ACR_NAME" \
+              location="$LOCATION" \
+              imageTag="$IMAGE_TAG" \
+              sqlServerFqdn="${{ github.event.inputs.sqlServerFqdn }}" \
+              sqlAdminPassword="${{ secrets.SQL_ADMIN_PASSWORD }}" \
+              grafanaAdminPassword="${{ secrets.GRAFANA_ADMIN_PASSWORD }}" \
+            --output json > deployment.json
+
+      # ── 6. EF Core migrations against Azure SQL ───────────────────────────────
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install EF Core CLI tools
+        run: dotnet tool install --global dotnet-ef --version 9.*
+
+      - name: Run EF Core migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: >
+          dotnet ef database update
+          --project src/ScrambleCoin.Infrastructure
+          --startup-project src/ScrambleCoin.Api
+
+      # ── 7. Echo the resulting URLs ────────────────────────────────────────────
+      - name: Show deployment URLs
+        run: |
+          echo "ACR login server : $(jq -r '.properties.outputs.acrLoginServer.value' deployment.json)"
+          echo "Web URL          : $(jq -r '.properties.outputs.webUrl.value' deployment.json)"
+          echo "API URL          : $(jq -r '.properties.outputs.apiUrl.value' deployment.json)"
+          echo "Grafana URL      : $(jq -r '.properties.outputs.grafanaUrl.value' deployment.json)"

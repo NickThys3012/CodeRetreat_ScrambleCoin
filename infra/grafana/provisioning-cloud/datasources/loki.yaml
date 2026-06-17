@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - name: ScrambleCoin Loki
+    type: loki
+    access: proxy
+    uid: scramblecoin-loki
+    # Grafana expands ${ENV} in provisioning files at startup. Defaults to the
+    # ACA internal hostname; overridable via the LOKI_URL env on the container.
+    url: ${LOKI_URL:-http://loki:3100}
+    isDefault: false
+    editable: false
